@@ -12,7 +12,7 @@
 | Components | SAA — System Analysis Agent; QAA — Quality Assurance Agent; shared Sys2QA platform and SAA→QAA contract |
 | Document type | Authoritative unified Product Requirements Document |
 | Document status | **Draft for maintainer review.** Not yet approved. Nothing described here is implemented or tested. |
-| Version | 1.0.0-draft.1 |
+| Version | 1.0.0-draft.2 |
 | Last updated | 2026-10-21 |
 | Supersedes (after approval) | `SAA_PRD.md` (SAA PRD, Draft v1.0, 2026-10-21) and `QAA-PRD-SAA-QAA-collaboration.md` (QAA PRD, v0.2, 2026-10-21) |
 | Primary audience | Maintainers, contributors, agent/tooling developers, QA engineers, security reviewers |
@@ -25,6 +25,7 @@
 | SAA PRD v1.0 (draft) | 2026-10-21 | Maintainer | Source document: SAA product and architecture baseline |
 | QAA PRD v0.2 | 2026-10-21 | Maintainer | Source document: QAA product requirements with SAA integration (§26) |
 | 1.0.0-draft.1 | 2026-10-21 | Consolidation | Merged both source PRDs into one product specification; defined versioned SAA→QAA contract; added reconciliation log, open decisions and traceability matrix |
+| 1.0.0-draft.2 | 2026-10-21 | Maintainer review revision | Evidence-adaptive product: starting modes A–D (repository, URL, both, package); automatic workflow discovery and catalog (no workflow names required); evidence-source-neutral model and contract; shared runtime observation service; QA objectives; environment-optional QA; not a DevOps agent; outcome-sliced roadmap |
 
 ### 1.2 Source documents and preservation
 
@@ -35,6 +36,7 @@ The two source PRDs remain in the repository unchanged for historical traceabili
 | `SAA §n` / `SAA-FR-nnn` | `SAA_PRD.md` section *n* / functional requirement |
 | `QAA §n` / `FR-nnn` (original) → `QAA-FR-nnn` (unified) | `QAA-PRD-SAA-QAA-collaboration.md` section *n* / functional requirement |
 | `MD-n` | Maintainer direction stated in project discussion on 2026-10-21, not yet written into a source PRD (see §3.3) |
+| `MR §n` / `MR-REQ-n` | Maintainer product review of draft.1 (2026-10-21): section *n* / proposed requirement REQ-*n* of that review |
 
 ### 1.3 How to read requirement status
 
@@ -55,30 +57,71 @@ Priorities: **P0** = required for the first usable MVP; **P1** = next release af
 
 ## 2. Executive summary
 
-Sys2QA is an open-source, local-first platform that turns a software repository the user is authorized to work on into **evidence-backed system documentation**, and turns that documentation into **reviewed, traceable quality assurance**: test plans, test scenarios, guided manual testing, constrained automated testing, defects and QA reports.
+Sys2QA is an open-source, local-first platform for understanding and testing software that the developer did not write or does not fully understand. **The developer starts with the evidence they have; Sys2QA discovers what that evidence can establish** (MD-4). The developer does not need to know the system's architecture, workflow names or business rules beforehand (MD-5). They also do not need to deploy, provision or administer the application to get value (MD-6).
 
-The platform consists of two collaborating agents on one shared foundation:
+Sys2QA supports four starting conditions (SYS-001). They are one product and one pipeline with different **evidence profiles**, not separate products.
 
-- **SAA — System Analysis Agent** inventories a repository, identifies application boundaries, extracts structure, routes, roles, business rules, workflows, state transitions, API and data contracts, and integrations, and records what is source-verified, inferred, contradicted or unknown. It publishes a versioned **Documentation Package**: human-readable Markdown plus a machine-readable system model and evidence index.
-- **QAA — Quality Assurance Agent** imports that package, checks whether it is fit for QA (**readiness**), verifies relevant claims against the authorized running application and, where configured, the same source revision, applies established test-design techniques, generates scenarios with explicit expected results, waits for **human approval**, and supports **manual** and **automated** execution from the same approved scenario versions, producing evidence-backed results and reports.
+| Starting mode | Developer has | Sys2QA produces | What this evidence cannot establish |
+|---|---|---|---|
+| **A — Repository** | A local source directory | Source-reconstructed system model, discovered workflow catalog, documentation, scenarios, manual test packs | Behavior of any specific running environment |
+| **B — URL** | An authorized development or staging URL | Observed-behavior model: reachable pages, forms, navigation, visible validation and states, candidate workflows, characterization and exploratory scenarios | Backend internals, data model, unreachable or unlinked routes, background jobs, complete authorization logic, intended business requirements |
+| **C — Repository + URL** | Both | Combined model with per-claim provenance, plus discrepancies between source and observed behavior | That source and environment are the same revision or configuration, unless confirmed |
+| **D — Documentation Package** | A compatible package from any mode; no repository or environment required | Readiness assessment, scenarios, manual test preparation | That the package is current or complete |
 
-The agents are **loosely coupled through a versioned contract** (§13), so each can be developed, tested and released independently. QAA never relies on SAA's chat history; SAA never assumes QA execution responsibilities.
+Two collaborating agents share one foundation:
 
-The core end-to-end flow is:
+- **SAA — System Analysis Agent** owns system knowledge, whatever evidence it comes from.
+  - It inventories the available evidence and finds application boundaries and entry points.
+  - It **discovers workflows automatically**; the user never names them first.
+  - Where evidence permits, it reconstructs rules, states, permissions, contracts and integrations.
+  - It records what is source-verified, runtime-observed, inferred, contradicted or unknown, including where tracing stops and why.
+  - It publishes a versioned **Documentation Package** whose evidence profile states whether source analysis and runtime observation were available.
+- **QAA — Quality Assurance Agent** owns quality.
+  - It imports a package of any evidence profile and assesses readiness for each QA activity.
+  - It derives test conditions and risks.
+  - It generates scenarios whose expected results declare their basis and **QA objective**: characterization, implementation conformance, requirement conformance or exploratory.
+  - It obtains human approval, then supports **manual** and **automated** execution, producing evidence-backed results and reports.
+  - Manual testing never depends on automation infrastructure.
+
+The agents are loosely coupled through a versioned contract (§13). Browser observation is a shared, scope-enforced platform service. SAA uses it for discovery, and QAA uses it for targeted verification and execution.
 
 ```text
-Software repository (authorized, local) + target application (authorized dev/staging)
-  → SAA analysis (read-only, static-first)
-  → Structured system documentation (Documentation Package: Markdown + system model + evidence index)
-  → Documentation validation and readiness checks (QAA)
-  → QAA QA analysis (test basis, risks, test conditions)
-  → Test scenario generation (techniques, expected results, traceability)
-  → Human review and approval (version-bound)
-  → Manual testing and/or automated testing (separate, first-class workflows)
-  → Results, evidence, defects and QA reports (localized, traceable, reproducible)
+       Local repository          Authorized URL            Existing package
+              |                        |                          |
+      SAA source analysis     SAA runtime discovery               |
+      (static, L0–L1)         (observation, L2)                   |
+              |                        |                          |
+              +-----------+------------+                          |
+                          v                                       |
+        Unified system knowledge (SKB): evidence, provenance,     |
+        scope examined, coverage gaps, contradictions             |
+                          |                                       |
+        Workflow catalog (discovered, never named by the user)    |
+                          |                                       |
+              Documentation Package (versioned) <-----------------+
+                          |
+              QAA readiness assessment (per QA activity)
+                          |
+            Test conditions, risks and QA objectives
+                          |
+                   Scenario generation
+                          |
+                Human review and approval
+                          |
+            +-------------+--------------+
+            v                            v
+      Manual testing              Automated testing
+      (no extra infrastructure)   (approved, constrained, needs a reachable environment)
+            +-------------+--------------+
+                          v
+           Results, evidence, defects and QA reports
 ```
 
-Product principle shared by both agents: **describe and test the system as evidenced, never as a model guesses it probably works.**
+**Central product principle** (MD-4 … MD-6, maintainer review 2026-10-21):
+
+> **Start with what the developer has. Discover what the evidence can establish. Reconstruct what can be understood. Test what can be justified. Make every limitation visible.**
+
+Both agents share one more principle: **describe and test the system as evidenced, never as a model guesses it probably works.**
 
 ---
 
@@ -88,9 +131,11 @@ Product principle shared by both agents: **describe and test the system as evide
 
 Make disciplined system understanding and software testing accessible to teams that own a working application but lack current documentation, time, or specialist QA capacity — without hiding uncertainty or removing human control.
 
-**Product promise.** Point Sys2QA at your repository and your authorized development environment. SAA explains how the system is evidenced to work and what it could not prove. QAA explains what it believes should be tested and why, lets a person review and approve the plan, then supports guided manual testing or validated automated execution with traceable evidence.
+**Product promise.** Point Sys2QA at whatever you have — a repository, an authorized development URL, both, or an existing package. You do not need to know how the system works, and you do not need to deploy anything. SAA explains how the system is evidenced to work and what it could not prove. QAA explains what it believes should be tested and why, lets a person review and approve the plan, then supports guided manual testing or validated automated execution with traceable evidence.
 
 **Mission:** Discover → Reconstruct → Verify → Document → Assess readiness → Design tests → Approve → Execute → Report → Refresh.
+
+**Central principle:** *Start with what the developer has. Discover what the evidence can establish. Reconstruct what can be understood. Test what can be justified. Make every limitation visible.*
 
 ### 3.2 Product principles
 
@@ -99,7 +144,7 @@ These principles bind both agents and the shared platform. Source: SAA §2.4, QA
 1. **Evidence before explanation and before confidence.** Every substantive claim, and every meaningful expected result, references evidence or is explicitly labeled as inferred, unresolved or human-asserted.
 2. **Unknowns are first-class output.** Missing links are recorded as gaps, never filled with a plausible story. QAA must not fabricate model entities to make a package look complete.
 3. **Separate facts, interpretations and intent.** Implementation behavior (source code), observed behavior (runtime), inferred behavior, and confirmed requirements are distinct categories throughout the product.
-4. **Static-first, execution by consent.** Reading files is the default. Running repository code, installing dependencies or starting applications is a separate, explicitly approved permission level.
+4. **Static-first, execution by consent.** Reading files, and observing an authorized URL without submitting data, are the defaults. Running repository code, installing dependencies or starting applications is a separate, explicitly approved permission level.
 5. **Human approval before execution.** Generated scenarios do not run until a person approves the exact scenario version for a specific baseline, environment and scope.
 6. **Deterministic execution.** AI proposes and interprets; a constrained executor performs only validated, schema-supported actions and assertions.
 7. **Manual and automated testing are both first-class.** Manual testing is a guided human workflow, never an AI browser run relabeled as manual.
@@ -110,6 +155,10 @@ These principles bind both agents and the shared platform. Source: SAA §2.4, QA
 12. **Local-first, provider-neutral, open.** No hosted service or specific LLM provider is required to run the core workflow. Source code and credentials are not sent to external services by default.
 13. **No silent mutation.** Default operation never modifies the target repository, global developer-agent configuration, or the target application's data.
 14. **Language-inclusive without breaking semantics.** Users choose the natural language of generated artefacts; identifiers, code, routes, selectors and machine data are never translated.
+15. **Evidence-adaptive, not prerequisite-driven (MD-4).** Sys2QA starts from whatever evidence the developer has (source, URL, both, or a package) and never blocks a user for evidence they do not possess. Depth and certainty vary with the evidence, and the product says so.
+16. **Discover, do not ask (MD-5).** The user is never required to know or name workflows, architecture or business rules before analysis. Selecting a discovered workflow is a follow-up, not a prerequisite.
+17. **Not a DevOps agent (MD-6).** Sys2QA analyzes software and helps establish its quality. It never requires the user to deploy, provision, configure infrastructure or build a test environment, and never does so itself.
+18. **Completeness is reported, never assumed.** A finished run states what was examined, what was found, where tracing stopped, and which evidence would improve the result. "Completed" never means "everything was found".
 
 ### 3.3 Maintainer direction captured during consolidation
 
@@ -118,6 +167,9 @@ The following direction was stated by the maintainer during the consolidation di
 - **MD-1 — Owner-scoped use.** Sys2QA is intended to be "safe": it is for projects and codebases owned by, or under the authority of, the person using it — unlike general-purpose reverse-engineering tools such as REA.
 - **MD-2 — No cloning.** Sys2QA should not clone or otherwise acquire repositories; it works on the codebase the user already has.
 - **MD-3 — Authorization is self-declared.** Sys2QA does not verify ownership of repositories or target domains. The user declares that they are authorized; the platform records the declaration and keeps the experience simple. The goal of the open-source project is to make QA easier, not to add friction.
+- **MD-4 — Start with what the developer has.** Repository analysis, URL-based discovery, combined analysis and package import are all legitimate starting conditions of the same SAA → QAA process (maintainer review, MR §1, §3).
+- **MD-5 — Discover rather than require knowledge.** Sys2QA must discover workflows from evidence; developers must not need to name them or describe the system first (MR §2, §4).
+- **MD-6 — Not a DevOps agent.** Sys2QA must deliver value without requiring the user to deploy or administer an application or build end-to-end infrastructure (MR §5).
 
 Consolidation note: MD-3 resolves the earlier proposal to add target-control verification (DNS/well-known token). That proposal is **not adopted** (see RC-C08). Safety is instead provided by controls that do not depend on proving ownership: a recorded authorization declaration, root sandboxing, URL scope policy and SSRF controls, environment classification, and explicit human approval for state-changing tests. Possession of a URL, a checkout or credentials therefore never authorizes *destructive* testing by itself — the approval gate does (SEC-005, SEC-010).
 
@@ -139,6 +191,13 @@ Common failure modes the product addresses:
 - Repository, documentation and runtime behavior disagree and the disagreement is silently resolved.
 - Teams working in different natural languages need consistent, readable artefacts.
 - Existing tools record actions or run scripts, but do not connect evidence-backed system understanding, QA test design, human review, manual and automated execution, and traceable evidence in one workflow.
+- Many developers do not have the full picture or full access (MR §1). Examples:
+  - only a development URL, with no source;
+  - only a frontend repository, with no backend access;
+  - a years-old monolith nobody fully understands;
+  - source code but no ability to run or deploy the application.
+  
+  Tools that need prior knowledge of workflows, or a complete running end-to-end environment, exclude these developers.
 
 ---
 
@@ -161,6 +220,10 @@ Common failure modes the product addresses:
 | G-11 | Support incremental refresh and propagate change impact to documentation, scenarios, approvals and results. | SAA + QAA | SAA §2.1(7), QAA FR-020 |
 | G-12 | Work locally and safely by default; protect repository contents, credentials, sessions and target data. | Platform | SAA §2.1(8), QAA G10 |
 | G-13 | Be self-hostable, provider-neutral and suitable for open-source contribution. | Platform | QAA G9, SAA §11.3 |
+| G-14 | Accept a repository, an authorized URL, both, or a package as the starting point, and produce the most defensible result that evidence allows. | Platform | MD-4, MR-REQ-1 |
+| G-15 | Discover workflows automatically and report the examined scope, unresolved connections and limitations. | SAA | MD-5, MR-REQ-2 |
+| G-16 | Deliver analysis and QA preparation without deployment or administration access to the target. | Platform | MD-6, MR-REQ-4 |
+| G-17 | Generate useful scenarios from runtime evidence alone, labeled with their limits. | QAA | MR-REQ-5 |
 
 ### 5.2 Measurable success criteria
 
@@ -176,6 +239,9 @@ The source PRDs explicitly forbid publishing numeric targets before a baseline e
 | SC-06 | No secret from the fixture secret set appears in logs, prompts, packages, reports or audit records under tested operation. | Gate | Secret-leak test suite |
 | SC-07 | Scenario acceptance rate, expected-result validity, coverage recall, duplicate rate, false-failure rate, evidence completeness, extraction and relationship precision/recall, uncertainty calibration, cost per accepted scenario. | Metric | Defined in §26.4; targets set after baseline |
 | SC-08 | Time to first useful approved suite on a benchmark app. | Metric | Wall-clock measurement on benchmark; target set after baseline |
+| SC-09 | Workflows are discovered with no workflow names supplied; the completeness report lists where each trace stops. | Gate + metric (workflow discovery recall) | Repository-only and combined fixtures (§26.2) |
+| SC-10 | A user with only a URL reaches reviewed, manually executable scenarios, and no claim exceeds observation. | Gate | URL-only fixture; claim audit |
+| SC-11 | A user with no running environment reaches an exported manual test pack. | Gate | Modes A and D on fixtures |
 
 ---
 
@@ -206,6 +272,8 @@ The following are **out of scope (X)** for the product or the MVP, as stated. So
 | X-19 | Treating unversioned Markdown alone as the integration contract when structured data is available. | Product | QAA §4.2 |
 | X-20 | Describing a browser crawl as a comprehensive security, accessibility or performance assessment. | Product | QAA §6.7 |
 | X-21 | Verifying ownership of repositories or target domains (DNS/well-known token, provider ownership checks). Authorization is self-declared. | Product | MD-3 |
+| X-22 | DevOps work: deploying applications, provisioning databases or cloud resources, configuring CI/CD, DNS, proxies or infrastructure, or building test environments for the user. Sys2QA uses only environments the user already has. | Product | MD-6 |
+| X-23 | Claiming backend internals, data models, unreachable behavior or intended requirements from black-box observation alone. | Product | MR §3 |
 
 ---
 
@@ -221,6 +289,9 @@ The following are **out of scope (X)** for the product or the MVP, as stated. So
 | **Developer joining an unfamiliar codebase** | Quick answers with clickable evidence | Can distinguish fact, inference and unknown | SAA |
 | **Team lead / product owner / modernization planner** | Coverage, risk, approval state, blockers, release readiness, dependency and impact maps | Report separates defects from environment failures, uncertain expectations and incomplete testing | QAA + SAA |
 | **Self-hosting maintainer** | Deploy, choose LLM provider or local model, configure secrets/storage, audit workers | Works without mandatory SaaS beyond deliberately configured services | Platform |
+| **Developer with only a URL** | Understand and test a dev/staging application without source access | Observed workflows and characterization scenarios, with clear limits | SAA (runtime) + QAA |
+| **Frontend developer without backend access** | Understand which flows depend on unavailable services | Combined model in which external/backend boundaries are explicit gaps, not guesses | SAA + QAA |
+| **Developer without deployment access** | Prepare and run tests without building infrastructure | Manual test packs and analysis with no environment work | QAA |
 
 ---
 
@@ -233,7 +304,7 @@ Terms below are normative and used consistently in all sections. Where the sourc
 | **Sys2QA** | The platform: SAA, QAA, the shared platform services and the SAA→QAA contract. |
 | **SAA (System Analysis Agent)** | The component that analyzes a repository and publishes Documentation Packages. *Source synonym:* "System Analyst Agent" (SAA PRD title). See RC-T01. |
 | **QAA (Quality Assurance Agent)** | The component that consumes Documentation Packages and performs QA analysis, design, review, execution and reporting. |
-| **Project** | Platform record that groups one repository identity, its Documentation Package versions, environments, scope policies, scenarios, runs and reports. |
+| **Project** | Platform record that groups the evidence sources the user has (zero or more local source roots, zero or more environments, imported packages), plus the Documentation Package versions, scope policies, scenarios, runs and reports derived from them. |
 | **Repository target** | A local directory the user already holds (checkout or extracted archive), or an explicitly selected set of such directories, that SAA is authorized to read. |
 | **Project boundary** | An application, package, service, worker, library or deployment unit that is independently meaningful inside a repository target. |
 | **Revision** | Immutable identity of analyzed source: a Git commit SHA plus working-tree state, or a content fingerprint for non-Git sources. See CON-006. |
@@ -271,6 +342,17 @@ Terms below are normative and used consistently in all sections. Where the sourc
 | **Skill** | Agent-facing instructions for planning and sequencing SAA tools. Not the analysis engine. |
 | **MCP** | Model Context Protocol interface exposing SAA capabilities to compatible clients. Not the source of truth. |
 | **Permission level** | Platform-wide classification of operation side effects, L0–L5 (§9.5). |
+| **Starting mode** | The evidence the user starts with: A repository, B URL, C both, D package (§10.1). Modes can change as evidence is added. |
+| **Evidence profile** | Which evidence types a package or result is built on (`source_analysis`, `runtime_observation`, `documentation_import`) and what that profile cannot establish (CON-020). |
+| **Entry point** | A place where execution starts: route, page, API endpoint, CLI command, job, scheduler, event/queue consumer, webhook. |
+| **Component trace** | Evidence-backed connection from one entry point or component to the components it calls, reads or writes. |
+| **End-to-end workflow** | A discovered process composed of component traces across boundaries, with the points where composition stops. Not to be confused with a component trace. |
+| **Workflow catalog** | SAA's list of discovered workflows with category, entry points, evidence profile, completion label and unresolved links (SAA-FR-040). |
+| **Completeness report** | SAA's statement of what was examined, found, unresolved, unavailable and unexplored, and which evidence would improve the result (SAA-FR-045). |
+| **Runtime observation service** | Shared platform service that performs all browser access within the declared scope, for SAA discovery and QAA verification/execution. |
+| **Discovery probe** | Opt-in L2 mode that submits empty or invalid input to non-state-changing forms to observe validation (SEC-024). |
+| **QA objective** | Purpose of a scenario: `characterization`, `implementation_conformance`, `requirement_conformance` or `exploratory` (§15.9). |
+| **Manual test pack** | Exported approved scenarios plus result templates that a tester can execute without Sys2QA connected to an environment (QAA-FR-112). |
 
 ---
 
@@ -278,63 +360,70 @@ Terms below are normative and used consistently in all sections. Where the sourc
 
 ### 9.1 Product shape
 
-Sys2QA is one platform with two agents that share a contract and a small set of platform services. Each agent is independently buildable, testable and releasable against the versioned contract (CON-018).
+Sys2QA is one platform with two agents that share a contract and a small set of platform services. Each agent can be built, tested and released on its own against the versioned contract (CON-018). Browser access is centralized in a **shared runtime observation service**, so scope, SSRF, rate-limit and redaction controls are enforced once, identically for every caller.
 
 ```text
-                         Users: analyst · developer · QA engineer · tester · lead
-                                         |
-          +------------------------------+------------------------------+
-          |                                                             |
-   SAA interfaces                                               QAA interfaces
-   CLI · MCP server · Analyst Skill                             Web UI · QAA API
-          |                                                             |
-   SAA Orchestrator                                             QAA Service layer
-   (plan, budgets, tool policy)                                 (projects, readiness, planning,
-          |                                                      review/approval, runs, reports)
-   SAA Analysis Engine                                                  |
-   inventory · Git/revision · language & framework adapters      +------+--------------------+
-   · config/SQL/deploy adapters · workflow tracer                 |      |                    |
-          |                                                 Package   Targeted source   Discovery &
-   Evidence store + SKB (canonical)                         importer  verifier (read-   automation
-          |                                                 & readiness only, local)     workers
-   Docs renderer · Package exporter                                 |      |          (isolated,
-          |                                                         |      |           Playwright)
-          v                                                         v      v                |
-   +------------------- Sys2QA Contract (versioned) -------------------+                     |
-   | Documentation Package: manifest · system-model · evidence-index   |                     |
-   | · Markdown docs · optional diff report · analysis-request schema  |                     |
-   +--------------------------------------------------------------------+                    |
-                                                                                            v
-                                                                          Authorized target environment
-                                                                          (development / staging only)
+                  Users: developer · analyst · QA engineer · tester · lead
+                                        |
+               `sys2qa start` guided onboarding · Web UI · AI agent (MCP/Skill)
+                                        |
+          +-----------------------------+------------------------------+
+          |                                                            |
+   SAA interfaces                                             QAA interfaces
+   CLI · MCP server · Analyst Skill                           Web UI · QAA API · CLI
+          |                                                            |
+   SAA orchestrator                                           QAA service layer
+   (plans by evidence profile, budgets, tool policy)          (readiness, planning, review/approval,
+          |                                                    runs, reports)
+   SAA evidence adapters                                               |
+   ├─ source: inventory · Git · language/framework ·          +-- package importer and readiness
+   │          config/SQL/deploy · component tracer            +-- targeted source verifier (local, read-only)
+   └─ runtime: discovery planner (L2) ──────────┐             +-- manual runner (no extra infrastructure)
+          |                                     │             +-- automation adapter (Playwright, L3)
+   Evidence store + SKB (canonical)             │                          |
+   workflow catalog · gaps · completeness       │                          |
+          |                                     v                          v
+   Docs renderer · package exporter      Shared runtime observation service (platform)
+          |                              scope policy · SSRF/egress · rate limits ·
+          v                              isolated browser workers · redaction
+   Sys2QA contract (versioned)                           |
+   manifest (incl. evidence profile) · system model      v
+   · evidence index · docs · diff · analysis request   Authorized target environment
+                                                       (development or staging only)
 
-   Shared platform services (used by both agents, never bypassable by plug-ins):
-   policy & permission levels · secret references · LLM provider adapter · localization & glossary
-   · audit log · artifact storage & retention · configuration · observability
+   Shared platform services (never bypassable by plug-ins): policy and permission levels ·
+   authorization declarations · secret references · LLM provider adapter · localization and glossary ·
+   audit log · artifact storage and retention · configuration · observability
 ```
 
 ### 9.2 Responsibility split
 
 | Responsibility | SAA | QAA | Shared platform | Human |
 |---|:---:|:---:|:---:|:---:|
-| Repository inventory, stack detection, project boundaries | **Owns** | — | — | Selects scope, declares authorization |
-| Structure, routes/pages/forms, roles/permissions, rules, workflows, states, API/data contracts, integrations, error paths | **Owns** | Consumes | — | Annotates/corrects |
-| Evidence provenance, contradictions, unknowns, documentation versioning | **Owns** | Preserves | Contract | Resolves ambiguities |
-| Documentation Package publication | **Owns** | — | Contract schema | Chooses output path, language |
-| Package validation, readiness and freshness | Self-validates (SAA-FR-012) | **Owns** acceptance | Contract validator | Decides on `review_only` overrides |
-| Targeted verification of specific claims (source/runtime) | On request (SAA-FR-037) | **Owns** targeted checks | — | — |
-| Full re-analysis after source changes | **Owns** | Requests / detects staleness | — | Triggers run |
-| Test planning, test conditions, techniques, risk priority | — | **Owns** | — | Adjusts risk inputs |
+| Choose starting mode; declare authorization and scope | Guides | Guides | Records declaration; enforces scope | **Owns**; needs no prior knowledge of the system |
+| Source inventory, stack, boundaries, entry points | **Owns** | — | — | — |
+| Discovery of an authorized URL (pages, forms, navigation, visible validation and states) | **Owns** (SAA-FR-042) | Targeted verification only | Runtime observation service | Sets scope; may enable discovery probe |
+| Workflow discovery and catalog | **Owns** | Consumes | — | Optionally selects discovered workflows to deepen |
+| Rules, states, roles, contracts, integrations, error paths | **Owns** | Consumes | — | Annotates or corrects |
+| Correlating source and runtime evidence; discrepancies | **Owns** | Reports QA impact | — | Confirms revision correspondence |
+| Evidence provenance, gaps, completeness report, documentation versioning | **Owns** | Preserves | Contract | Resolves ambiguities |
+| Documentation Package publication | **Owns** | — | Contract schema | Chooses output path and language |
+| Package validation, readiness and freshness | Self-validates (SAA-FR-012) | **Owns** acceptance (per QA activity) | Contract validator | Decides on `review_only` overrides |
+| Targeted verification of specific claims | On request (SAA-FR-037) | **Owns** | Runtime observation service | — |
+| Re-analysis and re-discovery after changes | **Owns** | Detects staleness; requests | — | Triggers run |
+| QA objectives, test conditions, techniques, risk priority | — | **Owns** | — | Adjusts risk inputs; confirms requirements |
 | Scenario generation and validation | — | **Owns** | — | Edits |
 | Approval | — | Enforces | Audit | **Owns** decision |
-| Manual execution | — | Provides workflow | — | **Owns** results (tester-reported) |
+| Manual execution | — | Provides workflow and test packs | — | **Owns** results (tester-reported) |
 | Automated execution | — | **Owns** (deterministic worker) | Isolation, egress | Starts / cancels |
 | Defects and QA reports | — | **Owns** | Localization | Triages |
+| Deployment, provisioning, infrastructure, CI/CD | **Not owned by Sys2QA** (X-22) | — | — | Uses environments they already have |
 | Secrets, policy, audit, LLM access, localization, storage | Uses | Uses | **Owns** | Configures |
 
-Rules (C, SAA §9.1, QAA §1.1):
+Rules (C, SAA §9.1, QAA §1.1, updated per MD-4 … MD-6):
 - SAA may help investigate a test failure but must not perform QA execution, assertions or defect triage.
-- QAA must not regenerate SAA's full documentation by default (X-18). It may inspect specific source files and the live system to verify claims or resolve specific ambiguities, and records those findings as QAA evidence, not as SAA claims.
+- QAA must not regenerate SAA's documentation or crawl the whole application by default (X-18). It may check specific source files and specific live pages to verify claims or resolve specific ambiguities. It records those findings as QAA evidence, not as SAA claims.
+- Every starting mode reaches QAA through the same contract. Whole-application discovery of a URL is an SAA activity whose output is a package with a runtime-only or combined evidence profile (RC-C17, OD-24).
 - Shared work must never blur which agent produced or verified a claim; every record carries its producer.
 
 ### 9.3 SAA internal layers (C, SAA §4.2)
@@ -356,7 +445,8 @@ Unified from SAA §4.5 (runtime modes) and QAA §16 (safe execution). (P — uni
 |---|---|---|---|---|
 | L0 | Inventory: list files, manifests, repository metadata | SAA | Enabled | Authorization declaration + root sandbox |
 | L1 | Static read: parse source, configs, schemas, tests, Git metadata; QAA targeted source reads | SAA, QAA | Enabled | Same as L0 |
-| L2 | Live non-destructive observation: navigate and read an authorized environment within scope; no suspected destructive submissions | QAA (SAA runtime mode: deferred) | Enabled after environment setup | Scope policy, SSRF controls, authorization declaration |
+| L2 | Live non-destructive observation: navigate and read an authorized environment within scope; no form submission | SAA runtime discovery (SAA-FR-042); QAA targeted verification | Enabled after scoped declaration | Scope policy, SSRF controls, rate limits, authorization declaration |
+| L2p | Discovery probe: submit empty or invalid input to forms not classified as state-changing, to observe validation | SAA runtime discovery | **Disabled**; opt-in per scope declaration | As L2, plus explicit opt-in and form classification (SEC-024) |
 | L3 | Approved test execution, including flagged state-changing steps | QAA | Disabled until approval | Version-bound approval; state-changing approval and cleanup plan |
 | L4 | Repository code execution: dependency install, build, repository tests, starting the app from source | SAA (P1), QAA (deferred) | Disabled | Explicit approval, allowlisted commands, strong sandbox, no default secrets or internal network |
 | L5 | Production or live external systems | — | Out of scope (X-09) | Requires separate safety design |
@@ -396,76 +486,188 @@ Architecture rules (C, SAA §16; QAA §15.2):
 
 Each workflow lists the happy path and its failure and recovery paths. Requirement IDs refer to §28.
 
-### W1 — Project onboarding and authorization declaration
+### 10.1 Starting modes and access levels
 
-1. User creates a project, names it and selects output languages (LOC-001).
-2. User points SAA at a local repository directory they already hold (SEC-017). Sys2QA does not clone it.
-3. User records an authorization declaration for the repository (SEC-005). The declaration is self-declared and is not verified (MD-3).
-4. Later (W3), user adds one or more environments with base URL, classification, allowed hosts and path scope, and declares authorization for each (QAA-FR-002, SEC-005).
+Sys2QA adapts to the developer's evidence and access (MD-4, MD-6). The table below is normative for what each situation enables and what Sys2QA must not assume.
 
-Failure paths: if the path is outside approved roots or unreadable, SAA reports exactly which paths failed (SAA-FR-001). If an environment is classified `production`, QAA refuses execution and discovery (SEC-009). If reachability validation fails, the environment stays `unreachable`, nothing is executed, and the user gets actionable guidance (QAA-FR-006).
+| What the developer has | Mode | What Sys2QA enables | What Sys2QA must not assume |
+|---|---|---|---|
+| Source code only | A | Static analysis, workflow catalog, documentation, scenario design, manual test packs | That the application can be run |
+| A URL only (running application, no source) | B | Observation-based discovery, observed workflows, characterization and exploratory scenarios; manual testing; automated testing after approval and within scope | That source, internal data or intended requirements are available |
+| Source code and a URL | C | Combined analysis, discrepancy detection, the strongest test basis | That both represent the same revision or configuration |
+| A Documentation Package only | D | Readiness, scenario design, manual test preparation | That the package is current or complete |
+| Source and a test environment, but no deployment access | A or C | Analysis and testing of the supplied environment | That Sys2QA can change infrastructure or deploy |
 
-### W2 — SAA analysis and package publication
+| ID | Requirement | Owner | Pri | St | Acceptance criteria | Source |
+|---|---|---|:-:|:-:|---|---|
+| SYS-001 | **Flexible starting inputs.** A project can start in Mode A, B, C or D. Evidence can be added later (for example A → C) without restarting the project | Platform | P0 | P | Each mode reaches scenario review on its benchmark fixture. Adding a URL to a Mode A project produces a new package version, not a new project | MR-REQ-1 |
+| SYS-002 | **Ask what the developer has, never what the system is.** Onboarding requires no workflow names, architecture or business rules; such knowledge is optional annotation after discovery | Platform | P0 | P | Review of the onboarding flow finds no mandatory question about system internals | MR §2, §8 |
+| SYS-003 | **No DevOps prerequisites.** Every mode delivers analysis and QA preparation without the user deploying, provisioning or administering the application. Only Modes B/C and automated execution need a reachable environment, and only one the user already has | Platform | P0 | P | Modes A and D complete through manual test pack export with no environment configured | MR-REQ-4, MD-6 |
+| SYS-004 | **Visible evidence profile.** Every summary, package and report states its evidence profile and what that profile cannot establish | SAA, QAA | P0 | P | Each report has an evidence-profile section; URL-only reports list the Mode B limitations of §2 | MR §3 |
 
-1. **Scope preview** (SAA Phase 0): SAA shows roots, exclusions, detected languages, candidate project boundaries, the analysis profile (`overview`/`standard`/`deep`), the permission level (L0–L1), budgets, and the output location. The default output location is outside the repository (SAA-FR-036).
-2. **Analysis** (SAA Phases 1–7, §11.1): inventory → structure → boundaries → workflows → rules and contracts → cross-validation → synthesis and quality gates.
-3. **Publication**: SAA writes the SKB and exports a Documentation Package (§13) in the selected documentation language(s), validating it against the contract schema before declaring it publishable (SAA-FR-012, SAA-FR-029).
-4. SAA prints the minimum run outputs (§11.4).
+### W1 — Start a project: "What do you have?"
 
-Failure paths: if an adapter fails, the run continues where possible and the analysis status becomes `completed_with_limitations` or `partial` (SAA-FR-020). If the budget is exhausted, the run is `partial` and the unvisited scope is listed. On interruption, the run is `cancelled` or `partial`, partial artifacts are labeled, and safe stages can resume. If schema validation fails, the package is not published and an error report is written instead. If secrets are detected, values are redacted and only location and type are recorded.
+1. The user runs `sys2qa start` (or its UI or agent equivalent) and chooses one option (SYS-001, SYS-002):
+   - a local source directory;
+   - a development or staging URL;
+   - both;
+   - an existing package.
+   
+   Sys2QA never clones or downloads source (SEC-017).
+2. The user records a **scoped authorization declaration** (SEC-005). It covers:
+   - source roots, hosts and paths in scope, and the environment classification;
+   - the allowed operation level: observe only, discovery probe, execute tests, or tests that may modify data;
+   - explicitly prohibited data or actions.
+   
+   The declaration is self-declared and not verified (MD-3).
+3. Sys2QA validates what it can without side effects:
+   - the path is readable and inside its roots;
+   - the URL is reachable, its scheme and host are allowed, and it is not classified `production` (SEC-009);
+   - the package validates (CON-009).
+4. Sys2QA shows the project's **evidence profile** and what it can and cannot establish with it (SYS-004). It then continues to W2, W2b, W2c or W3.
+
+Failure paths:
+- **Unreadable path:** the exact failures are listed.
+- **Unreachable URL:** the environment is marked `unreachable`, and the project stays usable in Mode A or D.
+- **`production` classification:** discovery and execution are refused.
+- **Login wall in Mode B:** discovery covers the public area and asks for a credential profile. It never bypasses authentication (QAA-FR-026).
+
+### W2 — Mode A: repository analysis (no workflow names required)
+
+1. **Scope preview** (SAA Phase 0). SAA shows:
+   - roots, exclusions and detected languages;
+   - candidate project boundaries;
+   - the analysis profile (`overview`, `standard` or `deep`);
+   - the permission level (L0–L1), budgets and output location. The default location is outside the repository (SAA-FR-036).
+2. **Discovery** (SAA Phases 1–7, §11.1, §11.6):
+   1. inventory and boundaries;
+   2. **entry points**: routes, pages, API endpoints, CLI commands, jobs, schedulers, event/queue consumers, webhooks;
+   3. component traces;
+   4. **end-to-end workflow catalog** across the categories of §11.6;
+   5. rules, states, roles, contracts and integrations;
+   6. cross-validation and synthesis (SAA-FR-040, SAA-FR-041).
+3. **Completeness report and catalog review** (SAA-FR-045). The user browses the discovered workflows and, optionally, selects some to **deepen** with more budget or a deeper profile. Selecting is never required.
+4. **Publication.** SAA exports a Documentation Package (§13) with `evidence_profile.source_analysis = available`. The package is validated against the contract schema before it is declared publishable (SAA-FR-012, SAA-FR-029).
+5. SAA prints the minimum run outputs (§11.4).
+
+Failure paths:
+- **Adapter failure:** the run continues where possible, and the status becomes `completed_with_limitations` or `partial` (SAA-FR-020).
+- **Dynamic registration or reflection:** the hop is recorded as unresolved, with its reason.
+- **Workflow continues into an unavailable repository or service:** it ends at an external boundary node.
+- **Budget exhausted:** the run is `partial`, and the unvisited scope is listed.
+- **Interruption:** the run is `cancelled` or `partial`, artifacts are labeled, and safe stages can resume.
+- **Schema validation fails:** nothing is published; an error report is written.
+- **Secrets detected:** values are redacted, and only location and type are recorded.
+
+### W2b — Mode B: URL discovery (no source)
+
+1. **Discovery plan from the scope declaration:**
+   - start URL(s), allowed hosts and paths;
+   - budget (pages, depth, time, requests);
+   - credential profiles per role, if supplied;
+   - discovery probe on or off (default off, SEC-024).
+2. **Observation.** The shared runtime observation service explores within scope at L2. It records:
+   - reachable pages and navigation;
+   - forms and fields with their visible constraints (required, type, length, pattern attributes);
+   - visible states and messages;
+   - client-side routes of single-page applications, where observable.
+   
+   With discovery probe enabled, it submits empty or invalid input to forms not classified as state-changing, to observe validation.
+3. **Modeling.** SAA builds the observed model:
+   - `page`, `form` and `field` entities, navigation relations and candidate workflows (for example login → dashboard → profile);
+   - all of them `runtime_observed`, with environment ID and observation time;
+   - unreachable, unlinked, authentication-gated or unobserved areas recorded as gaps (SAA-FR-042, SAA-FR-043).
+4. **Publication.** The package has `evidence_profile.runtime_observation = available` and `source_analysis = unavailable`, and lists the Mode B limitations.
+
+Failure paths:
+- **Off-scope redirects:** blocked and recorded (SEC-007).
+- **Crawler traps** (infinite pagination, calendars, faceted search): cut off by budget and URL-pattern de-duplication.
+- **Prompt-injection text in pages:** ignored (SEC-003).
+- **Rate-limit or WAF responses:** discovery backs off, and the affected areas are recorded as `blocked`.
+- **CAPTCHA or MFA:** that path stops, and the user is asked.
+
+### W2c — Mode C: repository + URL
+
+1. W2 and W2b run, in either order. SAA then correlates observed pages and forms with source routes and handlers (SAA-FR-044).
+2. **Revision correspondence.** Sys2QA asks the user whether the environment runs the analyzed revision, or reads a configured version endpoint. Otherwise correspondence is `unconfirmed`, and discrepancies are labeled as possibly version-related.
+3. **Discrepancy records** are created for cases such as:
+   - a route declared in source but not reachable;
+   - a field constraint that differs (for example, source enforces 13 digits but the browser field allows 16);
+   - an observed page with no source route (another repository, a CMS, or a proxy).
+4. The package contains both evidence types, with provenance per claim. A browser observation never upgrades a source claim beyond what it shows, and vice versa (SAA-FR-043).
 
 ### W3 — Package import, readiness and freshness
 
-1. User imports the package into QAA, or selects it from the local filesystem.
-2. QAA validates the manifest, schema versions, checksums, required artifacts, ID integrity, evidence references and analysis status (CON-009).
-3. QAA compares the package revision with the project's repository baseline and, where knowable, the target environment's deployed revision, and assigns package freshness: `current`, `mismatched`, `stale` or `unverifiable` (QAA-FR-014).
-4. QAA computes readiness per selected scope: `ready`, `ready_with_gaps`, `review_only` or `blocked` (§13.9). It shows coverage by category, unresolved SAA findings, contradictions and their consequences (QAA-FR-013, QAA-FR-018).
-5. The project enters `ready_for_test_analysis` only when prerequisites are satisfied (QAA §9.1).
+1. The user imports a package into QAA or selects it from the local filesystem. Mode D needs no repository and no environment.
+2. QAA validates the manifest, schema versions, checksums, required artifacts, ID integrity, evidence references, evidence profile and analysis status (CON-009).
+3. QAA assigns **package freshness**: `current`, `mismatched`, `stale` or `unverifiable` (QAA-FR-014). For source evidence it compares the revision with the project baseline. For runtime evidence it compares the observation window with the environment's known changes (CON-021).
+4. QAA computes **readiness per QA activity**: `scenario_design`, `manual_preparation` and `automated_execution` (CON-022). Each is `ready`, `ready_with_gaps`, `review_only` or `blocked`.
+   - A package is never downgraded for evidence it does not claim to have. Its limitations are attached to the affected scenarios instead.
+   - QAA shows coverage by category, unresolved findings, contradictions and their consequences (QAA-FR-013, QAA-FR-018).
+5. The project enters `ready_for_test_analysis` when at least `scenario_design` is not `blocked`.
 
-Failure paths: a missing, malformed or major-incompatible package, or one with a checksum mismatch, is `blocked` with a machine-readable error (§13.10). A Markdown-only package is imported in fallback mode: structure is labeled `qaa_inferred` and readiness is capped at `review_only` (CON-016). A revision mismatch on selected flows means `review_only`: drafting and review are allowed, but execution approval is blocked (CON-014).
+Failure paths:
+- **Missing, malformed or major-incompatible package, or checksum mismatch:** `blocked`, with a machine-readable error (§13.10).
+- **Markdown-only package:** imported in fallback mode; structure is labeled `qaa_inferred`, and readiness is capped at `review_only` (CON-016).
+- **Revision mismatch on selected flows:** `review_only`. Drafting and review are allowed; execution approval is blocked (CON-014).
+- **No environment configured:** `automated_execution` is `blocked`; design and manual preparation are unaffected.
 
 ### W4 — QA analysis and scenario generation
 
-1. QAA builds a **test plan** (objectives, scope, exclusions, risks, test basis, assumptions, exit criteria, suggested coverage) (QAA-FR-030).
-2. QAA performs **L2 discovery** only within scope and only for documented features and flows. It maps SAA routes, forms and flows to live observations and never submits suspected destructive forms (QAA-FR-021..026).
-3. Optional **targeted source verification** reads specific files at the package revision from the local checkout (OD-02). It never runs repository code (QAA-FR-017).
-4. The **evidence correlator** compares SAA claims, supplied requirements, source checks and observations, and records contradictions instead of choosing one source silently (QAA-FR-016).
-5. QAA derives **test conditions**, applies techniques (§15), assigns risk priority, and generates scenarios with expected results, their basis, and traceability (QAA-FR-031..038, QAA-FR-041).
-6. The **critic/validator** checks schema, quality checklist, duplicates, unsafe actions and unsupported expectations. Ambiguous expectations become `needs_clarification` (QAA-FR-034, QAA-FR-035).
+1. QAA builds a **test plan**. It covers objectives, **QA objectives** (QAA-FR-111), scope, exclusions, risks, test basis, evidence profile, assumptions, exit criteria and suggested coverage (QAA-FR-030).
+2. **Targeted verification.**
+   - If an environment is configured, QAA may verify specific package items through the runtime observation service (QAA-FR-029). It never crawls the whole application; that is W2b.
+   - If no environment is configured, this step is skipped (QAA-FR-112).
+3. **Targeted source verification** (optional) reads specific files at the package revision from the local checkout (OD-02). It never runs repository code (QAA-FR-017).
+4. The **evidence correlator** compares package claims, supplied requirements, source checks and observations. It records contradictions instead of silently choosing one source (QAA-FR-016).
+5. QAA derives **test conditions**, applies techniques (§15), assigns risk priority, and generates scenarios. Every expected result has a basis, an oracle class and a QA objective (QAA-FR-031 … 038, QAA-FR-041, QAA-FR-111).
+   - Runtime-only evidence yields characterization and exploratory scenarios (QAA-FR-110).
+   - Expectations that need business intent become `needs_clarification`. They are never inferred from what was observed.
+6. The **critic/validator** checks schema, quality checklist, duplicates, unsafe actions and unsupported expectations (QAA-FR-034, QAA-FR-035).
+7. QAA lists **evidence-strengthening suggestions**: which extra evidence (source, requirement, environment, role credentials) would upgrade which expectations (QAA-FR-113).
 
-Failure paths: if the login flow is unsupported, discovery stops and asks for configuration; it never bypasses authentication (QAA-FR-026). Out-of-scope redirects are blocked and recorded (SEC-007). If the LLM returns schema-invalid output, it is rejected and retried within budget, then reported. A material gap blocks generation for the affected area and creates a gap record plus an optional SAA analysis request (QAA-FR-018, CON-015).
+Failure paths:
+- **LLM output fails schema validation:** rejected and retried within budget, then reported.
+- **Material gap:** generation is blocked for the affected area only. QAA creates a gap record and, optionally, an SAA analysis request (QAA-FR-018, CON-015).
 
 ### W5 — Human review and approval
 
-Covered in §18. The user filters, inspects, edits, rejects, defers, requests regeneration or approves. Approval produces an immutable record bound to the baseline (QAA-FR-052).
+Covered in §18. The user filters, inspects, edits, rejects, defers, requests regeneration, or approves. Approval produces an immutable record bound to the baseline (QAA-FR-052).
 
 ### W6 — Manual testing
 
-Covered in §16. A tester runs approved scenarios step by step and records tester-reported results, evidence and defects. Runs can be paused and resumed.
+Covered in §16.
+- A tester runs approved scenarios step by step and records tester-reported results, evidence and defects. Runs can be paused and resumed.
+- Manual test packs can be exported and executed **without a configured environment or any automation infrastructure** (QAA-FR-112).
 
 ### W7 — Automated testing
 
-Covered in §17. The deterministic worker revalidates approval, baseline and scope, executes only schema-supported actions, records assertions and evidence, and classifies outcomes and failure categories.
+Covered in §17.
+- The deterministic worker revalidates approval, baseline and scope. It executes only schema-supported actions, records assertions and evidence, and classifies outcomes and failure categories.
+- Automated testing requires a reachable environment that the user already has. Sys2QA never provisions one (X-22).
 
 ### W8 — Results, defects and reports
 
-QAA aggregates outcomes, links each result to its scenario version, baseline, environment and evidence, manages the defect lifecycle (§15.12), and exports localized human-readable and machine-readable reports (QAA-FR-090..096).
+QAA aggregates outcomes and links each result to its scenario version, baseline, environment and evidence. It manages the defect lifecycle (§15.12) and exports localized human-readable and machine-readable reports (QAA-FR-090 … 096). Reports state the evidence profile and the QA objective of each result (SYS-004, QAA-FR-111).
 
-### W9 — Source change, re-analysis and staleness propagation
+### W9 — Change, re-analysis, re-discovery and staleness propagation
 
-1. SAA detects a revision change and runs incremental or full re-analysis (SAA-FR-021). It publishes a new package version and, where possible, a **model diff report** (SAA-FR-038, CON-014).
-2. QAA imports the new package as a **new baseline**. History is never overwritten (§13.11).
-3. QAA marks affected scenarios `potentially_stale` or `stale` and suspends or invalidates their approvals according to §13.11. Past results keep their original baseline.
-4. QAA proposes impacted scenarios for review and regression (QAA-FR-020, QAA-FR-046).
+1. **Source change.** SAA runs incremental or full re-analysis (SAA-FR-021) and publishes a new package version, with a **model diff report** where possible (SAA-FR-038, CON-014).
+2. **Runtime change.** Re-running discovery on the environment produces a new package version. Observations older than the configured freshness window become `potentially_stale` (CON-021, OD-27).
+3. QAA imports each new package as a **new baseline**. History is never overwritten (§13.11).
+4. QAA marks affected scenarios `potentially_stale` or `stale` and suspends or invalidates approvals according to §13.11. Past results keep their original baseline.
+5. QAA proposes impacted scenarios for review and regression (QAA-FR-020, QAA-FR-046).
 
-Failure paths: if no diff is available, every scenario of the project becomes `potentially_stale` (conservative default). If rename mapping is uncertain, entities are treated as removed or added, with a rename hint for human confirmation.
+Failure paths:
+- **No diff available:** every scenario in the project becomes `potentially_stale` (conservative default).
+- **Uncertain rename mapping:** entities are treated as removed and added, with a rename hint for human confirmation.
 
-### W10 — QAA → SAA follow-up analysis
+### W10 — Follow-up analysis: QAA → SAA
 
-1. A test failure, contradiction or gap leads QAA to create a bounded **analysis request** naming the entity, workflow or route, the revision, the question and the budget (CON-015).
+1. A test failure, contradiction or gap leads QAA to create a bounded **analysis request** (CON-015). It names the entity, workflow or route, the revision or environment, the question, and the budget.
 2. In the MVP, the user runs the request with the SAA CLI (file-based transport). An API transport is P1 (QAA-FR-019, OD-12).
-3. SAA returns a candidate update with evidence, status, caveats and the reason it changes the model, published as a new package version (SAA-FR-037).
-4. Policy decides whether a low-risk source fact is auto-accepted. Contradictions and business-intent questions always require human review (SAA §9.3, OD-18).
+3. SAA returns a candidate update with evidence, status, caveats and the reason the model changes, published as a new package version (SAA-FR-037).
+4. Policy decides whether low-risk source facts are auto-accepted. Contradictions and business-intent questions always require human review (SAA §9.3, OD-18).
 
 ---
 
@@ -519,12 +721,12 @@ Columns: **Pri** = priority; **St** = status (§1.3).
 | SAA-FR-006 | Dependency graph | P0 | C | Project/module dependency graph with evidence and revision; cycles are recorded, not looped on | SAA-FR-006, SAA §13 |
 | SAA-FR-007 | API/interface extraction | P0 | C | Supported route/endpoint/schema/interface definitions are linked to source evidence | SAA-FR-007 |
 | SAA-FR-008 | Data model extraction | P0 | C | Supported schema/migration/ORM relations extracted; declared vs. inferred mappings distinguished | SAA-FR-008 |
-| SAA-FR-009 | Workflow tracing | P0 | C | User-selected workflows are traced across supported components; unresolved hops are explicit; completion label follows §11.1 | SAA-FR-009 |
+| SAA-FR-009 | Workflow tracing (deepening) | P0 | C (modified) | Tracing operates on workflows and entry points **discovered** by SAA-FR-040. A user may select a discovered item to deepen, but never has to name one in advance. Unresolved hops are explicit, and completion labels follow §11.1 | SAA-FR-009, MD-5, RC-C18 |
 | SAA-FR-010 | Evidence provenance | P0 | C | Every material claim/relationship has revision and evidence or is labeled `inferred`/`unresolved` | SAA-FR-010 |
 | SAA-FR-011 | Contradictions and unknowns | P0 | C | Incompatible code/docs/test evidence is preserved as contradiction records; actionable open questions are generated | SAA-FR-011 |
 | SAA-FR-012 | SKB schema/export | P0 | C | Output is schema-validated and versioned, with stable IDs and run metadata; an invalid SKB is never published | SAA-FR-012 |
 | SAA-FR-013 | Markdown documentation | P0 | C | Baseline document set (§12.2) generated from the SKB, including coverage and unknowns | SAA-FR-013 |
-| SAA-FR-014 | CLI | P0 | C | Overview/standard/deep analysis, inspect, trace, validate, export and status work with no AI client connected; stable exit codes and `--json` output | SAA-FR-014, SAA §4.4 |
+| SAA-FR-014 | CLI | P0 | C (modified) | Guided start, analysis, catalog browsing, inspect, deepen/trace, validate, export and status all work with no AI client connected. Commands take paths, URLs or generated IDs, never user-invented workflow names (§23.4). Stable exit codes and `--json` output | SAA-FR-014, SAA §4.4, MR §8 |
 | SAA-FR-015 | QAA read interface | P0 | C | QAA can query workflows, contracts, roles, rules, dependencies, evidence, freshness and unknowns programmatically via the package and a local query library | SAA-FR-015, SAA §9.4 |
 | SAA-FR-016 | Analyst Skill package | P0 | C | Contains methodology, tool-use policy, evidence rules, security/prompt-injection rules, QAA handoff rules and command examples; declares the CLI/MCP capability versions it expects; unsupported tools surface as incompatibilities | SAA-FR-016, SAA §4.4 |
 | SAA-FR-017 | MCP server | P0 | C | Exposes core query/analysis tools (SAA §4.4 list) through the same engine, with typed narrow schemas, declared side-effect levels, scoped roots and no access outside approved roots via arguments | SAA-FR-017, SAA §4.4 |
@@ -534,7 +736,7 @@ Columns: **Pri** = priority; **St** = status (§1.3).
 | SAA-FR-021 | Incremental re-analysis | P1 | C | After a revision change, changed/affected entities are recomputed and unrevalidated claims are marked `stale`; a full rescan remains available | SAA-FR-021 |
 | SAA-FR-022 | Git change/history signals | P1 | C | Evidence-linked revision diffs and hotspots; commit messages are never treated as ground truth | SAA-FR-022 |
 | SAA-FR-023 | Test mapping | P1 | C | Supported tests are linked to entities/workflows; discovered tests are distinguished from executed tests | SAA-FR-023 |
-| SAA-FR-024 | Optional runtime observation | P1 | C | Requires explicit approval, target and profile (L4); records environment/run boundaries and side effects; ownership vs. QAA observation per OD-11 | SAA-FR-024 |
+| SAA-FR-024 | Optional runtime observation by starting the application | P1 | C | Requires explicit approval, target and profile (L4); records environment/run boundaries and side effects. Distinct from SAA-FR-042, which observes an environment the user already has at L2 (OD-11) | SAA-FR-024 |
 | SAA-FR-025 | Review/annotation flow | P1 | C | Human annotations are attributed, versioned and labeled `human_asserted`, never as source evidence | SAA-FR-025 |
 | SAA-FR-026 | CI impact report | P2 | C | A changed revision yields a bounded impact report using the cached graph/index | SAA-FR-026 |
 | SAA-FR-027 | Review UI | P2 | C | Users can navigate evidence, review contradictions and approve annotations | SAA-FR-027 |
@@ -550,6 +752,13 @@ Columns: **Pri** = priority; **St** = status (§1.3).
 | SAA-FR-037 | Follow-up analysis request intake | P1 | P | SAA accepts a CON-015 request, runs a bounded investigation, and returns a new package version with a change rationale; requests exceeding budget return `partial` | SAA §3.2 J3, §9.3 |
 | SAA-FR-038 | Model diff report | P1 | P | Between two package versions SAA emits `diff-report.json` listing added/changed/removed/renamed (with confidence)/newly stale/contradicted entities and claims | SAA §7.4, QAA FR-020 |
 | SAA-FR-039 | Analysis budgets and cancellation | P0 | P | Configurable file/time/token/depth budgets per profile; cancellation stops work and labels the run `cancelled`; budget exhaustion yields `partial` with unvisited scope listed | SAA §5.1 Phase 0, §11.2, §13 |
+| SAA-FR-040 | **Automatic workflow discovery and catalog** | P0 | P | With no workflow names supplied, SAA produces a catalog of discovered workflows. Each entry has a category (§11.6), entry points, evidence profile, status, completion label and unresolved links. On benchmark fixtures every labeled workflow is either found or reported as a gap; recall is tracked as a metric | MR-REQ-2, MD-5 |
+| SAA-FR-041 | **Two-level tracing** | P0 | P | Component traces and end-to-end workflows are distinct records. A workflow lists the component traces it composes and where composition stops. A list of calls is never presented as a business workflow without a workflow record | MR §4 |
+| SAA-FR-042 | **Runtime discovery of an authorized URL** (Modes B, C) | P0 | P | Using the runtime observation service at L2, SAA discovers reachable pages, links, forms, fields, visible constraints, navigation flows and visible validation/state messages within scope. Each is recorded as `runtime_observed` evidence with environment ID and time. Candidate workflows are produced, and unreachable or unobserved areas are recorded as gaps. Forms are submitted only with discovery probe enabled (SEC-024) | MR-REQ-1, MR §3 |
+| SAA-FR-043 | **Evidence-source-neutral, evidence-bounded model** | P0 | P | A valid model may contain only source evidence, only runtime evidence, or both, and each claim records its evidence types. No claim exceeds its evidence: for example, a fixture where a success message is observed yields no `WRITES_TO` or delivery claim | MR-REQ-3 |
+| SAA-FR-044 | **Source–runtime correlation** (Mode C) | P0 | P | Observed pages and forms are mapped to source routes and handlers, with a rationale. Discrepancy records are produced when they disagree. Revision correspondence is `user_confirmed`, `observed` (version endpoint) or `unconfirmed`, and is shown on every discrepancy | MR §3 Mode C |
+| SAA-FR-045 | **Completeness report** | P0 | P | Every run reports: roots/boundaries or hosts/paths examined; analyzable constructs; entry points found; workflows reconstructed; workflows with unresolved links; unavailable adapters or dependencies; excluded and unexplored areas; and **evidence that would improve the analysis** | MR §4 |
+| SAA-FR-046 | **Catalog at scale** | P0 | P | Large systems' catalogs are grouped by boundary/module/category and ranked by the §5.2 value heuristics. Deep tracing of lower-ranked workflows is available on demand, and catalog entries are never silently dropped for budget reasons (they are marked `not_deepened`) | SAA §5.2, MR §4 |
 
 ### 11.4 Minimum run outputs (C, SAA §10.1)
 
@@ -574,6 +783,42 @@ At the end of every run SAA returns: analysis status (§20.2); target identity a
 | Malicious instructions in content | Treat as data; quote minimally | Execute or obey |
 | Corrupt syntax | Keep diagnostics; tolerant parsing; partial coverage | Fabricate AST relations |
 | Stale SKB | Mark stale; refresh before QAA relies on it | Present old knowledge as current |
+| URL: off-scope link or redirect | Block, record as out-of-scope boundary | Follow it |
+| URL: login wall, CAPTCHA, MFA | Discover the public area; ask for a credential profile | Bypass or brute-force |
+| URL: crawler traps (calendars, infinite pagination, facets) | De-duplicate URL patterns; stop at budget; record | Exhaust budget on one pattern and claim coverage |
+| URL: single-page application | Observe client-side routes and in-page navigation where visible | Treat one URL as one page |
+| URL: success message after a submission | Record the visible outcome only | Infer persistence, delivery or business correctness |
+
+### 11.6 Workflow discovery (SAA-FR-040, 041, 045)
+
+**Discovery targets.** These are categories SAA attempts to discover. They are not a promise that every adapter recognizes every category equally well; adapter support levels (§11.2) govern that.
+
+| Category | Examples | Typical evidence: source | Typical evidence: runtime |
+|---|---|---|---|
+| User interface | Navigation, form submission, login, account recovery | Routes, components, form handlers | Reachable pages, forms, visible results |
+| API | Request handling, validation, authorization, responses | Route handlers, schemas, middleware | Network responses visible to the browser |
+| Business process | Approval, registration, order processing, activation | Services, state updates, rules | Multi-page flows, visible states |
+| Data lifecycle | Create, read, update, delete, archival, status changes | Models, migrations, queries | Visible lists/details changing (probe off: read-only) |
+| Asynchronous processing | Queues, event handlers, callbacks, workers | Publishers/subscribers, consumer registrations | Rarely observable; recorded as gaps |
+| Scheduled processing | Cron jobs, periodic syncs, cleanups | Scheduler config, job definitions | Not observable; recorded as gaps |
+| Integration | External APIs, payment, email, identity providers | HTTP clients, SDKs, webhook handlers | Redirects to providers (boundary only) |
+| Authentication and authorization | Login, sessions, tokens, permission checks | Auth middleware, guards, role constants | Login pages, access-denied outcomes per credential profile |
+| Error and recovery | Validation failures, exceptions, retries, fallbacks | Error handlers, retry config | Visible error messages and states |
+| Cross-component | Frontend → API → service → DB → worker → external | Combined traces across boundaries | Partial: the visible ends of the chain |
+
+**Discovery procedure.**
+1. Find entry points per boundary.
+2. Build component traces from each entry point.
+3. Compose traces into end-to-end workflows across boundaries using evidence:
+   - client calls to API routes;
+   - publisher → topic → consumer;
+   - scheduler → job;
+   - webhook → handler;
+   - in Mode C, observed page → source route.
+4. Stop composition at evidence boundaries and record why: dynamic registration, missing repository, external provider, unresolved configuration, or unobservable at runtime.
+5. Classify and rank (SAA-FR-046).
+
+**When is SAA finished?** SAA never claims to have found everything. A run is finished when its plan and budget are exhausted or complete. What was found is stated by the completeness report (SAA-FR-045). A `completed` run can still contain substantial, explicitly listed gaps.
 
 ---
 
@@ -590,7 +835,8 @@ The SKB is the durable, machine-readable source of accepted knowledge. It is que
 | Relationship | `CONTAINS`, `IMPORTS`, `CALLS`, `REFERENCES`, `EXPOSES`, `CONSUMES`, `READS_FROM`, `WRITES_TO`, `PUBLISHES`, `SUBSCRIBES_TO`, `AUTHENTICATES_WITH`, `AUTHORIZES_WITH`, `VALIDATES`, `CONFIGURED_BY`, `DEPLOYED_AS`, `TESTS`, `USES_SCHEMA`, `DEPENDS_ON`, `TRIGGERS`, `SENDS_TO`, `NAVIGATES_TO`, `SUBMITS_TO`, `TRANSITIONS_TO`, `SATISFIES` |
 | Evidence | Artifact type, path or external reference, line/column range or structural selector, revision, file fingerprint, analyzer and version, timestamp, excerpt or digest per privacy policy, verification method |
 | Claim | Statement, provenance status, confidence rationale, subject entity, relationships, evidence, scope, caveats, last validated revision |
-| Workflow | Ordered/branched steps, entrypoint, decisions, reads/writes, side effects, errors, external boundaries, tests, unresolved hops, completion label |
+| Component trace | Entry point or component, the relations it establishes (`CALLS`, `READS_FROM`, …), evidence, and where tracing stopped and why |
+| Workflow | Category (§11.6), discovery origin (`source`, `runtime`, `both`), composed component traces, ordered/branched steps, entry points, decisions, reads/writes, side effects, errors, external boundaries, tests, unresolved hops, completion label, `deepened` flag |
 | Coverage item | Analyzed, skipped, unsupported, failed or partial, with reason |
 | Open question/contradiction | Unresolved requirement, ambiguous mapping, conflicting evidence, missing dependency, stale claim, docs/tests/code mismatch |
 | Annotation | Human correction, business note or approval; separately attributed |
@@ -605,12 +851,14 @@ File names are configurable; each document's **role** is fixed and is what QAA u
 
 | Role | Default file | Required content |
 |---|---|---|
-| `executive_summary` | `00-executive-summary.md` | System summary, boundaries, major components, key workflows, coverage, limitations, high-risk unknowns |
+| `executive_summary` | `00-executive-summary.md` | System summary, **evidence profile and what it cannot establish**, boundaries, major components, key workflows, completeness report summary, limitations, high-risk unknowns |
 | `system_context` | `01-system-context.md` | Actors, applications, external services, trust boundaries |
 | `architecture` | `02-architecture.md` | Containers/services/modules, dependencies, deployment boundary evidence, diagrams generated from relationships |
 | `project_inventory` | `03-project-inventory.md` | Languages, frameworks, manifests, entrypoints, observed build/test commands (not executed), generated/vendor files, coverage |
 | `components` | `04-components.md` | Responsibilities (inferred from code), interfaces, dependencies, stores, explicitly provided owners, key files |
-| `workflows` | `05-workflows/<workflow>.md` | One per selected workflow: steps, branches, reads/writes, side effects, errors, tests, confidence, unknown hops |
+| `workflow_catalog` | `05-workflow-catalog.md` (P) | All discovered workflows by category: entry points, evidence profile, completion, unresolved links, `not_deepened` markers |
+| `workflows` | `05-workflows/<workflow>.md` | One per discovered workflow (detailed for ranked or deepened ones): steps, branches, reads/writes, side effects, errors, tests, confidence, unknown hops |
+| `observed_behavior` | `05c-observed-behavior.md` (P) | Runtime-observed pages, navigation, forms, visible validation and states, environment and observation window, unobserved areas |
 | `routes_and_pages` | `05a-routes-pages-forms.md` (P) | Route/page map, forms, fields, constraints, navigation, access preconditions |
 | `roles_and_permissions` | `08-authentication-authorization.md` | Login/session/token/cookie handling, middleware, role/permission mapping, checks, gaps |
 | `business_rules` | `05b-business-rules-and-states.md` (P) | Rules, validations, boundaries, state machines, invalid transitions |
@@ -661,7 +909,12 @@ Any file not listed in `manifest.artifacts` is ignored by QAA and reported as a 
 
 ### 13.3 Manifest
 
-Required fields: `contract`, `package_schema_version`, `package_id`, `package_version`, `producer`, `project`, `repository`, `analysis`, `generated_at`, `languages`, `coverage_summary`, `artifacts`. `previous_package` is required when `package_version > 1`.
+Required fields: `contract`, `package_schema_version`, `package_id`, `package_version`, `producer`, `project`, `evidence_profile`, `analysis`, `generated_at`, `languages`, `coverage_summary`, `artifacts`. Conditional fields:
+- `repository` is required when `evidence_profile.source_analysis` is `available`, and is `null` otherwise.
+- `observed_environments` is required when `runtime_observation` is `available`.
+- `previous_package` is required when `package_version > 1`.
+
+The example below is a Mode C (combined) package.
 
 ```json
 {
@@ -679,6 +932,19 @@ Required fields: `contract`, `package_schema_version`, `package_id`, `package_ve
     ]
   },
   "project": { "system_id": "system:acme-portal", "name": "Acme Portal" },
+  "evidence_profile": {
+    "source_analysis": "available",
+    "runtime_observation": "available",
+    "documentation_import": "unavailable",
+    "revision_correspondence": "user_confirmed",
+    "cannot_establish": ["Behavior of scheduled jobs at runtime", "Email delivery by external provider"]
+  },
+  "observed_environments": [
+    { "environment_id": "env:acme-staging", "base_url": "https://staging.acme.example",
+      "classification": "staging", "observed_from": "2026-10-21T08:45:00Z", "observed_to": "2026-10-21T09:05:00Z",
+      "target_app_locale": "id-ID", "deployed_revision": { "value": "4b77…e0c2", "source": "declared" },
+      "permission_level_max": "L2", "discovery_probe": false }
+  ],
   "repository": {
     "provider": "git",
     "identity": "github.com/example/acme-portal",
@@ -728,7 +994,14 @@ Required fields: `contract`, `package_schema_version`, `package_id`, `package_ve
 }
 ```
 
-Coverage values: `complete`, `partial`, `absent` (applicable but not found), `not_applicable`, `unsupported` (no adapter can analyze it). `absent` and `unsupported` must each have a gap record in the system model.
+Coverage values: `complete`, `partial`, `absent` (applicable but not found), `not_applicable`, `unsupported` (no adapter can analyze it), `unobservable` (cannot be established from the available evidence type, e.g. `data_model` in a URL-only package). `absent`, `unsupported` and `unobservable` must each have a gap record in the system model.
+
+Evidence profile values (CON-020):
+- Each of `source_analysis`, `runtime_observation` and `documentation_import` is `available`, `unavailable` or `partial`.
+- `revision_correspondence` is `user_confirmed`, `observed`, `unconfirmed` or `not_applicable`.
+- `cannot_establish` lists, in machine text, the important questions this profile cannot answer.
+
+In a Mode B package, `repository` is `null`, and system-model and evidence revisions use `kind: observation_window` (§13.8).
 
 ### 13.4 Identifiers
 
@@ -871,13 +1144,16 @@ QAA's full basis enumeration (controlled, P): `requirement_backed` (supplied req
 
 `source_type` values: `source_code`, `configuration`, `schema`, `migration`, `test_definition`, `documentation`, `git_history`, `manifest`, `runtime_observation`, `test_result`, `human_annotation`, `requirement_document`. QAA adds its own evidence types in its store (`browser_observation`, `network_observation`, `targeted_source_check`, `tester_report`, `screenshot`, `trace`) and never writes them into an SAA package.
 
+SAA runtime-discovery evidence uses `source_type: runtime_observation` with a `subtype` of `page`, `navigation`, `form`, `validation_message`, `state_message` or `access_outcome`. It adds `environment_id`, `url` (scope-normalized, query secrets redacted), `observed_at`, `credential_profile_role` (role name only), `discovery_probe` (bool) and an optional screenshot digest. `path` and `range` are absent.
+
 ### 13.8 Revision and environment metadata (P, resolves RC-C03)
 
 | Field | Rule |
 |---|---|
 | `revision.kind` | `git_commit` (40/64-hex SHA) or `content_fingerprint` (hash over included files, for non-Git sources). |
 | `revision.worktree_dirty` | `true` if uncommitted changes were analyzed. The package is then reproducible only from the fingerprint stored alongside (`revision.dirty_fingerprint`). |
-| `repository.identity` | Read from local Git metadata (`local_git_remote`) or supplied by the user (`user_supplied`). Never fetched from a remote service. |
+| `repository.identity` | Read from local Git metadata (`local_git_remote`) or supplied by the user (`user_supplied`). Never fetched from a remote service. `null` when no source was analyzed. |
+| `revision.kind = observation_window` | Runtime-only evidence identity: `environment_id`, `observed_from`, `observed_to`. Used when no source revision applies (Mode B), and alongside a source revision for runtime evidence in Mode C (CON-021). |
 | `analysis.*` | Run ID, profile, timestamps, status, max permission level, optional L4 actions executed (with approval metadata). |
 | Environment metadata | Belongs to QAA, not to the package. QAA records environment ID, base URL, classification, deployed revision when knowable (`declared` by user or `observed` from a version endpoint), browser, viewport, locale and timezone (QAA-FR-008). |
 
@@ -898,7 +1174,17 @@ Policy for dirty or non-Git packages: **OD-04**. Recommended: allow import, cap 
 
 **Package freshness** (C, QAA FR-014): `current` (package revision equals baseline revision), `mismatched` (differs; impact assessable), `stale` (a newer package or revision exists and affects selected flows), `unverifiable` (deployed revision unknown). A mismatch does not mean the documentation is wrong; it must be visible (QAA §26.4).
 
-**Materiality (P):** a gap is material for a scope when it touches an entity on a selected workflow's path, a business rule used as an expected result, or a permission guarding a selected step. Users can override materiality with an audited reason.
+**Readiness per QA activity (P, CON-022).** Readiness is computed separately for:
+- `scenario_design`;
+- `manual_preparation` (manual test packs);
+- `automated_execution`.
+
+The rules:
+- A package is **never downgraded for evidence it does not claim to have**. A Mode B package is not `review_only` merely because it lacks source, and a Mode A package is not `blocked` for design merely because no environment exists.
+- Missing evidence instead constrains the **QA objectives** that are possible (§15.9) and is attached as limitations to affected scenarios.
+- `automated_execution` additionally requires a configured, reachable, non-production environment.
+
+**Materiality (P):** a gap is material for a scope when it touches an entity on the path of a workflow in QA scope (chosen from the discovered catalog), a business rule used as an expected result, or a permission guarding a selected step. Users can override materiality with an audited reason.
 
 ### 13.10 Validation and error handling
 
@@ -916,6 +1202,7 @@ QAA validates in this order and stops at the first `error`. Every result is mach
 | `PKG_ANALYSIS_FAILED` | error | `analysis.status` is `failed`/`cancelled` | `blocked` |
 | `PKG_SECRET_SUSPECTED` | error | Validator detects a likely raw secret value | `blocked`; do not display the value; advise re-export |
 | `PKG_EVIDENCE_REVISION_MISMATCH` | error | Evidence revision differs from package revision | `blocked` (no silent merge) |
+| `PKG_EVIDENCE_PROFILE_INCONSISTENT` | error | For example, runtime evidence without `observed_environments`, source evidence with `repository: null`, or a `cannot_establish` item contradicted by a `source_verified` claim | `blocked`; list offending records |
 | `PKG_ANALYSIS_PARTIAL` | warning | `partial` | `review_only` |
 | `PKG_REVISION_MISMATCH` | warning | Revision ≠ baseline | Freshness `mismatched`; `review_only` for affected flows |
 | `PKG_REVISION_UNVERIFIABLE` | warning | Deployed revision unknown | Freshness `unverifiable`; execution approval requires an explicit baseline confirmation |
@@ -941,6 +1228,8 @@ Scenario freshness (P): `current`, `potentially_stale`, `stale`. Approval state 
 | New package, **no diff** available | — | All `potentially_stale` | All `suspended` | Unchanged |
 | Rename with uncertain mapping | Diff reports low-confidence rename | `potentially_stale` | `suspended` until the mapping is confirmed | Unchanged |
 | Deployed revision of environment changes or becomes unknown | — | Freshness recomputed | `suspended` for affected scenarios | Unchanged |
+| Environment re-discovered (new runtime package) | Observations re-derived; diff where possible | As for a new package with or without diff | As for a new package | Unchanged |
+| Runtime observations older than the freshness window (OD-27) | Marked `stale` for revalidation | `potentially_stale` for scenarios relying only on runtime evidence | `suspended` | Unchanged |
 | Scope policy, environment config or test-data profile changes | — | Unchanged | `suspended` for approvals bound to the old version | Unchanged |
 | Scenario edited | — | New version `draft` | Prior version's approval `superseded`; the edit is not approved (QAA FR-053) | Unchanged |
 | User revokes approval | — | — | `revoked` | Unchanged |
@@ -957,6 +1246,7 @@ The executor runs a scenario only if its approval is `active` **and** the approv
   "system_id": "system:acme-portal",
   "base_package": { "package_id": "pkg:acme-portal", "package_version": 3 },
   "revision": { "kind": "git_commit", "value": "4b77…e0c2" },
+  "environment_id": null,
   "subject_ids": ["business_rule:registration.nib_required_13_digits", "gap:nib-length-docs-mismatch"],
   "question": "Is a 16-digit NIB accepted by any code path (client or server)?",
   "trigger": { "type": "test_failure", "ref": "arun:…/case:TC-REG-004" },
@@ -987,7 +1277,7 @@ SAA responds by publishing a new package version whose `diff-report.json` refere
 | CON-003 | Stable, language-independent IDs (§13.4) | SAA | P0 | C | Re-analysis of an unchanged revision produces identical entity IDs; changing doc language changes no ID | SAA §7.4, §11.1; QAA §26.3 |
 | CON-004 | Evidence references with path, range, revision, fingerprint, extractor and excerpt policy (§13.7) | SAA | P0 | C | Every `evidence_id` resolves; every path exists at the revision in benchmark checks | SAA §7.2, QAA §26.3 |
 | CON-005 | Provenance vocabulary and basis mapping (§13.6) | Contract | P0 | P | QAA derives `basis` exactly per the table; `contradicted` and `unresolved` claims never yield `pending_review` scenarios | SAA §7.3, QAA FR-033 |
-| CON-006 | Revision identity incl. dirty/non-Git (§13.8) | SAA | P0 | P | Dirty or non-Git analysis is labeled, never presented as a clean commit | SAA §7.2, QAA FR-004 |
+| CON-006 | Revision identity incl. dirty/non-Git and observation windows (§13.8) | SAA | P0 | P | Dirty or non-Git analysis is labeled, never presented as a clean commit; runtime-only packages use `observation_window` | SAA §7.2, QAA FR-004, MR §7C |
 | CON-007 | Coverage summary and analysis status (§13.3, §13.9) | SAA | P0 | P | Every `absent`/`unsupported` category has a gap record | SAA §10.1, QAA FR-013 |
 | CON-008 | Semantic versioning and compatibility (§13.13) | Contract | P0 | C | Unsupported major is rejected; newer minor is accepted and unknown fields are preserved | QAA §26.4 |
 | CON-009 | Ordered validation with machine-readable errors (§13.10) | QAA | P0 | P | Each error code is produced by a dedicated invalid fixture | QAA FR-009, §26.4 |
@@ -1001,6 +1291,9 @@ SAA responds by publishing a new package version whose `diff-report.json` refere
 | CON-017 | Package secret safety and excerpt policy | SAA | P0 | C | The secret fixture set never appears in any package file; validator `PKG_SECRET_SUSPECTED` triggers on planted values | SAA §12.3, FR-018 |
 | CON-018 | Contract published independently with schemas, fixtures and changelog | Contract | P0 | P | SAA and QAA CI each run conformance fixtures without the other component | QAA §26, task scope |
 | CON-019 | Integrity checksums for all listed artifacts | SAA | P0 | P | Tampering with any listed file triggers `PKG_CHECKSUM_MISMATCH` | QAA §26.2 ("where supported") |
+| CON-020 | **Evidence profile** in every package (§13.3) | SAA | P0 | P | Runtime-only, source-only and combined fixtures validate; an inconsistent profile triggers `PKG_EVIDENCE_PROFILE_INCONSISTENT` | MR §7C |
+| CON-021 | **Runtime evidence identity and freshness** (`observation_window`, environment, locale, deployed revision source) | SAA, QAA | P0 | P | Every `runtime_observation` evidence record resolves to an observed environment and window; the freshness rules of §13.11 hold | MR §7C |
+| CON-022 | **Readiness per QA activity**; no downgrade for unclaimed evidence (§13.9) | QAA | P0 | P | A Mode B fixture is `ready`/`ready_with_gaps` for design; a Mode A fixture with no environment is `blocked` only for `automated_execution` | MR §7C, MR-REQ-4 |
 
 ---
 
@@ -1026,7 +1319,7 @@ Original QAA requirement numbers are preserved with a `QAA-` prefix (`FR-014` �
 
 | ID | Requirement | Pri | St | Acceptance criteria | Source |
 |---|---|:-:|:-:|---|---|
-| QAA-FR-010 | The package is the primary system model and test basis; full re-documentation is not a default QAA responsibility | P0 | C | No QAA job enumerates the full repository by default | FR-010 |
+| QAA-FR-010 | The package (of any evidence profile, incl. runtime-only) is the primary system model and test basis; full re-documentation or whole-application crawling is not a default QAA responsibility | P0 | C (scope clarified) | No QAA job enumerates the full repository or crawls the whole application by default | FR-010, RC-C17 |
 | QAA-FR-011 | Use structured artifacts for mapping and validation, and Markdown for human review | P0 | C | Mapping works with Markdown removed from a fixture package | FR-011 |
 | QAA-FR-012 | Preserve package/schema/analyzer versions, repository identity, revision, timestamps, artifact IDs and provenance | P0 | C | All fields are visible on the project and in exports | FR-012 |
 | QAA-FR-013 | Validate category coverage (routes, features, workflows, roles/permissions, rules, states, integrations, unknowns) and flag missing or malformed documentation | P0 | C | Readiness screen lists every category with status | FR-013 |
@@ -1038,7 +1331,9 @@ Original QAA requirement numbers are preserved with a `QAA-` prefix (`FR-014` �
 | QAA-FR-019 | API/shared-workspace integration with change notifications, same contract | P1 | C | Same fixtures pass through the API transport | FR-019 |
 | QAA-FR-020 | Compare new packages and revisions between runs; suggest impacted scenarios for review | P1 | C | Change benchmark yields an impacted-scenario list | FR-020 |
 
-### 14.3 Browser discovery (L2)
+### 14.3 Runtime observation (L2)
+
+QAA-FR-021 … 028 are requirements on the **shared runtime observation service** (§9.1). They apply identically when SAA performs URL discovery (SAA-FR-042) and when QAA performs targeted verification or execution (RC-C17).
 
 | ID | Requirement | Pri | St | Acceptance criteria | Source |
 |---|---|:-:|:-:|---|---|
@@ -1050,7 +1345,7 @@ Original QAA requirement numbers are preserved with a `QAA-` prefix (`FR-014` �
 | QAA-FR-026 | Unsupported login flow → stop and ask; never bypass controls | P0 | C | MFA/CAPTCHA fixture stops with guidance | FR-026 |
 | QAA-FR-027 | Additional authentication (SSO, MFA) via documented user-assisted mechanisms | P1 | C | — | FR-027 |
 | QAA-FR-028 | Users adjust exploration scope and exclude routes or data areas | P1 | C | Excluded route is never visited | FR-028 |
-| QAA-FR-029 | Discovery is guided by documented routes/flows and bounded by a page/step/time budget | P0 | P | Budget exhaustion yields a partial discovery record with unvisited scope | QAA §14.1, §17.2 |
+| QAA-FR-029 | QAA's own browser use is **targeted verification** of specific package items, bounded by a page/step/time budget; whole-application discovery is SAA-FR-042 | P0 | P | Budget exhaustion yields a partial verification record with unverified items | QAA §14.1, §17.2 |
 
 ### 14.4 Test planning and generation
 
@@ -1143,7 +1438,16 @@ Original QAA requirement numbers are preserved with a `QAA-` prefix (`FR-014` �
 | QAA-FR-101 | Log job transitions, approvals, credential use, policy decisions and artifact access without secrets | Platform | P0 | C | See OBS-002 | FR-101 |
 | QAA-FR-102 | Cancel jobs; identify stuck jobs | Platform | P0 | C | Stuck-job detection fixture | FR-102 |
 | QAA-FR-103 | Health checks and metrics: queue length, job duration, worker failure, resource use | Platform | P0 | C | Endpoints/commands exist | FR-103 |
-| QAA-FR-104 | Multiple hosted or local LLM provider adapters | Platform | P1 | C | See PLT-003 | FR-104 |
+| QAA-FR-104 | Multiple hosted or local LLM provider adapters | Platform | P1 | C | See OSS-009 | FR-104 |
+
+### 14.10 Evidence-adaptive QA
+
+| ID | Requirement | Pri | St | Acceptance criteria | Source |
+|---|---|:-:|:-:|---|---|
+| QAA-FR-110 | **Source-optional QA.** Generate candidate scenarios from runtime-only packages. Such scenarios state their evidence basis and limits, and never assert internal implementation details or unsupported business requirements | P0 | P | URL-only fixture yields reviewable scenarios; a claim audit finds no internal-effect assertion (e.g., DB write, email delivery) without source or requirement basis | MR-REQ-5 |
+| QAA-FR-111 | **QA objective per scenario**: `characterization`, `implementation_conformance`, `requirement_conformance` or `exploratory`, constrained by the expected-result basis (§15.9) | P0 | P | Schema rejects an objective inconsistent with its bases (e.g., `requirement_conformance` with only `observed` basis) | MR §11 |
+| QAA-FR-112 | **Environment-optional QA.** Design, review, approve-for-manual and export **manual test packs** (Markdown/JSON plus result template) with no configured environment; results can be imported back and are linked to a declared environment | P0 | P | Mode A and D fixtures produce an exported pack; imported results appear in reports as tester-reported with the declared environment | MR-REQ-4, MD-6 |
+| QAA-FR-113 | **Evidence-strengthening suggestions.** For each `needs_clarification` or low-oracle expectation, list which additional evidence (source, requirement, role credentials, environment, discovery probe) would strengthen it | P1 | P | Suggestions are present on URL-only fixture scenarios | MR §11 |
 
 ---
 
@@ -1195,7 +1499,7 @@ QAA applies techniques selectively, explains why each is relevant, and avoids du
 
 ### 15.5 Positive, negative and error paths
 
-For each selected workflow, QAA considers the main success path; documented alternative branches; validation failures per rule (one invalid class per case where practical); authorization failure (denied role or unauthenticated); documented error contracts (e.g., 422 or 409 shown in the UI); and timeouts or external failures where the UI exposes them. Paths SAA marks `unknown` become `needs_clarification` or exploratory charters, never invented expectations.
+For each workflow in QA scope (chosen from the discovered catalog), QAA considers the main success path; documented alternative branches; validation failures per rule (one invalid class per case where practical); authorization failure (denied role or unauthenticated); documented error contracts (e.g., 422 or 409 shown in the UI); and timeouts or external failures where the UI exposes them. Paths SAA marks `unknown` become `needs_clarification` or exploratory charters, never invented expectations.
 
 ### 15.6 Authorization and role-based testing
 
@@ -1232,6 +1536,21 @@ Every expected result records its `basis` (§13.6) and an **oracle class** (QAA-
 
 Reports separate **verification** (matches the oracle) from **validation** (meets stakeholder needs) (QAA §6.6). A pass against an `implemented` oracle is reported as "behaves as currently implemented."
 
+**QA objectives** (QAA-FR-111, MR §11). These overlap but are not interchangeable. An observed behavior is never promoted to a requirement because no better information exists.
+
+| QA objective | Question | Permitted expected-result bases | What a pass may be reported as |
+|---|---|---|---|
+| `characterization` | What does the application currently do? | `observed`, `saa_documented` (`runtime_observed`, `source_verified`, `test_verified`), `source_supported` | "Behaves as observed or implemented under the tested conditions" |
+| `implementation_conformance` | Is behavior consistent with the available technical specification (API contract, schema, validator)? | `saa_documented` (`source_verified`, `test_verified`), `source_supported` | "Conforms to the implemented technical contract" |
+| `requirement_conformance` | Does the system satisfy the intended business requirement? | `requirement_backed`, `user_confirmed`, requirement-level `human_asserted` | "Satisfies requirement <id>" (the only objective that may say so) |
+| `exploratory` | What unexpected behavior, risk or defect can be found? | Any, including `inferred` and `unresolved` | Findings and observations, not pass/fail against requirements |
+
+Example: in a URL-only project, submitting a registration form shows a success message.
+- QAA may generate a `characterization` scenario that asserts the message.
+- It must not assert that an account was created or an email delivered.
+- It raises `needs_clarification` items (for example: should duplicate emails be rejected? does the account need approval before activation?) and offers `exploratory` charters.
+- When source code, requirements or contracts are added later, QAA can upgrade these scenarios to stronger objectives.
+
 ### 15.10 Scenario data contract
 
 Scenarios are structured, versioned and language-aware. Machine actions never depend on translated text. Illustrative contract (extends QAA §13; schema is finalized in Phase 0):
@@ -1247,6 +1566,7 @@ Scenarios are structured, versioned and language-aware. Machine actions never de
   "feature_ref": "module:web.registration",
   "test_condition_ids": ["tcond:registration.nib.length_boundary"],
   "category": "negative_validation",
+  "qa_objective": "implementation_conformance",
   "test_techniques": [ { "id": "boundary_value_analysis", "rationale": "NIB length is fixed at 13; 12 is just below the boundary." } ],
   "priority": "high",
   "risk": { "impact": 4, "likelihood": 3, "exposure": ["primary_workflow"], "score": 12,
@@ -1297,7 +1617,7 @@ Coverage is always reported **relative to the system model and stated scope**. I
 
 | Metric | Definition |
 |---|---|
-| Workflow coverage | Selected workflows with ≥1 approved scenario / selected workflows; also per branch |
+| Workflow coverage | In-scope catalog workflows with ≥1 approved scenario / in-scope catalog workflows; also per branch. Catalog workflows outside QA scope are listed, never silently dropped |
 | Rule coverage | In-scope business rules with ≥1 scenario per relevant technique / in-scope rules |
 | Role-permission coverage | Guarded (role, step) pairs with allowed and denied cases / in-scope pairs |
 | Route/page coverage | In-scope documented pages exercised / in-scope documented pages |
@@ -1333,6 +1653,8 @@ Manual testing is a first-class capability (C, QAA §7.3). A person follows the 
 7. **Reuse** — the scenario remains available for regression and automation assessment (QAA-FR-070).
 
 Separation from automation: manual runs and automated runs are distinct record types with their own lifecycles and results, sharing only the scenario version identity. QAA never relabels an automated run as manual or vice versa.
+
+**Environment-optional manual testing** (QAA-FR-112). A tester can execute an exported **manual test pack** against whatever environment they have access to, even one Sys2QA is not configured for. At run start the tester records a **declared environment** (name, URL if any, version if known). Results imported back are tester-reported and linked to that declaration. Sys2QA requires no deployment, infrastructure or automation set-up for this path (MD-6).
 
 Failure paths: environment unreachable mid-run → steps marked `blocked` with reason; baseline becomes stale mid-run → run continues but is flagged and the report states the baseline change; tester session expires → progress is preserved.
 
@@ -1408,6 +1730,7 @@ Cancellation stops future actions immediately and starts cleanup; partial eviden
 - **Revalidation** rebinds suspended, unaffected approvals to a new baseline as an explicit human action that creates new audited approval records (QAA-FR-047).
 - Translation of presentation text does not change approval unless semantic content (steps, data, assertions, numbers) changes (LOC-007).
 - Possession of credentials or a URL never substitutes for approval (MD-3 consolidation note).
+- Approval for **manual** execution may bind to a declared environment created at run start (QAA-FR-112). Approval for **automated** execution always binds to a configured environment.
 
 ### 18.3 Clarification loop
 
@@ -1488,6 +1811,9 @@ Logical model, not a database schema. Long-lived records carry creation/update t
 | SAA analysis run | `completed`, `completed_with_limitations`, `partial`, `failed`, `cancelled` | §13.9 |
 | SAA claim | `source_verified`, `runtime_observed`, `test_verified`, `inferred`, `contradicted`, `unresolved`, `stale`, `human_asserted` | §13.6 |
 | Workflow trace | `complete_within_static_scope`, `partial`, `runtime_observed_for_run`, `unresolved` | §11.1 |
+| Workflow catalog entry | `deepened`, `not_deepened`; origin `source`, `runtime`, `both` | §11.6 |
+| Evidence profile field | `available`, `partial`, `unavailable`; correspondence `user_confirmed`, `observed`, `unconfirmed`, `not_applicable` | §13.3 |
+| Readiness (per QA activity) | `ready`, `ready_with_gaps`, `review_only`, `blocked` for each of `scenario_design`, `manual_preparation`, `automated_execution` | §13.9 |
 | Package readiness | `ready`, `ready_with_gaps`, `review_only`, `blocked` | §13.9 |
 | Package freshness | `current`, `mismatched`, `stale`, `unverifiable` | §13.9 |
 | Environment | `configured`, `validated`, `unreachable`, `disabled` (P) | §10 W1 |
@@ -1512,6 +1838,13 @@ Sys2QA reads sensitive, untrusted source code and drives a browser against user-
 
 **Authorization model (MD-3).** Authorization is self-declared and recorded. The platform does not verify ownership. The controls below protect users and third parties *without* depending on ownership proof.
 
+Three concepts remain separate (MR §6):
+1. **Authorization declaration.** The user states they may analyze or test the target. This is the product's chosen trust model, not proof.
+2. **Technical scope.** Code enforces which roots, hosts, paths and environments tools can reach, regardless of what the model or page content requests.
+3. **Action approval.** State-changing tests need explicit, version-bound approval.
+
+All browser controls (SEC-003, 007, 008, 009, 019, 020, 024, 025) are enforced by the shared runtime observation service, so they apply equally to URL-first discovery and to test execution. Accepting a URL as input never enables production testing.
+
 ### 21.2 Security requirements
 
 | ID | Requirement | Owner | Pri | St | Acceptance criteria | Source |
@@ -1520,7 +1853,7 @@ Sys2QA reads sensitive, untrusted source code and drives a browser against user-
 | SEC-002 | **No execution by default:** no scripts, installs, migrations, builds, tests or app start at L0–L2 | SAA, QAA | P0 | C | Process audit on benchmark runs shows no repository-originated processes | SAA §12.2(2), FR-004; QAA FR-017, §16.2 |
 | SEC-003 | **Prompt-injection separation:** repository files, docs, comments, web pages (incl. hidden text) and API bodies are data; they cannot change policy, scope, permissions, approvals or request shell actions; policy enforced in code outside the model | SAA, QAA | P0 | C | Injection fixtures in repo and malicious benchmark page cause no policy change | SAA §12.2(5), FR-019; QAA §14.3 |
 | SEC-004 | **Secret redaction:** detect credentials, tokens, keys; store references/variable names/redacted markers only; never in prompts, logs, traces, docs, packages, reports, screenshots (where feasible) or audit | Platform | P0 | C | Secret fixture set never appears in any output | SAA §12.2(4), FR-018, §12.3; QAA FR-068, §16.3 |
-| SEC-005 | **Authorization declaration:** before analysis and before adding an environment, the user records a self-declared authorization (who, what, when); stored in audit; not verified (MD-3) | Platform | P0 | P | Analysis/environment creation impossible without a recorded declaration | QAA §16.1, MD-3 |
+| SEC-005 | **Scoped authorization declaration.** Before analysis or adding an environment, the user records who declares, when, and what is in scope: source roots, hosts and paths, environment classification, operation level (observe / discovery probe / execute tests / tests may modify data), and prohibited data or actions. The declaration drives the enforced scope policy, is audited, and is not verified (MD-3) | Platform | P0 | P | Analysis and environment creation are impossible without a declaration; operations beyond the declared level are refused | QAA §16.1, MD-3, MR §6 |
 | SEC-006 | **Least privilege and permission levels:** operations classified L0–L5 (§9.5); MCP tools declare side-effect level; no unrestricted shell tool by default | Platform | P0 | C | Tool registry exposes level per tool; L4 tools absent unless enabled | SAA §12.2(8), §4.4 |
 | SEC-007 | **URL scope, SSRF and egress:** allowlisted schemes/hosts/path prefixes; every redirect and connection revalidated; DNS-rebinding protection by checking resolved addresses at connection time; egress enforced outside the application; URL params, page content and model output cannot expand scope | QAA | P0 | C | SSRF/redirect/DNS fixtures blocked (incl. cloud metadata IPs) | QAA §16.1, OWASP SSRF guidance |
 | SEC-008 | **Private network policy:** loopback, private, link-local and metadata addresses blocked by default; an explicit administrator-enabled **local owner mode** allows named private/loopback targets (e.g. `localhost:3000`) for T1 with stronger isolation | QAA | P0 | C (local mode P) | Default blocks localhost; enabling local mode for a named host allows only that host | QAA §16.1, RC-C09 |
@@ -1538,6 +1871,8 @@ Sys2QA reads sensitive, untrusted source code and drives a browser against user-
 | SEC-020 | **Rate limiting:** discovery, navigation, requests and execution rate-limited per environment | QAA | P0 | C | Configured rate honored in tests | QAA §16.1 |
 | SEC-021 | **Package integrity:** checksum validation and refusal of packages containing suspected raw secrets | QAA | P0 | P | See CON-019, `PKG_SECRET_SUSPECTED` | QAA §26.2 |
 | SEC-022 | **Dependency integrity:** no automatic tool installers in unattended runs; adapter/tool versions pinned or recorded; downloads verified per distribution policy | Platform | P0 | C | Run metadata lists tool versions | SAA §12.2(10) |
+| SEC-024 | **Discovery probe (L2p)** is off by default and enabled per scope declaration. It submits only empty/invalid input to forms the classifier does not mark as state-changing. It never targets login forms (to avoid account lockout), payment, deletion, invitation or messaging forms. Probe submissions are rate-limited and audited | Platform | P0 | P | Probe-off discovery submits no form; with probe on, destructive and login fixture forms are not submitted | MR §6, QAA FR-025 |
+| SEC-025 | **One enforcement point for browser access.** No agent or plug-in opens browser or HTTP sessions to targets except through the runtime observation service | Platform | P0 | P | A static check or test shows no direct target access outside the service | MR §6, RC-C17 |
 | SEC-023 | **Personal data:** redact or warn about personal data in screenshots/logs where feasible; store only evidence needed to explain and reproduce results | QAA | P1 | C | — | QAA §16.5 |
 
 ### 21.3 Sensitive-data handling (C, SAA §12.3)
@@ -1572,8 +1907,8 @@ Numeric targets are set only after baseline measurement (SAA §11.2, QAA §17).
 
 | Interface | Agent | Purpose | Priority |
 |---|---|---|---|
-| CLI (`saa init/analyze/status/inspect/trace/search/graph/docs/export/diff/validate/adapters/doctor`) | SAA | Analysis, inspection, export, automation; human and `--json` output; stable exit codes; cancellation; redacted logs | P0 |
-| MCP server (`saa.get_system_overview`, `…list_projects_and_components`, `…search_code_and_knowledge`, `…get_entity`, `…get_evidence`, `…trace_workflow`, `…get_api_contract`, `…get_data_model`, `…get_dependencies`, `…get_tests_for_entity`, `…get_change_impact`, `…get_unknowns_and_contradictions`, `…run_scoped_analysis`, `…get_analysis_status`, `…refresh_knowledge`) | SAA | Agent access; narrow typed tools; side-effect levels; progress for long operations | P0 |
+| CLI (guided `sys2qa start`, plus power-user commands; §23.4) | Platform, SAA, QAA | Start from what you have; analyze/discover; browse catalog; inspect; deepen; validate; export; human and `--json` output; stable exit codes; cancellation; redacted logs | P0 |
+| MCP server (`saa.get_system_overview`, `…list_projects_and_components`, `…search_code_and_knowledge`, `…get_entity`, `…get_evidence`, `…list_workflows`, `…get_completeness_report`, `…trace_workflow` (deepens a discovered workflow ID), `…get_api_contract`, `…get_data_model`, `…get_dependencies`, `…get_tests_for_entity`, `…get_change_impact`, `…get_unknowns_and_contradictions`, `…run_scoped_analysis`, `…get_analysis_status`, `…refresh_knowledge`) | SAA | Agent access; narrow typed tools; side-effect levels; progress for long operations | P0 |
 | Analyst Skill | SAA | Guides AI clients through methodology and tools | P0 |
 | Web UI | QAA (+ package viewer) | Projects, readiness, plan, review/approval, manual runner, automated monitor, results, settings | P0 |
 | QAA API | QAA | Same service layer as UI; versioned | P0 (internal), P1 (public) |
@@ -1582,9 +1917,9 @@ Numeric targets are set only after baseline measurement (SAA §11.2, QAA §17).
 ### 23.2 Core screens (C, QAA §11.1, extended P)
 
 1. **Projects dashboard** — package version and readiness, freshness, last run, failures, blockers, stale-scenario count.
-2. **Project setup wizard** — local repository/package selection, authorization declaration, environments and classification, scope, credential profiles, language settings, safety confirmation.
+2. **Start / project setup wizard** — "What do you have?" mode selection (A–D), scoped authorization declaration, evidence profile preview, environments and classification, scope, credential profiles, language settings, safety confirmation.
 3. **Documentation readiness** (P) — validation results, coverage by category, gaps and contradictions with materiality, freshness, allowed actions.
-4. **Discovery overview** — route map mapped to SAA pages, forms, observations, exclusions, uncertainty.
+4. **System map and workflow catalog** — discovered entry points and workflows by category; evidence profile per item; completion labels; unresolved links; unobserved areas; completeness report; "deepen" action; exclusions and uncertainty.
 5. **Test plan** — objectives, scope, risk model, coverage summary, assumptions, exclusions.
 6. **Scenario review** — list with filters (feature, risk, mode, basis/oracle, status, freshness), step preview, evidence/trace panel (SAA claim → evidence), language selector, approval controls, bulk approval preview, clarification panel.
 7. **Manual runner** — one step at a time; expected vs. actual; status; notes; attachments; defect creation; pause/resume/abandon.
@@ -1595,7 +1930,30 @@ Numeric targets are set only after baseline measurement (SAA §11.2, QAA §17).
 
 ### 23.3 UX rules (C, QAA §11.2)
 
-Show project state and next safe action; display scope and environment prominently before approval and execution; meaningful progress stages; visually separate source evidence, browser observations and AI inferences; never color alone; keyboard accessible; actionable errors; show all bulk selections; clearly flag incomplete or uncertain results; show freshness and readiness wherever scenarios or results appear (P).
+Show project state and next safe action; display scope and environment prominently before approval and execution; meaningful progress stages; visually separate source evidence, browser observations and AI inferences; never color alone; keyboard accessible; actionable errors; show all bulk selections; clearly flag incomplete or uncertain results; show freshness and readiness wherever scenarios or results appear (P); never ask the user for system knowledge (workflow names, architecture, rules) as a precondition (SYS-002); show the evidence profile and its limits on every summary (SYS-004).
+
+### 23.4 CLI design principles (illustrative commands, not final)
+
+Commands operate on **what the user has** and on **IDs generated by analysis**, never on names the user must already know (MR §8).
+
+```text
+sys2qa start                                   # guided: repository | URL | both | package
+sys2qa analyze ./my-project                    # Mode A
+sys2qa discover https://dev.example.test       # Mode B (requires scoped declaration)
+sys2qa analyze ./my-project --url https://dev.example.test   # Mode C
+sys2qa import ./acme-portal-pkg-v3/            # Mode D
+sys2qa status <project-or-run-id>
+sys2qa workflows list <run-id>                 # discovered catalog
+sys2qa workflows show <run-id> <workflow-id>
+sys2qa trace <workflow-id|entry-point-id> --deepen   # follow-up on a discovered item
+sys2qa validate package <path>                 # names what is validated:
+sys2qa validate evidence <run-id>              #   package schema vs. evidence integrity
+sys2qa export <run-id> --format package
+sys2qa qa plan <package-id>
+sys2qa qa pack <suite-id> --format markdown    # manual test pack, no environment needed
+```
+
+`validate` always names its target (`package`, `evidence`, `consistency`), because these are different checks. The CLI may become an interactive terminal flow, a GUI or an agent conversation; the principle, not the syntax, is normative (OD-28).
 
 ---
 
@@ -1648,6 +2006,21 @@ Unit (schemas, state machines, risk scoring, permissions, translation preservati
 
 **Joint benchmarks** (P): each QAA fixture app also exists as a repository so the full SAA → QAA pipeline is measured; plus a pair of revisions per app to test staleness propagation (§13.11).
 
+**Flexibility fixtures** (P, MR §9). These are the first benchmark set:
+1. **Repository-only:** an undocumented application with several workflows, business rules, database interactions and a background job.
+2. **URL-only:** a development website with multiple pages, forms, navigation paths, validation errors and observable state changes.
+3. **Combined:** the same application as source plus a running environment, with at least one deliberate discrepancy.
+4. **Incomplete evidence:** an inaccessible dependency and an unobservable workflow boundary.
+
+Each fixture is evaluated on whether Sys2QA:
+- discovers workflows without being given their names;
+- keeps inferred and verified behavior distinct;
+- states where analysis stops;
+- produces useful scenarios from each starting mode;
+- detects source/runtime discrepancies;
+- never claims that an observed success message proves an internal side effect;
+- completes the useful parts with no deployment access.
+
 ### 26.3 Evaluation principles
 
 Measure discovery and honesty about limits; publish benchmark results and known limitations with releases; no numeric claims before baselines; evaluate scenario correctness and coverage, not scenario count.
@@ -1665,25 +2038,42 @@ Measure discovery and honesty about limits; publish benchmark results and known 
 
 ## 27. MVP scope and phased roadmap
 
-### 27.1 MVP vertical slice
+### 27.1 Delivery principle
 
-One end-to-end slice — **analyze → evidence-backed model → package → readiness → scenarios → approval → manual and automated execution → report** — on a focused stack, rather than broad shallow coverage (SAA §15 guardrails, QAA §20 Phase 1).
+Deliver **complete user outcomes from an unknown starting point**, one evidence profile at a time, rather than completing one technical layer after another (MR §9, SAA §15 guardrails). Each phase ends with a user able to do something useful end to end.
 
-**In MVP (P0):** SAA CLI, MCP, Skill; JS/TS + SQL + config/deploy adapters (OD-06); boundaries, module graph, routes/pages/forms, roles/permissions, rules, workflows, basic data model, test inventory; Markdown docs (`en`, `id`); package export and contract validator; QAA package import, readiness, freshness and staleness propagation; scoped L2 discovery with basic login; test plan, techniques, scenarios with basis/oracle/traceability; review and approval; manual runner; Playwright runner for the constrained action set; defects; JSON/Markdown exports; security controls of §21 marked P0; local single-user topology (pending OD-01).
+Consolidation note (RC-C19): the maintainer review proposed a layer-ordered roadmap: foundation → SAA → URL discovery → QAA design → manual → automation → breadth. Under that ordering, no user could produce a reviewed, executed test until Phase 4. The roadmap below keeps the same building blocks and safety gates but reorders them into outcome slices. The final choice is **OD-26**.
 
-**Not in MVP:** see §6 and all P1/P2/Deferred rows.
+### 27.2 MVP (public preview) scope
 
-### 27.2 Roadmap
+The MVP is Phases 0–3 below and covers all **P0** requirements:
+- Modes A, B, C and D;
+- automatic workflow discovery and catalog, with a completeness report;
+- JS/TS + SQL + config/deploy source adapters (OD-06);
+- runtime discovery through the shared observation service;
+- package export with evidence profile, plus the contract validator;
+- QAA readiness per activity, QA objectives, scenarios with basis, oracle and traceability;
+- review and approval;
+- manual testing and manual test packs with no environment required;
+- Playwright automation for the constrained action set;
+- defects; JSON/Markdown exports; `en`/`id`;
+- the P0 security controls of §21;
+- local single-user topology (pending OD-01).
 
-| Phase | Objective | SAA deliverables | QAA deliverables | Shared deliverables | Exit gate |
+Phases 1 and 2 may ship as **early-access releases**. They are useful on their own and need no automation infrastructure.
+
+### 27.3 Roadmap
+
+| Phase | User outcome | SAA deliverables | QAA deliverables | Shared deliverables | Exit gate |
 |---|---|---|---|---|---|
-| **0 — Contract and foundations** | Prove the knowledge contract before breadth | SKB schema, IDs, evidence model, statuses; inventory and revision metadata; adapter interface; CLI skeleton | Scenario schema and lifecycle; safe URL scope and worker isolation design | Contract v1.0 schemas + fixtures; benchmark corpus seed; threat model; secret/injection fixtures; decide OD-01, OD-02, OD-04, OD-05, OD-06, OD-09 | A small system is analyzed, packaged, imported and queried with evidence links intact |
-| **1 — MVP vertical slice** | First usable product | §27.1 SAA scope | §27.1 QAA scope | Localization `en`/`id`; audit; LLM adapter | QAA consumes benchmark packages and produces traceable, approved, executed suites (manual + automated) |
-| **2 — Depth and team workflows** | Cross-component depth; regression | More adapters; data flow, async/jobs, auth/session, proxy routes; incremental refresh and model diff; LSP resolution; test mapping; annotations | More auth strategies; change analysis and regression suggestions; assignment and permissions; run comparison; HTML/CSV reports; better fixtures/cleanup; more locales | Analysis-request API (P1) | Correct incremental results under moves, schema and config changes; staleness benchmark passes |
-| **3 — Controlled runtime and extensibility** | Verified runtime evidence; new test types | Approved runtime observation with disposable environments; static-vs-runtime discrepancy reports | API/contract test adapter; accessibility and visual regression integrations; additional engines/export languages; CI for approved suites | Pluggable methods and analyzers; self-hosted model support | Runtime observations reproducible, permissioned, scoped, never generalized |
-| **4 — Team, CI and visual knowledge** | Team operation | CI impact reports; SAA review UI; policy packs and vocabulary | Defect-tracker export | Team storage/access control if justified | Team features without widening source-data exposure |
+| **0 — Shared foundation** | — (enabling) | SKB schema with an evidence model that does not assume source; IDs; claim statuses; adapter interface; CLI skeleton | Scenario schema with QA objective, basis and oracle; lifecycle | Contract v1.0 with evidence profile and runtime evidence identity; project/scope/declaration model; runtime observation service safety boundary (SSRF, scope, rate limits); the four benchmark fixtures of §26.2; threat model; decisions on OD-01, 02, 04, 05, 06, 09, 24, 26 | Source and browser evidence are both represented without losing provenance; conformance fixtures pass |
+| **1 — Repository → manual QA** (early access) | A developer with only an unfamiliar repository gets a system map, a workflow catalog with gaps, and an approved, manually executed suite with a report, **with no environment** | Source discovery (JS/TS, SQL, config); entry points; workflow catalog; completeness report; docs; package | Import; readiness per activity; plan; techniques; characterization and implementation-conformance scenarios; review/approval; manual runner; manual test packs; defects; reports | `en`/`id`; audit; LLM adapter | Repository-only fixture: workflows discovered without names; a manual suite is executed and reported |
+| **2 — URL → manual QA** (early access) | A developer with only a dev/staging URL gets observed workflows and useful candidate scenarios, executed manually | Runtime discovery (L2); observed model; Mode B limitations; discovery probe (opt-in) | Source-optional scenarios; exploratory charters for gaps; clarification items for business intent | Runtime observation service complete; scope declaration UX | URL-only fixture: useful scenarios and **no claim beyond observation**, for example no internal side effect inferred from a success message |
+| **3 — Combined evidence + constrained automation** (MVP complete) | Repository + URL yields discrepancies and the strongest basis; approved scenarios run automatically and safely | Source–runtime correlation; revision correspondence; discrepancy records | Playwright worker; approval gates; isolation; cleanup; failure categories; targeted verification | Worker isolation; egress controls | Combined fixture discrepancy detected; incomplete-evidence fixture reports where analysis stops; automation security suite passes; §29.1 gate passes |
+| **4 — Depth and change** | Systems evolve without stale tests | Incremental refresh; model diff; more adapters; LSP resolution; async/job/event depth; test mapping; annotations; follow-up requests | Regression suites; change-impact suggestions; supplied requirements and requirement-based testing; more auth strategies; run comparison; HTML/CSV | Analysis-request API (P1) | Staleness benchmark passes; incremental results correct under moves and schema/config changes |
+| **5 — Team, CI and extensibility** | Teams and pipelines | CI impact reports; review UI; policy packs; SAA runtime mode (L4) with sandbox | API/contract, accessibility and visual-regression adapters; tracker export; CI for approved suites | Team storage and access control if justified; self-hosted model support | Team features without widening source-data exposure |
 
-Performance testing, penetration testing and production execution need separate safety designs and are never added silently as general agent actions (QAA §20).
+Performance testing, penetration testing, production execution and infrastructure provisioning need separate safety designs. They are never added silently as general agent actions (QAA §20, X-22).
 
 ---
 
@@ -1693,7 +2083,8 @@ Performance testing, penetration testing and production execution need separate 
 
 | Prefix | Area | Defined in | Notes |
 |---|---|---|---|
-| `SAA-FR-nnn` | SAA functional | §11.3 | 001–028 preserved from SAA PRD; 029–039 proposed |
+| `SYS-nnn` | Product-level (starting modes, onboarding, no DevOps prerequisites) | §10.1 | New in draft.2 |
+| `SAA-FR-nnn` | SAA functional | §11.3 | 001–028 preserved from SAA PRD; 029–046 proposed |
 | `CON-nnn` | SAA↔QAA contract | §13.14 | New; consolidates SAA §7, §9 and QAA §26 |
 | `QAA-FR-nnn` | QAA functional | §14 | Original `FR-nnn` numbers preserved with prefix; new IDs use free numbers in each group |
 | `LOC-nnn` | Localization | §19.6 | Consolidates QAA §8; extends to SAA |
@@ -1711,34 +2102,46 @@ IDs are permanent. A retired requirement keeps its ID with status "Withdrawn" an
 
 | Area | Total | P0 | P1 | P2 | Confirmed | Proposed |
 |---|---:|---:|---:|---:|---:|---:|
-| SAA-FR | 39 | 29 | 7 | 3 | 28 | 11 |
-| CON | 19 | 17 | 2 | 0 | 9 | 10 |
-| QAA-FR | 92 | 73 | 18 | 1 | 77 | 15 |
+| SYS | 4 | 4 | 0 | 0 | 0 | 4 |
+| SAA-FR | 46 | 36 | 7 | 3 | 28 | 18 |
+| CON | 22 | 20 | 2 | 0 | 9 | 13 |
+| QAA-FR | 96 | 76 | 19 | 1 | 77 | 19 |
 | LOC | 11 | 10 | 1 | 0 | 8 | 3 |
-| SEC | 23 | 21 | 2 | 0 | 20 | 3 |
+| SEC | 25 | 23 | 2 | 0 | 20 | 5 |
 | NFR | 11 | 11 | 0 | 0 | 11 | 0 |
 | OSS | 11 | 10 | 1 | 0 | 9 | 2 |
 | OBS | 6 | 6 | 0 | 0 | 6 | 0 |
-| **Total** | **212** | | | | | |
+| **Total** | **232** | **196** | **32** | **4** | **168** | **64** |
 
-Counting notes: CON-014 is counted P0 (QAA propagation; the SAA diff part is P1). NFR-005 and SEC-018 have P1 sub-parts but count as P0. SAA-FR-018/019 and QAA-FR-068 are counted although merged into SEC-004/SEC-003; they are kept as agent-level acceptance hooks. "Confirmed" includes requirements that were modified with a recorded reason (QAA-FR-003 is counted as Proposed).
+Counting notes:
+- CON-014 counts as P0: QAA's staleness propagation is P0; the SAA diff part is P1.
+- NFR-005 and SEC-018 count as P0, although each has a P1 sub-part.
+- SAA-FR-018/019 and QAA-FR-068 are counted even though they were merged into SEC-004/SEC-003. They remain as agent-level acceptance hooks.
+- "Confirmed" includes source requirements that were modified with a recorded reason (SAA-FR-009, SAA-FR-014). QAA-FR-003 counts as Proposed.
 
 ### 28.3 P0 index (MVP)
 
-- **SAA:** SAA-FR-001–020, 029–036, 039.
-- **Contract:** CON-001–014, 017–019.
-- **QAA:** QAA-FR-001–006, 009–018, 021–026, 029–038, 033a, 041, 042, 044, 046–048, 050–055, 057, 060–068, 071, 080–086, 088, 089, 090–093, 100–103.
+- **Product-level:** SYS-001–004.
+- **SAA:** SAA-FR-001–020, 029–036, 039–046.
+- **Contract:** CON-001–014, 017–022.
+- **QAA:** QAA-FR-001–006, 009–018, 021–026, 029–038, 033a, 041, 042, 044, 046–048, 050–055, 057, 060–068, 071, 080–086, 088, 089, 090–093, 100–103, 110–112.
 - **Localization:** LOC-001–004, 006–011.
-- **Security:** SEC-001–012, 014–022.
+- **Security:** SEC-001–012, 014–022, 024, 025.
 - **NFR:** NFR-001–011.
 - **OSS:** OSS-001–007, 009–011.
 - **OBS:** OBS-001–006.
 
 ### 28.4 P1/P2/Deferred index
 
-- **P1:** SAA-FR-021–025, 037, 038; CON-015, 016; QAA-FR-007, 008, 019, 020, 027, 028, 039, 040, 043, 045, 056, 069, 070, 087, 094–096, 104; LOC-005; SEC-013 (SAA runtime), SEC-023; OSS-008.
+- **P1:**
+  - SAA-FR-021–025, 037, 038;
+  - CON-015, 016;
+  - QAA-FR-007, 008, 019, 020, 027, 028, 039, 040, 043, 045, 056, 069, 070, 087, 094–096, 104, 113;
+  - LOC-005;
+  - SEC-013 (SAA runtime), SEC-023;
+  - OSS-008.
 - **P2:** SAA-FR-026–028; QAA-FR-097.
-- **Deferred to Phase 3+ (no ID yet):** API/contract testing adapter, accessibility checks, visual regression, additional automation engines, CI execution of approved suites.
+- **Deferred to Phase 5 (no ID yet):** API/contract testing adapter, accessibility checks, visual regression, additional automation engines, CI execution of approved suites.
 
 ---
 
@@ -1752,7 +2155,7 @@ The MVP is releasable as a public preview only when **all P0 requirements** meet
 - [ ] CLI analyzes a repository with no AI agent connected; default operation is read-only and static and executes no scripts.
 - [ ] Supported stack is detected with support levels; unsupported areas are explicit.
 - [ ] Boundaries and dependency graphs are correct for benchmark monorepos (expert-reviewed).
-- [ ] Selected workflows are traced with evidence per internal hop or explicit unresolved labels.
+- [ ] Discovered workflows are traced with evidence per internal hop or explicit unresolved labels; deepened workflows meet the §11.1 completion rules.
 - [ ] Roles/permissions, routes/pages/forms, business rules and (where present) state machines are emitted or gap-recorded.
 - [ ] SKB and package pass schema validation; every important claim is evidence-backed or classified.
 - [ ] Markdown docs and package share one model and revision; docs render in `en` and `id`.
@@ -1776,6 +2179,16 @@ The MVP is releasable as a public preview only when **all P0 requirements** meet
 - [ ] An approved suite runs on Playwright; results link expected and actual outcomes and evidence; assertion failures and infrastructure failures are separated; cancellation stops actions and starts cleanup; no arbitrary code execution is possible.
 - [ ] A tester completes a manual run with actual results, evidence, pause/resume and a linked defect; results are labeled tester-reported.
 - [ ] English and Indonesian artefacts preserve identifiers, numbers and status terminology.
+
+**Evidence-adaptive behavior**
+- [ ] Each starting mode (A, B, C, D) reaches scenario review on its fixture; no mode requires information the user lacks (SYS-001 … 003).
+- [ ] Workflows are discovered with no names supplied; the catalog and completeness report state examined scope, unresolved links, unavailable adapters, unexplored areas and evidence that would help (SAA-FR-040, 045).
+- [ ] Component traces and end-to-end workflows are distinct; composition stops are explained (SAA-FR-041).
+- [ ] A URL-only project yields characterization/exploratory scenarios and no internal-effect claims (SAA-FR-043, QAA-FR-110).
+- [ ] Combined mode detects the fixture discrepancy and shows revision correspondence (SAA-FR-044).
+- [ ] Modes A and D export a manual test pack with no environment; results import back (QAA-FR-112).
+- [ ] Every scenario's QA objective is consistent with its bases (QAA-FR-111).
+- [ ] Discovery with probe off submits no forms; with probe on, login and destructive forms are not submitted (SEC-024).
 
 **Security and operations**
 - [ ] No fixture secret appears in logs, prompts, packages, reports or audit records.
@@ -1904,7 +2317,26 @@ Schema-valid; quality checklist (§15.13) satisfied; every expected result has a
 | SAA §4.3 description of REA's integration pattern | External reference; not re-verified during consolidation; informational only |
 | QAA "Initial target" and SAA language priority | Scope assumptions (A-01) and OD-06 |
 
-No source requirement was dropped. QAA FR-003 is the only source requirement whose behavior was changed. The change is recorded in RC-C07 and needs maintainer approval.
+No source requirement was dropped. Source requirements whose behavior was changed need maintainer approval:
+- QAA FR-003 (no clone; RC-C07);
+- SAA-FR-009 (tracing applies to discovered workflows, not user-named ones; RC-C18);
+- SAA-FR-014 (CLI operates on generated IDs; MR §8).
+
+QAA FR-010 and the QAA FR-021 … 028 scope were clarified, not changed (RC-C17).
+
+### 30.5 Maintainer review (draft.1 → draft.2) → unified
+
+| Review item | Unified |
+|---|---|
+| MR-REQ-1 Flexible starting inputs | SYS-001, SAA-FR-042, CON-020 |
+| MR-REQ-2 Automatic workflow discovery | SAA-FR-040, 041, 045, 046; SAA-FR-009 (modified) |
+| MR-REQ-3 Evidence-bounded claims | SAA-FR-043, CON-020, CON-021, X-23 |
+| MR-REQ-4 Useful without deployment access | SYS-003, QAA-FR-112, CON-022, X-22 |
+| MR-REQ-5 Source-optional QA | QAA-FR-110, QAA-FR-113, CON-022 |
+| MR §6 Declaration vs. scope vs. approval | SEC-005 (modified), SEC-024, SEC-025, §21.1 |
+| MR §8 CLI | SAA-FR-014 (modified), §23.4, SYS-002 |
+| MR §9 Roadmap and fixtures | §27 (reordered, RC-C19, OD-26), §26.2 |
+| MR §11 QA objectives | QAA-FR-111, §15.9 |
 
 ---
 
@@ -1916,13 +2348,15 @@ No source requirement was dropped. QAA FR-003 is the only source requirement who
 |---|---|---|
 | A-01 | First target systems are web applications/services with related DB, config and deployment code, in a Git repository | Early user repositories |
 | A-02 | Markdown + JSON are sufficient output formats for the MVP | User feedback in Phase 1 |
-| A-03 | Users already hold a local checkout of the repository they analyze (MD-2) | Onboarding telemetry (opt-in) / interviews |
+| A-03 | When source is used, the user already holds a local checkout (MD-2); many users will have only a URL or only part of the source | Onboarding mode mix (opt-in telemetry) / interviews |
 | A-04 | A reachable development or staging environment exists for QAA | Setup wizard drop-off |
 | A-05 | Developers prefer local outputs they can inspect, diff and commit selectively | Phase 1 feedback |
 | A-06 | SAA will be used with AI coding agents, so MCP and the Skill add value | Usage of MCP vs. CLI |
 | A-07 | English and Indonesian cover the initial users | Locale requests |
 | A-08 | Single tester per manual run is sufficient for the MVP | Phase 1 feedback |
 | A-09 | Self-declared authorization (MD-3) is acceptable for the target audience | Community feedback; security review |
+| A-10 | URL-only users have a dev/staging environment they are permitted to test, and read-only discovery is useful to them | Phase 2 feedback |
+| A-11 | Characterization and exploratory scenarios are valuable even without requirements | Scenario acceptance rate on URL-only fixtures |
 
 ### 31.2 Risks and mitigations
 
@@ -1947,6 +2381,10 @@ No source requirement was dropped. QAA FR-003 is the only source requirement who
 | LLM/provider drift or lock-in | Inconsistent quality, cost | Provider adapter, schema validation, provider benchmarks |
 | Product too broad | Slow delivery | Vertical slice, phase gates |
 | Misconfigured self-hosting | Exposure | Secure defaults, configuration checks, docs |
+| URL-only discovery causes side effects (lockouts, emails, records) | Harm to test environment, user friction | Probe off by default, form classification, login forms never probed, rate limits (SEC-024) |
+| URL-only results mistaken for full understanding | False confidence | Evidence profile and `cannot_establish` on every output (SYS-004); QA objectives (QAA-FR-111) |
+| Workflow catalog too large to be useful on big monoliths | Users overwhelmed | Grouping, ranking, `not_deepened` markers (SAA-FR-046) |
+| Source and environment differ silently in Mode C | Wrong discrepancies | Revision correspondence status on every discrepancy (SAA-FR-044) |
 
 ### 31.3 Dependencies
 
@@ -1974,7 +2412,7 @@ No source requirement was dropped. QAA FR-003 is the only source requirement who
 | OD-08 | Canonical SKB storage at scale | JSON bundle; partitioned JSON; SQLite-backed index; hybrid | Performance, diffability | Partitioned JSON canonical + rebuildable SQLite index (hybrid) |
 | OD-09 | License | Apache-2.0; MIT; copyleft (e.g., AGPL-3.0) | Reuse, patents, hosted-fork behavior | Maintainer decision; Apache-2.0 is a reasonable candidate (explicit patent grant) per QAA §21.2 |
 | OD-10 | Package names, registries, distribution | npm, container images, standalone binaries | Install experience | Decide after OD-05 |
-| OD-11 | Runtime observation ownership | SAA starts the app and observes (SAA-FR-024); QAA observes an already-running environment | Overlap and safety | QAA owns L2 observation of running environments in MVP; SAA runtime mode stays P1 and records `runtime_observed` evidence only from its own approved runs |
+| OD-11 | Runtime observation ownership | SAA starts the app and observes (SAA-FR-024); SAA observes an existing environment (SAA-FR-042); QAA observes | Overlap and safety | **Revised:** SAA owns whole-application L2 discovery of an existing environment (SAA-FR-042); QAA does targeted verification; both go through the shared runtime observation service (SEC-025). Starting the app (L4, SAA-FR-024) stays P1 |
 | OD-12 | Follow-up request transport | File-based; local API; shared workspace | Loop latency | File-based P1, API with QAA-FR-019 |
 | OD-13 | Locale scope | `en`/`id` only; user-contributed packs | Community reach vs. quality | `en`/`id` official; packs accepted via glossary contribution process in Phase 2 |
 | OD-14 | Retention defaults and sharing of manual evidence | Short default; operator-defined; per-project | Privacy, storage | Operator-defined with conservative defaults documented |
@@ -1987,6 +2425,11 @@ No source requirement was dropped. QAA FR-003 is the only source requirement who
 | OD-21 | How manual testers obtain test-account credentials | Tester's own accounts; platform reveal with audit; out-of-band | Security vs. usability | Tester-owned credentials out of band in MVP; audited reveal later |
 | OD-22 | Approval carry-forward for unaffected scenarios on new baseline | Manual revalidation (default in §13.11); automatic carry-forward | Friction vs. control | Manual one-action revalidation (current spec) |
 | OD-23 | VCS support | Git only; others | Scope | Git only; content fingerprint for everything else |
+| OD-24 | Who performs whole-application URL discovery | (a) SAA runtime adapter producing a runtime-only package; (b) QAA crawls directly and builds its own model | Contract simplicity; duplicated modeling; Mode C merging | **(a)**: one system model and one contract for every mode; QAA stays a consumer; Mode C merges in one SKB. Cost: URL-only users still run the SAA step, hidden behind `sys2qa start` |
+| OD-25 | Discovery probe default | Off; on for `development` classification only; always on | Usefulness of URL-only validation discovery vs. side effects (lockouts, emails, records) | Off by default; one-click opt-in in the declaration; never for login or state-changing forms |
+| OD-26 | Roadmap ordering | Layer-ordered (maintainer review MR §9); outcome-sliced (§27.3) | Time to first end-to-end value; early feedback | Outcome-sliced; the same blocks and safety gates, reordered |
+| OD-27 | Runtime evidence freshness window | Fixed default; per-environment; on deploy signal only | Staleness accuracy vs. noise | Per-environment setting with a documented conservative default; immediate staleness when the deployed revision is known to change |
+| OD-28 | Primary onboarding surface | Interactive CLI; web UI; agent conversation (MCP/Skill) | Accessibility to non-experts | All three over one onboarding service; web UI first for non-CLI users, CLI for power users |
 
 ### 31.5 OD-05 detail — implementation language options
 
@@ -2077,6 +2520,10 @@ Carried from the source PRDs. Used as guidance only; no certification or complia
 | RC-C13 | QAA targets web apps; SAA broad language detection | MVP = intersection (web, JS/TS first) | Resolved; **OD-06** |
 | RC-C14 | SAA-FR-015 programmatic query vs. QAA bundle import | Same contract, two access paths | Resolved |
 | RC-C15 | QAA FR-052 approval binding omitted package version and test-data profile (QAA §9.3 mentions data profile) | Binding extended (QAA-FR-052) | Resolved (P) |
+| RC-C16 | draft.1 onboarding started from a local repository (W1); the maintainer review requires repository, URL, both and package as starting points | Starting modes A–D (§10.1, SYS-001) | Resolved (P) |
+| RC-C17 | URL-only mode needs whole-application browser discovery; draft.1 gave browser discovery to QAA while X-18/QAA FR-010 forbid QAA from re-doing system analysis | SAA owns URL discovery via the shared runtime observation service; QAA keeps targeted verification; QAA FR-021 … 028 apply to the service | Resolved (P); **OD-24** |
+| RC-C18 | SAA-FR-009 traced "user-selected workflows", which assumes the user knows them | Discovery first (SAA-FR-040); SAA-FR-009 deepens discovered items | Resolved (P) |
+| RC-C19 | Maintainer review roadmap (layer-ordered) vs. its own principle "prove the complete experience before breadth" | Outcome-sliced roadmap (§27.3) | **OD-26** |
 
 ### A.3 Terminology alignment
 
@@ -2091,6 +2538,7 @@ Carried from the source PRDs. Used as guidance only; no certification or complia
 | RC-T07 | Repository connection | Repository identity + local checkout binding |
 | RC-T08 | Evidence (both) | SAA `evidence:*` in packages; QAA `qevid:*` in QAA store |
 | RC-T09 | User attestation / authorization confirmation | Authorization declaration |
+| RC-T10 | "Trace" (a command that finds a workflow) | Component trace (record) vs. end-to-end workflow (record); `trace` command = deepen a discovered item |
 
 ### A.4 Gaps closed (present in one PRD only, or in neither)
 
@@ -2111,6 +2559,10 @@ Carried from the source PRDs. Used as guidance only; no certification or complia
 | RC-G13 | Package integrity "where supported" | CON-019, SEC-021 |
 | RC-G14 | Test conditions not a record type | QAA-FR-048 |
 | RC-G15 | Analysis budgets/cancellation not an SAA FR | SAA-FR-039 |
+| RC-G16 | No QA objective distinguishing characterization from requirement conformance | §15.9, QAA-FR-111 |
+| RC-G17 | No path to value without a running environment | QAA-FR-112, CON-022, SYS-003 |
+| RC-G18 | Contract could not represent packages without source | CON-020, CON-021, §13.8 |
+| RC-G19 | No definition of when discovery is "finished" | §11.6, SAA-FR-045 |
 
 ### A.5 Items that could not be validated during consolidation
 
