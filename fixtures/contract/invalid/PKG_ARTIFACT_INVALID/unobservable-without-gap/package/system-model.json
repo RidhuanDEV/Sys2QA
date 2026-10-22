@@ -1,0 +1,212 @@
+{
+  "schema_version": "1.0.0",
+  "system_id": "system:acme-portal",
+  "producer": "QAA",
+  "revision": {
+    "kind": "observation_window",
+    "environment_id": "env:acme-staging",
+    "observed_from": "2026-10-21T08:45:00Z",
+    "observed_to": "2026-10-21T09:05:00Z"
+  },
+  "analysis_run_id": "run:01JBQAB2C3D4E5F6G7H8J9K0M1",
+  "machine_text_language": "en",
+  "entities": [
+    {
+      "id": "page:observed:/",
+      "kind": "page",
+      "name": "Home",
+      "status": "runtime_observed",
+      "origin": "runtime",
+      "evidence_ids": ["evidence:obs-page-home"],
+      "route_pattern": "/"
+    },
+    {
+      "id": "page:observed:/registrasi",
+      "kind": "page",
+      "name": "Registration page",
+      "status": "runtime_observed",
+      "origin": "runtime",
+      "evidence_ids": ["evidence:obs-page-registrasi"],
+      "route_pattern": "/registrasi"
+    },
+    {
+      "id": "page:observed:/login",
+      "kind": "page",
+      "name": "Login page",
+      "status": "runtime_observed",
+      "origin": "runtime",
+      "evidence_ids": ["evidence:obs-page-login"],
+      "route_pattern": "/login"
+    },
+    {
+      "id": "page:observed:/promo",
+      "kind": "page",
+      "name": "Promotion page",
+      "status": "runtime_observed",
+      "origin": "runtime",
+      "evidence_ids": ["evidence:obs-page-promo"],
+      "route_pattern": "/promo"
+    },
+    {
+      "id": "form:observed:/registrasi#registration",
+      "kind": "form",
+      "name": "Registration form",
+      "status": "runtime_observed",
+      "origin": "runtime",
+      "evidence_ids": ["evidence:obs-form-registration"],
+      "page_id": "page:observed:/registrasi"
+    },
+    {
+      "id": "field:observed:/registrasi#nib",
+      "kind": "field",
+      "name": "NIB",
+      "status": "runtime_observed",
+      "origin": "runtime",
+      "evidence_ids": ["evidence:obs-form-registration"],
+      "form_id": "form:observed:/registrasi#registration",
+      "label_literal": { "value": "NIB", "language": "id", "source": "runtime_observation" },
+      "constraints": { "required": true, "max_length": 16, "input_type": "text" }
+    },
+    {
+      "id": "form:observed:/login#login",
+      "kind": "form",
+      "name": "Login form",
+      "status": "runtime_observed",
+      "origin": "runtime",
+      "evidence_ids": ["evidence:obs-form-login"],
+      "page_id": "page:observed:/login"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel:obs-home-to-registrasi",
+      "type": "NAVIGATES_TO",
+      "from": "page:observed:/",
+      "to": "page:observed:/registrasi",
+      "status": "runtime_observed",
+      "evidence_ids": ["evidence:obs-nav-home-registrasi"]
+    },
+    {
+      "id": "rel:obs-home-to-login",
+      "type": "NAVIGATES_TO",
+      "from": "page:observed:/",
+      "to": "page:observed:/login",
+      "status": "runtime_observed",
+      "evidence_ids": ["evidence:obs-nav-home-login"]
+    },
+    {
+      "id": "rel:obs-home-to-promo",
+      "type": "NAVIGATES_TO",
+      "from": "page:observed:/",
+      "to": "page:observed:/promo",
+      "status": "runtime_observed",
+      "evidence_ids": ["evidence:obs-nav-home-promo"]
+    },
+    {
+      "id": "rel:obs-registrasi-contains-form",
+      "type": "CONTAINS",
+      "from": "page:observed:/registrasi",
+      "to": "form:observed:/registrasi#registration",
+      "status": "runtime_observed",
+      "evidence_ids": ["evidence:obs-form-registration"]
+    },
+    {
+      "id": "rel:obs-form-contains-nib",
+      "type": "CONTAINS",
+      "from": "form:observed:/registrasi#registration",
+      "to": "field:observed:/registrasi#nib",
+      "status": "runtime_observed",
+      "evidence_ids": ["evidence:obs-form-registration"]
+    }
+  ],
+  "component_traces": [
+    {
+      "id": "trace:observed:/registrasi",
+      "entry_point_id": "page:observed:/registrasi",
+      "relationship_ids": ["rel:obs-registrasi-contains-form", "rel:obs-form-contains-nib"],
+      "stopped_at": [
+        {
+          "entity_id": "form:observed:/registrasi#registration",
+          "reason_code": "submission_requires_approval",
+          "gap_id": "gap:observed.registration-not-submitted"
+        }
+      ],
+      "status": "runtime_observed"
+    }
+  ],
+  "workflows": [
+    {
+      "id": "workflow:observed.registration",
+      "name": "Open registration form",
+      "category": "user_interface",
+      "origin": "runtime",
+      "discovery_status": "partially_reconstructed",
+      "entry_point_ids": ["page:observed:/"],
+      "component_trace_ids": ["trace:observed:/registrasi"],
+      "steps": [
+        { "id": "step:observed.registration.1", "order": 1, "entity_id": "page:observed:/", "action": "open" },
+        {
+          "id": "step:observed.registration.2",
+          "order": 2,
+          "entity_id": "page:observed:/registrasi",
+          "action": "navigate"
+        },
+        {
+          "id": "step:observed.registration.3",
+          "order": 3,
+          "entity_id": "form:observed:/registrasi#registration",
+          "action": "inspect"
+        }
+      ],
+      "branches": [],
+      "unresolved_hops": [
+        {
+          "after_step": "step:observed.registration.3",
+          "reason_code": "submission_requires_approval",
+          "gap_id": "gap:observed.registration-not-submitted",
+          "description": "Form effects unknown; not submitted during discovery."
+        }
+      ],
+      "completion": "partial",
+      "deepened": false,
+      "status": "runtime_observed"
+    }
+  ],
+  "claims": [
+    {
+      "id": "claim:observed.nib-maxlength-16",
+      "text": {
+        "language": "en",
+        "value": "The NIB field on /registrasi accepts up to 16 characters (maxlength attribute)."
+      },
+      "status": "runtime_observed",
+      "subject_entity_id": "field:observed:/registrasi#nib",
+      "evidence_ids": ["evidence:obs-form-registration"],
+      "scope": "runtime_observation",
+      "caveats": ["Server-side validation is not observable from the browser."],
+      "last_validated_revision": "env:acme-staging@2026-10-21T08:45:00Z/2026-10-21T09:05:00Z"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "gap:observed.registration-not-submitted",
+      "type": "unobservable",
+      "description": "Registration form was not submitted: its effects are unknown and submission requires approval.",
+      "impact": "Validation responses and persistence cannot be observed in discovery.",
+      "related_entity_ids": ["form:observed:/registrasi#registration"],
+      "requires_human_clarification": false,
+      "status": "unresolved"
+    },
+    {
+      "id": "gap:observed.integrations-unobservable",
+      "type": "unobservable",
+      "description": "External integrations cannot be established from browser observation.",
+      "coverage_category": "integrations",
+      "requires_human_clarification": false,
+      "status": "unresolved"
+    }
+  ],
+  "coverage": [
+    { "area": "/admin", "status": "skipped", "reason": "Authentication required; no credential profile supplied." }
+  ]
+}

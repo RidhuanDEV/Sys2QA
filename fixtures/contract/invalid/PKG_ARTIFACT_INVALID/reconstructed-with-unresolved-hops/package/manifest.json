@@ -1,0 +1,110 @@
+{
+  "contract": "sys2qa.documentation-package",
+  "package_schema_version": "1.0.0",
+  "package_id": "pkg:acme-portal",
+  "package_version": 3,
+  "previous_package": { "package_version": 2, "revision": "9c1e2d3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8b04" },
+  "producer": {
+    "name": "SAA",
+    "version": "0.1.0",
+    "adapters": [
+      { "id": "js-ts", "version": "0.1.0", "support_level": 3 },
+      { "id": "sql", "version": "0.1.0", "support_level": 2 }
+    ]
+  },
+  "project": { "system_id": "system:acme-portal", "name": "Acme Portal" },
+  "evidence_profile": {
+    "source_analysis": "available",
+    "runtime_observation": "unavailable",
+    "documentation_import": "unavailable",
+    "revision_correspondence": "not_applicable",
+    "cannot_establish": ["Behavior of any running environment", "Email delivery by external provider"]
+  },
+  "repository": {
+    "provider": "git",
+    "identity": "github.com/example/acme-portal",
+    "identity_source": "local_git_remote",
+    "revision": { "kind": "git_commit", "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80", "worktree_dirty": false },
+    "branch_hint": "main"
+  },
+  "analysis": {
+    "run_id": "run:01JBQ8Z3K7M4N6P8R0S2T4V6W8",
+    "profile": "standard",
+    "status": "completed_with_limitations",
+    "permission_level_max": "L1",
+    "optional_actions_executed": [],
+    "started_at": "2026-10-21T08:00:00Z",
+    "finished_at": "2026-10-21T08:41:12Z",
+    "scope": { "roots": ["."], "excluded": ["node_modules/", "dist/", ".env"] },
+    "limitations": ["Python worker in services/reports detected at support level 0 only."]
+  },
+  "generated_at": "2026-10-21T08:41:30Z",
+  "languages": { "documentation": ["en", "id"], "default": "en", "machine_text": "en" },
+  "coverage_summary": {
+    "modules": "complete",
+    "routes_pages": "complete",
+    "roles_permissions": "partial",
+    "business_rules": "partial",
+    "workflows": "partial",
+    "state_transitions": "partial",
+    "api_contracts": "complete",
+    "data_model": "complete",
+    "integrations": "partial",
+    "error_paths": "partial"
+  },
+  "redaction": { "secrets": "redacted", "excerpts": "short_excerpts", "max_excerpt_chars": 400 },
+  "artifacts": [
+    {
+      "id": "system-model",
+      "role": "system_model",
+      "path": "system-model.json",
+      "media_type": "application/json",
+      "schema_version": "1.0.0",
+      "required": true,
+      "sha256": "sha256:1334cc01cde5a5ce17206d047a4e3ab08e02bab0387bf57be6b0e80103bcb101"
+    },
+    {
+      "id": "evidence-index",
+      "role": "evidence_index",
+      "path": "evidence-index.json",
+      "media_type": "application/json",
+      "schema_version": "1.0.0",
+      "required": true,
+      "sha256": "sha256:100c63bb7e7afb0b007494ccaecbd410988b811314e2837e5e16c9fc9eb70604"
+    },
+    {
+      "id": "completeness-report",
+      "role": "completeness_report",
+      "path": "completeness-report.json",
+      "media_type": "application/json",
+      "schema_version": "1.0.0",
+      "sha256": "sha256:198c7a2d8bc3dd53e6c3dfd2e5467068575cbcca4d5b8270e6cb5720c082ea4a"
+    },
+    {
+      "id": "diff-report",
+      "role": "diff_report",
+      "path": "diff-report.json",
+      "media_type": "application/json",
+      "schema_version": "1.0.0",
+      "sha256": "sha256:4d7cba3e4ab5d5035e060eec5ac3a308bcb1a13a22dc73c61412bb30b74a34cd"
+    },
+    {
+      "id": "doc-workflows-registration-en",
+      "role": "workflows",
+      "path": "docs/en/05-workflows/registration.md",
+      "media_type": "text/markdown",
+      "language": "en",
+      "sha256": "sha256:d349a4c539aa2e76dbb8b321d05274a5c2a43a4d6bf42be86fa8c9992844614a"
+    },
+    {
+      "id": "doc-workflows-registration-id",
+      "role": "workflows",
+      "path": "docs/id/05-workflows/registration.md",
+      "media_type": "text/markdown",
+      "language": "id",
+      "translation_of": "doc-workflows-registration-en",
+      "machine_translated": true,
+      "sha256": "sha256:a89f6a765ef8066dee1d70b27c2e0ec631bd4c89382433f6cd67114423cdf250"
+    }
+  ]
+}

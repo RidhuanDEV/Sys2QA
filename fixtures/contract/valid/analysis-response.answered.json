@@ -1,0 +1,11 @@
+{
+  "contract": "sys2qa.analysis-response",
+  "schema_version": "1.0.0",
+  "request_id": "areq:2026-10-22-001",
+  "outcome": "answered",
+  "result_package": {
+    "package_id": "pkg:acme-portal",
+    "package_version": 4
+  },
+  "responded_at": "2026-10-22T03:25:00Z"
+}

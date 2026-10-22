@@ -29,6 +29,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm schemas:check
+      - run: pnpm fixtures:check
       - run: pnpm docs:links
 
   test:

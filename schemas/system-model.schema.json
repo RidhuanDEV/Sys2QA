@@ -841,6 +841,9 @@
         "status": {
           "type": "string",
           "enum": ["unresolved", "resolved"]
+        },
+        "coverage_category": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/coverage_category"
         }
       },
       "required": ["id", "type", "description", "requires_human_clarification", "status"],

@@ -1,0 +1,95 @@
+{
+  "contract": "sys2qa.documentation-package",
+  "package_schema_version": "1.0.0",
+  "package_id": "pkg:acme-portal-observed",
+  "package_version": 1,
+  "producer": { "name": "QAA", "version": "0.1.0", "component": "runtime-discovery" },
+  "project": { "system_id": "system:acme-portal", "name": "Acme Portal" },
+  "evidence_profile": {
+    "source_analysis": "unavailable",
+    "runtime_observation": "available",
+    "documentation_import": "unavailable",
+    "revision_correspondence": "not_applicable",
+    "cannot_establish": [
+      "Backend implementation",
+      "Data model",
+      "Unlinked or unreachable routes",
+      "Background jobs",
+      "Complete authorization logic",
+      "Intended business requirements"
+    ]
+  },
+  "repository": null,
+  "observed_environments": [
+    {
+      "environment_id": "env:acme-staging",
+      "base_url": "https://staging.acme.example",
+      "classification": "staging",
+      "observed_from": "2026-10-21T08:45:00Z",
+      "observed_to": "2026-10-21T09:05:00Z",
+      "target_app_locale": "id-ID",
+      "deployed_revision": { "value": null, "source": "unknown" },
+      "permission_level_max": "L2",
+      "read_only_submissions": false
+    }
+  ],
+  "analysis": {
+    "run_id": "run:01JBQAB2C3D4E5F6G7H8J9K0M1",
+    "status": "completed_with_limitations",
+    "permission_level_max": "L2",
+    "optional_actions_executed": [],
+    "started_at": "2026-10-21T08:45:00Z",
+    "finished_at": "2026-10-21T09:05:00Z",
+    "scope": { "hosts": ["staging.acme.example"], "paths": ["/"] },
+    "limitations": [
+      "12 forms recorded but not submitted (submission requires approval)",
+      "Area /admin not reachable without credentials"
+    ]
+  },
+  "generated_at": "2026-10-21T09:05:30Z",
+  "languages": { "documentation": ["en"], "default": "en", "machine_text": "en" },
+  "coverage_summary": {
+    "routes_pages": "partial",
+    "data_model": "unobservable",
+    "state_transitions": "partial",
+    "roles_permissions": "partial",
+    "integrations": "unobservable"
+  },
+  "redaction": { "secrets": "redacted", "excerpts": "digest_only", "max_excerpt_chars": 0 },
+  "artifacts": [
+    {
+      "id": "system-model",
+      "role": "system_model",
+      "path": "system-model.json",
+      "media_type": "application/json",
+      "schema_version": "1.0.0",
+      "required": true,
+      "sha256": "sha256:658885fe4d66ef7b431ddbaf83f1a61fb32efdb330f960b8a651b227a304e8f7"
+    },
+    {
+      "id": "evidence-index",
+      "role": "evidence_index",
+      "path": "evidence-index.json",
+      "media_type": "application/json",
+      "schema_version": "1.0.0",
+      "required": true,
+      "sha256": "sha256:ea6a66a2d27493c56b68f7e5d8fdb5a40efff5c773489e18e37ac5260ef10abe"
+    },
+    {
+      "id": "completeness-report",
+      "role": "completeness_report",
+      "path": "completeness-report.json",
+      "media_type": "application/json",
+      "schema_version": "1.0.0",
+      "sha256": "sha256:8fe3af408edd9d06c8fa25d7f77b33415aaa8d8163ed310b3972c1c686ec9760"
+    },
+    {
+      "id": "doc-observed-behavior-en",
+      "role": "observed_behavior",
+      "path": "docs/en/05c-observed-behavior.md",
+      "media_type": "text/markdown",
+      "language": "en",
+      "sha256": "sha256:9c79e1ea5e4a0be8a71e17fefe0771939fd657506690b14c1a630fe601aa65a0"
+    }
+  ]
+}

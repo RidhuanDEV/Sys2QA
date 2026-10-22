@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "producer": "QAA",
+  "run_id": "run:01JBQAB2C3D4E5F6G7H8J9K0M1",
+  "count_scope": "within_examined_scope",
+  "examined": { "hosts": ["staging.acme.example"], "paths": ["/"] },
+  "constructs": { "analyzed": 4, "partial": 2, "unsupported": 0 },
+  "entry_points_found": 4,
+  "workflows_by_status": { "partially_reconstructed": 1 },
+  "unresolved_workflow_ids": ["workflow:observed.registration"],
+  "unavailable_adapters": [],
+  "excluded": [],
+  "unexplored": [{ "area": "/admin", "reason": "Authentication required; no credential profile supplied." }],
+  "forms_not_submitted": [
+    { "form_id": "form:observed:/registrasi#registration", "reason": "submission_requires_approval" },
+    { "form_id": "form:observed:/login#login", "reason": "login_form" }
+  ],
+  "improvement_suggestions": [
+    {
+      "evidence_kind": "source",
+      "description": "The source repository would show server-side NIB validation and persistence.",
+      "would_improve": ["workflow:observed.registration"]
+    },
+    {
+      "evidence_kind": "credentials",
+      "description": "A credential profile for an administrator role would allow observing /admin.",
+      "would_improve": []
+    }
+  ]
+}

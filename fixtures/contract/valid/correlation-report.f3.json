@@ -21,7 +21,7 @@
   ],
   "unmatched": {
     "observed": ["page:observed:/promo"],
-    "source": ["route:GET:/api/legacy-export"]
+    "source": ["api:POST:/api/registrations/{id}/approve", "integration:email.confirmation"]
   },
   "discrepancies": [
     {

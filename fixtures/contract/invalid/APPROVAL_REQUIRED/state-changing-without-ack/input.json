@@ -1,0 +1,117 @@
+{
+  "scenario": {
+    "schema_version": "1.0.0",
+    "scenario_id": "scenario:registration.nib.invalid_length_12",
+    "display_key": "TC-REG-002",
+    "version": 1,
+    "content_language": "en",
+    "title": { "language": "en", "value": "Reject registration when NIB has 12 digits" },
+    "feature_ref": "module:web.registration",
+    "test_condition_ids": ["tcond:registration.nib.length_boundary"],
+    "category": "negative_validation",
+    "qa_objective": "implementation_conformance",
+    "test_techniques": [
+      { "id": "boundary_value_analysis", "rationale": "NIB length is fixed at 13; 12 is just below the boundary." }
+    ],
+    "priority": "high",
+    "risk": {
+      "impact": 4,
+      "likelihood": 3,
+      "exposure": ["primary_workflow"],
+      "score": 12,
+      "rationale": "Invalid identifiers would create unusable registrations."
+    },
+    "execution_modes": ["manual", "automated"],
+    "execution_classification": "both",
+    "state_changing": true,
+    "preconditions": [
+      {
+        "id": "pre-1",
+        "text": { "language": "en", "value": "Signed in with credential profile 'applicant'." },
+        "credential_profile_ref": "secretref:applicant"
+      },
+      { "id": "pre-2", "text": { "language": "en", "value": "Registration page is reachable." } }
+    ],
+    "test_data": [{ "name": "nib", "value_ref": "fixture:registration.nib_12_digits", "sensitivity": "non_secret" }],
+    "steps": [
+      {
+        "step_id": "S1",
+        "instruction": { "language": "en", "value": "Open the registration page." },
+        "automation": { "action": "navigate", "target": { "kind": "route", "value": "/registrasi" } },
+        "expected_result": null
+      },
+      {
+        "step_id": "S2",
+        "instruction": { "language": "en", "value": "Enter a 12-digit NIB." },
+        "automation": {
+          "action": "fill",
+          "target": {
+            "kind": "label",
+            "value": "NIB",
+            "literal_language": "id",
+            "source_ref": "field:web:/registrasi#registration.nib"
+          },
+          "value_ref": "fixture:registration.nib_12_digits"
+        },
+        "expected_result": null
+      },
+      {
+        "step_id": "S3",
+        "instruction": { "language": "en", "value": "Submit the form." },
+        "automation": {
+          "action": "click",
+          "target": { "kind": "role", "role": "button", "name": "Daftar", "literal_language": "id" }
+        },
+        "expected_result": {
+          "description": { "language": "en", "value": "A NIB format error is shown and no registration is created." },
+          "assertions": [
+            { "type": "visible", "target": { "kind": "test_id", "value": "error-nib" } },
+            { "type": "url", "operator": "equals", "value": "/registrasi" }
+          ],
+          "basis": "saa_documented",
+          "saa_status": "source_verified",
+          "oracle_class": "implemented",
+          "trace": {
+            "saa_ids": ["business_rule:registration.nib_required_13_digits"],
+            "evidence_ids": ["evidence:reg-schema-12-19"],
+            "requirement_ids": []
+          }
+        }
+      }
+    ],
+    "cleanup": [],
+    "assumptions": [],
+    "open_gaps": [],
+    "baseline": {
+      "packages": [{ "package_id": "pkg:acme-portal", "package_version": 3 }],
+      "revision": { "kind": "git_commit", "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80", "worktree_dirty": false }
+    },
+    "freshness": "current",
+    "status": "approved"
+  },
+  "approval": {
+    "schema_version": "1.0.0",
+    "approval_id": "approval:01JBQF00000000000000000000",
+    "scenario_id": "scenario:registration.nib.invalid_length_12",
+    "scenario_version": 1,
+    "baseline": {
+      "packages": [{ "package_id": "pkg:acme-portal", "package_version": 3 }],
+      "revision": { "kind": "git_commit", "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80", "worktree_dirty": false }
+    },
+    "declared_environment_id": "denv:tester-laptop",
+    "scope_policy_version": 1,
+    "test_data_profile": "default",
+    "mode": "manual",
+    "approver": "user:local",
+    "approved_at": "2026-10-21T10:00:00Z",
+    "state": "active"
+  },
+  "mode": "manual",
+  "baseline": {
+    "packages": [{ "package_id": "pkg:acme-portal", "package_version": 3 }],
+    "revision": { "kind": "git_commit", "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80", "worktree_dirty": false }
+  },
+  "declared_environment_id": "denv:tester-laptop",
+  "scope_policy_version": 1,
+  "test_data_profile": "default"
+}

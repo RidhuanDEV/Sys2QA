@@ -1,0 +1,322 @@
+{
+  "schema_version": "1.0.0",
+  "system_id": "system:acme-portal",
+  "producer": "SAA",
+  "revision": { "kind": "git_commit", "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80", "worktree_dirty": false },
+  "analysis_run_id": "run:01JBQ8Z3K7M4N6P8R0S2T4V6W8",
+  "machine_text_language": "en",
+  "entities": [
+    {
+      "id": "project:web",
+      "kind": "project",
+      "name": "Web frontend",
+      "project_boundary": "project:web",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:pkg-web-manifest"]
+    },
+    {
+      "id": "project:api",
+      "kind": "project",
+      "name": "API backend",
+      "project_boundary": "project:api",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:pkg-api-manifest"]
+    },
+    {
+      "id": "module:web.registration",
+      "kind": "module",
+      "name": "Registration (web)",
+      "project_boundary": "project:web",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:reg-module-1-40"]
+    },
+    {
+      "id": "page:web:/registrasi",
+      "kind": "page",
+      "name": "Registration page",
+      "project_boundary": "project:web",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:router-22-24"],
+      "route_pattern": "/registrasi",
+      "module_id": "module:web.registration",
+      "access_preconditions": ["permission:registration.create"]
+    },
+    {
+      "id": "form:web:/registrasi#registration",
+      "kind": "form",
+      "name": "Registration form",
+      "project_boundary": "project:web",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:regform-10-88"],
+      "page_id": "page:web:/registrasi",
+      "submits_to": "api:POST:/api/registrations"
+    },
+    {
+      "id": "field:web:/registrasi#registration.nib",
+      "kind": "field",
+      "name": "NIB",
+      "project_boundary": "project:web",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:regform-41-47", "evidence:reg-schema-12-19"],
+      "form_id": "form:web:/registrasi#registration",
+      "label_literal": { "value": "NIB", "language": "id", "source": "source_code" },
+      "constraints": { "required": true, "pattern": "^[0-9]{13}$", "min_length": 13, "max_length": 13 }
+    },
+    {
+      "id": "api:POST:/api/registrations",
+      "kind": "api",
+      "name": "Create registration",
+      "project_boundary": "project:api",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:api-routes-5-30", "evidence:reg-controller-30-52"]
+    },
+    {
+      "id": "api:POST:/api/registrations/{id}/approve",
+      "kind": "api",
+      "name": "Approve registration",
+      "project_boundary": "project:api",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:api-routes-5-30"]
+    },
+    {
+      "id": "permission:registration.create",
+      "kind": "permission",
+      "name": "Create registration",
+      "project_boundary": "project:api",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:auth-roles-3-15"]
+    },
+    {
+      "id": "permission:registration.approve",
+      "kind": "permission",
+      "name": "Approve registration",
+      "project_boundary": "project:api",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:auth-roles-3-15"]
+    },
+    {
+      "id": "actor_role:applicant",
+      "kind": "actor_role",
+      "name": "Applicant",
+      "project_boundary": "project:api",
+      "status": "inferred",
+      "origin": "source",
+      "evidence_ids": ["evidence:auth-roles-3-15"],
+      "confidence_rationale": "Role name from auth middleware constant; no role documentation found.",
+      "permissions": ["permission:registration.create"]
+    },
+    {
+      "id": "entity:registration",
+      "kind": "entity",
+      "name": "Registration record",
+      "project_boundary": "project:api",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:reg-service-60-91"]
+    },
+    {
+      "id": "integration:email.confirmation",
+      "kind": "integration",
+      "name": "Confirmation email client",
+      "project_boundary": "project:api",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:email-client-1-20"]
+    },
+    {
+      "id": "business_rule:registration.nib_required_13_digits",
+      "kind": "business_rule",
+      "name": "NIB must be 13 digits",
+      "project_boundary": "project:api",
+      "status": "source_verified",
+      "origin": "source",
+      "evidence_ids": ["evidence:reg-schema-12-19", "evidence:reg-controller-30-52"],
+      "statement": "Registration is rejected unless NIB is exactly 13 digits.",
+      "technical_rule": "Server schema enforces required + /^[0-9]{13}$/ on nib.",
+      "business_intent": null,
+      "inputs": ["field:web:/registrasi#registration.nib"],
+      "expected_behavior": { "on_violation": "HTTP 422 with field error 'nib'", "ui": "Inline required/format error" },
+      "boundaries": [{ "field": "nib", "min_length": 13, "max_length": 13 }],
+      "contradiction_ids": ["gap:nib-length-docs-mismatch"]
+    },
+    {
+      "id": "state_machine:registration.status",
+      "kind": "state_machine",
+      "name": "Registration status",
+      "project_boundary": "project:api",
+      "status": "inferred",
+      "origin": "source",
+      "evidence_ids": ["evidence:reg-service-60-91"],
+      "confidence_rationale": "Approve transition guard inferred from naming; reject path source-verified.",
+      "subject": "entity:registration",
+      "states": ["draft", "submitted", "approved", "rejected"],
+      "transitions": [
+        {
+          "from": "draft",
+          "to": "submitted",
+          "trigger": "api:POST:/api/registrations",
+          "guard": "business_rule:registration.nib_required_13_digits",
+          "status": "source_verified",
+          "evidence_ids": ["evidence:reg-service-60-91"]
+        },
+        {
+          "from": "submitted",
+          "to": "approved",
+          "trigger": "api:POST:/api/registrations/{id}/approve",
+          "guard": "permission:registration.approve",
+          "status": "inferred",
+          "evidence_ids": ["evidence:reg-service-95-120"]
+        }
+      ],
+      "invalid_transitions_known": [
+        {
+          "from": "rejected",
+          "to": "approved",
+          "status": "source_verified",
+          "evidence_ids": ["evidence:reg-service-122-130"]
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel:form-registration-submits",
+      "type": "SUBMITS_TO",
+      "from": "form:web:/registrasi#registration",
+      "to": "api:POST:/api/registrations",
+      "status": "source_verified",
+      "evidence_ids": ["evidence:regform-80-88"]
+    },
+    {
+      "id": "rel:registration-api-writes",
+      "type": "WRITES_TO",
+      "from": "api:POST:/api/registrations",
+      "to": "entity:registration",
+      "status": "source_verified",
+      "evidence_ids": ["evidence:reg-service-60-91"]
+    },
+    {
+      "id": "rel:registration-api-sends-email",
+      "type": "SENDS_TO",
+      "from": "api:POST:/api/registrations",
+      "to": "integration:email.confirmation",
+      "status": "source_verified",
+      "evidence_ids": ["evidence:reg-service-60-91", "evidence:email-client-1-20"]
+    }
+  ],
+  "component_traces": [
+    {
+      "id": "trace:api:POST:/api/registrations",
+      "entry_point_id": "api:POST:/api/registrations",
+      "relationship_ids": ["rel:registration-api-writes", "rel:registration-api-sends-email"],
+      "stopped_at": [
+        {
+          "entity_id": "integration:email.confirmation",
+          "reason_code": "external_service",
+          "gap_id": "gap:email-delivery"
+        }
+      ],
+      "status": "source_verified"
+    }
+  ],
+  "workflows": [
+    {
+      "id": "workflow:registration.submit",
+      "name": "Submit registration",
+      "category": "business_process",
+      "origin": "source",
+      "discovery_status": "partially_reconstructed",
+      "actor": "actor_role:applicant",
+      "entry_point_ids": ["page:web:/registrasi"],
+      "component_trace_ids": ["trace:api:POST:/api/registrations"],
+      "steps": [
+        { "id": "step:registration.submit.1", "order": 1, "entity_id": "page:web:/does-not-exist", "action": "open" },
+        {
+          "id": "step:registration.submit.2",
+          "order": 2,
+          "entity_id": "form:web:/registrasi#registration",
+          "action": "submit",
+          "validations": ["business_rule:registration.nib_required_13_digits"]
+        },
+        {
+          "id": "step:registration.submit.3",
+          "order": 3,
+          "entity_id": "api:POST:/api/registrations",
+          "action": "persist",
+          "writes": ["entity:registration"],
+          "side_effects": ["integration:email.confirmation"]
+        }
+      ],
+      "branches": [
+        {
+          "from_step": "step:registration.submit.2",
+          "condition": "NIB invalid",
+          "outcome": "validation_error",
+          "status": "source_verified"
+        }
+      ],
+      "unresolved_hops": [
+        {
+          "after_step": "step:registration.submit.3",
+          "reason_code": "external_service",
+          "gap_id": "gap:email-delivery",
+          "description": "Email provider external to repository"
+        }
+      ],
+      "completion": "complete_within_static_scope",
+      "deepened": true,
+      "rank": 1,
+      "status": "source_verified"
+    }
+  ],
+  "claims": [
+    {
+      "id": "claim:registration-persists-after-validation",
+      "text": {
+        "language": "en",
+        "value": "The registration API writes a registration record after NIB validation passes."
+      },
+      "status": "source_verified",
+      "subject_entity_id": "api:POST:/api/registrations",
+      "relationship_ids": ["rel:registration-api-writes"],
+      "evidence_ids": ["evidence:reg-controller-30-52", "evidence:reg-service-60-91"],
+      "scope": "static_analysis",
+      "caveats": ["Email delivery not verified."],
+      "last_validated_revision": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "gap:nib-length-docs-mismatch",
+      "type": "contradiction",
+      "description": "README states NIB has 16 digits; server schema enforces 13.",
+      "impact": "Boundary tests for NIB depend on which is intended.",
+      "evidence_ids": ["evidence:readme-40-41", "evidence:reg-schema-12-19"],
+      "related_entity_ids": ["business_rule:registration.nib_required_13_digits"],
+      "requires_human_clarification": true,
+      "status": "unresolved"
+    },
+    {
+      "id": "gap:email-delivery",
+      "type": "external_boundary",
+      "description": "Confirmation email provider is configured outside the repository.",
+      "impact": "Email side effect cannot be asserted from source.",
+      "related_entity_ids": ["integration:email.confirmation"],
+      "requires_human_clarification": false,
+      "status": "unresolved"
+    }
+  ],
+  "coverage": [
+    { "area": "services/reports", "status": "unsupported", "reason": "Python adapter not installed (support level 0)." }
+  ]
+}

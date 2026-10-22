@@ -1,0 +1,1 @@
+{ "kind": "scenario", "code": "SCN_OBJECTIVE_INCONSISTENT", "rule": "CR-050", "severity": "error", "ok": false }

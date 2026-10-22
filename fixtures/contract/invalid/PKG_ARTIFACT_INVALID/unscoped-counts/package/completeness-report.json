@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "producer": "SAA",
+  "run_id": "run:01JBQ8Z3K7M4N6P8R0S2T4V6W8",
+  "count_scope": "system_total",
+  "examined": { "roots": ["."], "boundaries": ["project:web", "project:api"] },
+  "constructs": { "analyzed": 412, "partial": 9, "unsupported": 31 },
+  "entry_points_found": 3,
+  "workflows_by_status": { "partially_reconstructed": 1 },
+  "unresolved_workflow_ids": ["workflow:registration.submit"],
+  "unavailable_adapters": [{ "adapter": "python", "reason": "Not installed (support level 0)." }],
+  "excluded": [{ "area": "node_modules/", "reason": "Dependency directory." }],
+  "unexplored": [{ "area": "services/reports", "reason": "Unsupported language." }],
+  "improvement_suggestions": [
+    {
+      "evidence_kind": "environment",
+      "description": "A staging URL would allow observing the registration UI behavior.",
+      "would_improve": ["workflow:registration.submit"]
+    }
+  ]
+}

@@ -1437,6 +1437,7 @@ export interface Gap {
   related_entity_ids?: Id[];
   requires_human_clarification: boolean;
   status: "unresolved" | "resolved";
+  coverage_category?: CoverageCategory;
 }
 /**
  * This interface was referenced by `SystemModel`'s JSON-Schema

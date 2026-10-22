@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "base": { "package_id": "pkg:acme-portal", "package_version": 2 },
+  "target": { "package_id": "pkg:acme-portal", "package_version": 3 },
+  "entities": {
+    "added": [
+      {
+        "id": "state_machine:registration.status",
+        "kind": "state_machine",
+        "summary": "State machine reconstructed in deeper profile."
+      }
+    ],
+    "changed": [
+      {
+        "id": "business_rule:registration.nib_required_13_digits",
+        "kind": "business_rule",
+        "summary": "Boundary narrowed from 12–16 to exactly 13 digits."
+      }
+    ],
+    "removed": []
+  },
+  "renamed": [
+    {
+      "from": "page:web:/register",
+      "to": "page:web:/registrasi",
+      "confidence": "high",
+      "rationale": "Route path changed; same component and form."
+    }
+  ],
+  "claims": { "newly_stale": [], "contradicted": [], "changed": ["claim:registration-persists-after-validation"] }
+}

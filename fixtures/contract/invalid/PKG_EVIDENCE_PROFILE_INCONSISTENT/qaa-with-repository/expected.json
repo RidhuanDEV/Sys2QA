@@ -1,0 +1,1 @@
+{ "kind": "package", "code": "PKG_EVIDENCE_PROFILE_INCONSISTENT", "rule": "CR-021", "severity": "error", "ok": false }

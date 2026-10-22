@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0.0",
+  "revision": { "kind": "git_commit", "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80", "worktree_dirty": false },
+  "evidence": [
+    {
+      "id": "evidence:pkg-web-manifest",
+      "source_type": "manifest",
+      "path": "apps/web/package.json",
+      "range": { "start_line": 1, "end_line": 30 },
+      "file_fingerprint": "sha256:14b60f636e1a2b0061da57aaf231cb1ed15a5dc0c592425ed82e58fec95d42d8",
+      "extractor": { "adapter": "config-deploy", "version": "0.1.0", "method": "manifest" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:b0e5de74dc6ac56bd32b898724add2ed4cd0b2a2cf52b301484614c048f0903c",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:pkg-api-manifest",
+      "source_type": "manifest",
+      "path": "apps/api/package.json",
+      "range": { "start_line": 1, "end_line": 32 },
+      "file_fingerprint": "sha256:2c40985d6d91eed8ae85ec1c8e754a85984ee32e156a600d2b7a467423d7e338",
+      "extractor": { "adapter": "config-deploy", "version": "0.1.0", "method": "manifest" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:eb254eba6cc0ec237aa53afbad70105fac3a46fffb79521e9b28098deba8f2c0",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:reg-module-1-40",
+      "source_type": "source_code",
+      "path": "apps/web/src/registration/index.ts",
+      "range": { "start_line": 1, "end_line": 40 },
+      "file_fingerprint": "sha256:13e01a37d3194a232dfb59de8dd08f82ed46c97b1831820b3b0448316f1d5cbf",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:edec7963c5e6350fc22ef9d3640b42bbe05f8225de76256f9036045751e273d1",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:router-22-24",
+      "source_type": "source_code",
+      "path": "apps/web/src/router.tsx",
+      "range": { "start_line": 22, "end_line": 24 },
+      "file_fingerprint": "sha256:e03e2f8a6bd5e23a6d47c8ace30e3d7d3f24f3b6cdc2b8915a65d8f22c3ff20e",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "excerpt_policy": "short_excerpt"
+    },
+    {
+      "id": "evidence:regform-10-88",
+      "source_type": "source_code",
+      "path": "apps/web/src/registration/RegistrationForm.tsx",
+      "range": { "start_line": 10, "end_line": 88 },
+      "file_fingerprint": "sha256:11a3127c66d841f0d6cd9c9bc3ab46a62ed34c7f8b757a1c501be3e5d3267ccb",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:8c3ff3d2a833b2316e35bfb029cde45a42f8dc386ba2f360cc138db97eb48b32",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:regform-41-47",
+      "source_type": "source_code",
+      "path": "apps/web/src/registration/RegistrationForm.tsx",
+      "range": { "start_line": 41, "end_line": 47 },
+      "file_fingerprint": "sha256:11a3127c66d841f0d6cd9c9bc3ab46a62ed34c7f8b757a1c501be3e5d3267ccb",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:e97d327975b5a043960f14bf070c2a7d092f8e96b40df81c7110cd864cfa7375",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:regform-80-88",
+      "source_type": "source_code",
+      "path": "apps/web/src/registration/RegistrationForm.tsx",
+      "range": { "start_line": 80, "end_line": 88 },
+      "file_fingerprint": "sha256:11a3127c66d841f0d6cd9c9bc3ab46a62ed34c7f8b757a1c501be3e5d3267ccb",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt": "await api.post(\"/api/registrations\", values)",
+      "excerpt_policy": "short_excerpt"
+    },
+    {
+      "id": "evidence:reg-schema-12-19",
+      "source_type": "source_code",
+      "path": "apps/api/src/registration/schema.ts",
+      "range": { "start_line": 12, "end_line": 19 },
+      "file_fingerprint": "sha256:249d69f177bfc5f495a120478c677dd277b57e2056cde1f55736cfb7e9983e3b",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt": "nib: z.string().regex(/^[0-9]{13}$/)",
+      "excerpt_policy": "short_excerpt"
+    },
+    {
+      "id": "evidence:reg-controller-30-52",
+      "source_type": "source_code",
+      "path": "apps/api/src/registration/controller.ts",
+      "range": { "start_line": 30, "end_line": 52 },
+      "file_fingerprint": "sha256:308f639bcdaa509ab733ccf2bcc2d39f8992dd95cb6857b326917f076bf88f14",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:eb0b97e305b8f9d5ab24195d50a246fe031baaf3f93b069e5d15876ac2340a8d",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:reg-service-60-91",
+      "source_type": "source_code",
+      "path": "apps/api/src/registration/service.ts",
+      "range": { "start_line": 60, "end_line": 91 },
+      "file_fingerprint": "sha256:b287ad88bd45fdaf1c57256840baf517c7be7d9e5f7af9d3aaac3ad031f275cf",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:c5e5b30d1ed531039a6390dd27a4a3debfff44082b63169f8fe89848a2d01771",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:reg-service-95-120",
+      "source_type": "source_code",
+      "path": "apps/api/src/registration/service.ts",
+      "range": { "start_line": 95, "end_line": 120 },
+      "file_fingerprint": "sha256:b287ad88bd45fdaf1c57256840baf517c7be7d9e5f7af9d3aaac3ad031f275cf",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:8aff3e779e705e5d584a570f5fcf44cd2dc3f039db2c5734ee62e9f9429e69db",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:reg-service-122-130",
+      "source_type": "source_code",
+      "path": "apps/api/src/registration/service.ts",
+      "range": { "start_line": 122, "end_line": 130 },
+      "file_fingerprint": "sha256:b287ad88bd45fdaf1c57256840baf517c7be7d9e5f7af9d3aaac3ad031f275cf",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:60abf611076f8d51cd170f44bc1d32853ed3021f6a840f6506c3443c2d59f1f7",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:api-routes-5-30",
+      "source_type": "source_code",
+      "path": "apps/api/src/routes.ts",
+      "range": { "start_line": 5, "end_line": 30 },
+      "file_fingerprint": "sha256:c14fe660dcfa91cd47b66123d8eb14ad3a568332c58a4a986a413c0a0c0ede24",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:2d2ed3d19b37c5d4411a6abcfb37b9953601c97ac6cd928bf0f5e53823a83073",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:auth-roles-3-15",
+      "source_type": "source_code",
+      "path": "apps/api/src/auth/roles.ts",
+      "range": { "start_line": 3, "end_line": 15 },
+      "file_fingerprint": "sha256:b36ec3795545cc5cdc21c0b92140f31992a1fa1dfda293c60b4d572eb1de8531",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:3ea4de3eb8251bc9a28e92b03389c15cd0ecca601a7242a45bf579bc3f5e4998",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:email-client-1-20",
+      "source_type": "source_code",
+      "path": "apps/api/src/email/client.ts",
+      "range": { "start_line": 1, "end_line": 20 },
+      "file_fingerprint": "sha256:dadde609c89ac014f579a137b4940a2c8f5de2cb0f15053b77bb9544a74bc0b5",
+      "extractor": { "adapter": "js-ts", "version": "0.1.0", "method": "ast" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:a87650e15ef77baf015786e9c23f8d41d6fddb2aa3f9f00dde6d17bc433481f1",
+      "excerpt_policy": "digest_only"
+    },
+    {
+      "id": "evidence:readme-40-41",
+      "source_type": "documentation",
+      "path": "README.md",
+      "range": { "start_line": 40, "end_line": 41 },
+      "file_fingerprint": "sha256:b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5",
+      "extractor": { "adapter": "docs", "version": "0.1.0", "method": "text" },
+      "captured_at": "2026-10-21T08:12:03Z",
+      "excerpt_digest": "sha256:fbb5df7748edfe44e09e6380e1e9df007a91a1e7ed697c513484a7a66f32a903",
+      "excerpt_policy": "digest_only"
+    }
+  ]
+}

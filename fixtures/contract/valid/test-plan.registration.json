@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0.0",
+  "plan_id": "plan:registration",
+  "content_language": "en",
+  "baseline": {
+    "packages": [
+      {
+        "package_id": "pkg:acme-portal",
+        "package_version": 3
+      }
+    ],
+    "revision": {
+      "kind": "git_commit",
+      "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80",
+      "worktree_dirty": false
+    }
+  },
+  "objectives": [
+    {
+      "language": "en",
+      "value": "Verify registration validation and status transitions as currently implemented."
+    }
+  ],
+  "qa_objectives": ["implementation_conformance", "exploratory"],
+  "scope": {
+    "in_scope": ["workflow:registration.submit", "business_rule:registration.nib_required_13_digits"],
+    "out_of_scope": ["integration:email.confirmation"],
+    "exclusions_reason": "Email delivery is external to the repository (gap:email-delivery)."
+  },
+  "risks": [
+    {
+      "id": "risk:invalid-nib",
+      "description": {
+        "language": "en",
+        "value": "Invalid NIB values are accepted."
+      },
+      "impact": 4,
+      "likelihood": 3,
+      "exposure": ["primary_workflow"],
+      "rationale": "Registrations with invalid identifiers cannot be processed downstream."
+    }
+  ],
+  "test_basis": [
+    {
+      "kind": "package",
+      "ref": "pkg:acme-portal@3"
+    }
+  ],
+  "assumptions": [
+    {
+      "language": "en",
+      "value": "The staging environment runs revision 4b775e0c2a9d."
+    }
+  ],
+  "exit_criteria": [
+    {
+      "language": "en",
+      "value": "All approved scenarios executed; no open critical or major defects."
+    }
+  ]
+}

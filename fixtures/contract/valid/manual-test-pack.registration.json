@@ -1,0 +1,161 @@
+{
+  "contract": "sys2qa.manual-test-pack",
+  "schema_version": "1.0.0",
+  "pack_id": "mpack:01JBQK00000000000000000000",
+  "created_at": "2026-10-21T09:40:00Z",
+  "content_language": "en",
+  "glossary_version": "1.0.0",
+  "scenarios": [
+    {
+      "schema_version": "1.0.0",
+      "scenario_id": "scenario:registration.nib.missing",
+      "display_key": "TC-REG-001",
+      "version": 1,
+      "content_language": "en",
+      "title": {
+        "language": "en",
+        "value": "Reject registration without NIB"
+      },
+      "feature_ref": "module:web.registration",
+      "test_condition_ids": ["tcond:registration.nib.required"],
+      "category": "negative_validation",
+      "qa_objective": "implementation_conformance",
+      "test_techniques": [
+        {
+          "id": "negative",
+          "rationale": "NIB is required; omitting it must be rejected."
+        }
+      ],
+      "priority": "high",
+      "risk": {
+        "impact": 4,
+        "likelihood": 3,
+        "exposure": ["primary_workflow"],
+        "score": 12,
+        "rationale": "Invalid identifiers would create unusable registrations."
+      },
+      "execution_modes": ["manual", "automated"],
+      "execution_classification": "both",
+      "state_changing": false,
+      "preconditions": [
+        {
+          "id": "pre-1",
+          "text": {
+            "language": "en",
+            "value": "Signed in with credential profile 'applicant'."
+          },
+          "credential_profile_ref": "secretref:applicant"
+        },
+        {
+          "id": "pre-2",
+          "text": {
+            "language": "en",
+            "value": "Registration page is reachable."
+          }
+        }
+      ],
+      "test_data": [
+        {
+          "name": "nib",
+          "value_ref": "fixture:registration.nib_12_digits",
+          "sensitivity": "non_secret"
+        }
+      ],
+      "steps": [
+        {
+          "step_id": "S1",
+          "instruction": {
+            "language": "en",
+            "value": "Open the registration page."
+          },
+          "automation": {
+            "action": "navigate",
+            "target": {
+              "kind": "route",
+              "value": "/registrasi"
+            }
+          },
+          "expected_result": null
+        },
+        {
+          "step_id": "S2",
+          "instruction": {
+            "language": "en",
+            "value": "Leave the NIB field empty."
+          },
+          "expected_result": null
+        },
+        {
+          "step_id": "S3",
+          "instruction": {
+            "language": "en",
+            "value": "Submit the form."
+          },
+          "automation": {
+            "action": "click",
+            "target": {
+              "kind": "role",
+              "role": "button",
+              "name": "Daftar",
+              "literal_language": "id"
+            }
+          },
+          "expected_result": {
+            "description": {
+              "language": "en",
+              "value": "A NIB format error is shown and no registration is created."
+            },
+            "assertions": [
+              {
+                "type": "visible",
+                "target": {
+                  "kind": "test_id",
+                  "value": "error-nib"
+                }
+              },
+              {
+                "type": "url",
+                "operator": "equals",
+                "value": "/registrasi"
+              }
+            ],
+            "basis": "saa_documented",
+            "saa_status": "source_verified",
+            "oracle_class": "implemented",
+            "trace": {
+              "saa_ids": ["business_rule:registration.nib_required_13_digits"],
+              "evidence_ids": ["evidence:reg-schema-12-19"],
+              "requirement_ids": []
+            }
+          }
+        }
+      ],
+      "cleanup": [],
+      "assumptions": [],
+      "open_gaps": [],
+      "baseline": {
+        "packages": [
+          {
+            "package_id": "pkg:acme-portal",
+            "package_version": 3
+          }
+        ],
+        "revision": {
+          "kind": "git_commit",
+          "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80",
+          "worktree_dirty": false
+        }
+      },
+      "freshness": "current",
+      "status": "approved"
+    }
+  ],
+  "approval_ids": ["approval:01JBQJ00000000000000000000"],
+  "result_template": {
+    "schema": "https://sys2qa.dev/schemas/run-result/1.0.json",
+    "instructions": {
+      "language": "en",
+      "value": "Record each step as pass, fail, blocked or not_applicable, with actual results and evidence."
+    }
+  }
+}

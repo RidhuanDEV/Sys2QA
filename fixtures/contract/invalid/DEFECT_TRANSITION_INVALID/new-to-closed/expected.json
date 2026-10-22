@@ -1,0 +1,1 @@
+{ "kind": "defect_transition", "code": "DEFECT_TRANSITION_INVALID", "rule": "CR-070", "severity": "error", "ok": false }

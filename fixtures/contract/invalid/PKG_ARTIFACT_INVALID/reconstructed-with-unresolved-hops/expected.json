@@ -1,0 +1,1 @@
+{ "kind": "package", "code": "PKG_ARTIFACT_INVALID", "rule": "CR-040", "severity": "error", "ok": false }

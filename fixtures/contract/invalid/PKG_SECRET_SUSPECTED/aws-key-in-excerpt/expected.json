@@ -1,0 +1,1 @@
+{ "kind": "package", "code": "PKG_SECRET_SUSPECTED", "rule": "CR-060", "severity": "error", "ok": false }

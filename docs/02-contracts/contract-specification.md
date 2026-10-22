@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Status | Baseline 1.0; schemas v1.0.0 authored (IMP-003); semantic validators pending (IMP-004) |
+| Status | Baseline 1.0; schemas v1.0.0 (IMP-003); semantic validators and error catalog (IMP-004); conformance fixtures (IMP-005) |
 | Contract version | 1.0.0 (target) |
 | Last updated | 2026-10-22 |
 | Source of truth for | Field-level contract, enumerations, semantic rules (CR-xxx), error codes, versioning and governance procedure |
-| Canonical machine form | `schemas/*.schema.json` (JSON Schema 2020-12, ADR-003); changelog in `schemas/CHANGELOG.md`; canonical examples in `fixtures/contract/valid/` |
+| Canonical machine form | `schemas/*.schema.json` (JSON Schema 2020-12, ADR-003); changelog in `schemas/CHANGELOG.md`; semantic rules and error catalog in `packages/contract/src/validation/`; canonical examples and conformance fixtures in `fixtures/contract/` (§12) |
 | Product-level summary | PRD §13. On conflict, this document wins for fields; the PRD wins for product behavior; the conflict itself is a defect to fix in both |
 
 The contract is everything that crosses a boundary between SAA, QAA, adapters, workers and interfaces, or leaves the system as an export. It is implemented **once**, in `packages/contract` (CON-027).
@@ -119,7 +119,7 @@ Kind-specific fields: as in PRD §13.5 (`route_pattern`, `constraints`, `label_l
 
 ### 4.4 Claims, gaps, coverage
 - Claim: `{id, text (lang-tagged), status, subject_entity_id, relationship_ids[], evidence_ids[], scope, caveats[], last_validated_revision, confidence_rationale?}`.
-- Gap: `{id, type ∈ {contradiction, external_boundary, missing_evidence, unsupported, unobservable, ambiguity}, description, impact, evidence_ids[], requires_human_clarification, status}`.
+- Gap: `{id, type ∈ {contradiction, external_boundary, missing_evidence, unsupported, unobservable, ambiguity}, description, impact, evidence_ids[], requires_human_clarification, status, coverage_category?}`. `coverage_category` names the completeness category the gap explains; CR-030 matches on it.
 - Coverage item: `{area, status ∈ {analyzed, partial, skipped, failed, unsupported, excluded}, reason}`.
 
 ## 5. Evidence
@@ -162,7 +162,19 @@ Source types: `source_code`, `configuration`, `schema`, `migration`, `manifest`,
 - Manual results always have `reported_by: tester` (QAA-FR-086).
 
 ### 6.4 Defect
-`{defect_id, title, severity, priority, state, suspected_type ∈ {product_defect, test_defect, unknown}, links{scenario_id, version, run_id, step_id, evidence_refs[]}, baseline, environment}`. Transitions: PRD §15.12 (CR-070).
+`{defect_id, title, severity, priority, state, suspected_type ∈ {product_defect, test_defect, unknown}, links{scenario_id, version, run_id, step_id, evidence_refs[]}, baseline, environment}`. Transitions (PRD §15.12, CR-070; `DEFECT_TRANSITIONS` in `packages/contract`):
+
+| From | Allowed to | Required context |
+|---|---|---|
+| `new` | `triaged` | |
+| `triaged` | `confirmed`, `rejected`, `duplicate`, `needs_info` | `rejected` needs a reason; `duplicate` needs `duplicate_of` |
+| `needs_info` | `triaged` | |
+| `confirmed` | `fixed` | |
+| `fixed` | `ready_for_retest` | |
+| `ready_for_retest` | `closed`, `reopened` | `closed` needs a passed retest or a reason |
+| `closed` | `reopened` | |
+| `reopened` | `triaged` | |
+| `rejected`, `duplicate` | none (terminal) | |
 
 ## 7. Enumerations (canonical list)
 
@@ -200,7 +212,14 @@ Source types: `source_code`, `configuration`, `schema`, `migration`, `manifest`,
 
 ## 8. Semantic rules (implemented only in `packages/contract`)
 
-Each rule has a fixture that violates it and the error code it must produce.
+Each rule has a fixture that violates it and the error code it must produce. Every issue carries the rule ID in `rule`, including the rules the schemas enforce structurally (CR-040, CR-041, CR-043), which the validator maps from the failing schema location.
+
+Interpretation fixed during IMP-004:
+- **Revision key** (CR-011, stale claims): a Git revision is `<commit>` or `<commit>+<dirty_fingerprint>`; a content fingerprint is its value; an observation window is `<environment_id>@<observed_from>/<observed_to>`. `last_validated_revision` of every non-`stale` claim must equal the package key. Runtime evidence must fall inside a declared observation window; a package with no observation windows is reported under CR-020/CR-021 instead.
+- **CR-030** matches a gap to a coverage category through `gap.coverage_category`.
+- **CR-050** applies only to scenarios in `pending_review` or `approved`; drafts may still be inconsistent while being written.
+- **CR-053** maps SAA claim status to basis: `saa_documented` is valid for `source_verified`, `test_verified`, `runtime_observed` and `human_asserted`; an `inferred` claim maps to basis `inferred`, and `contradicted`/`unresolved` map to `unresolved`, so `saa_documented` with those statuses is always invalid. `stale` is invalid only in review.
+- Scenario validation runs CR-050–CR-054 before the schema and drops schema errors at locations a semantic finding already explains, so the specific `SCN_*` code is reported rather than `CONTRACT_SCHEMA_INVALID`.
 
 | Rule | Statement | Error code |
 |---|---|---|
@@ -250,6 +269,8 @@ Observed access outcomes per credential role are recorded as `runtime_observed` 
 
 ## 9. Error codes
 
+The catalog (code, severity, English and Indonesian title and remediation) is `ERROR_CATALOG` in `packages/contract`; `toErrorObject()` renders a catalog entry as an `error` document. `CONTRACT_SCHEMA_INVALID` reports a single document that fails its schema outside a package import.
+
 Package import codes: PRD §13.10, plus `PKG_CLAIM_EXCEEDS_EVIDENCE`. QA and execution codes:
 - `SCN_OBJECTIVE_INCONSISTENT`, `SCN_NOT_AUTOMATABLE`, `SCN_ORACLE_INCONSISTENT`, `SCN_BASIS_INVALID`;
 - `APPROVAL_REQUIRED`, `APPROVAL_MISMATCH`;
@@ -258,6 +279,21 @@ Package import codes: PRD §13.10, plus `PKG_CLAIM_EXCEEDS_EVIDENCE`. QA and exe
 - `JOB_CANCELLED`, `BUDGET_EXHAUSTED`, `CONTAINER_RUNTIME_MISSING`.
 
 Error object: `{code, severity ∈ {error, warning, info}, message (lang-tagged), artifact_id?, json_pointer?, remediation (lang-tagged), details?}`.
+
+**Package validation stages** (`validatePackage`, PRD §13.10 order): `manifest` → `analysis` → `artifacts` → `artifact_schemas` → `secrets` → `consistency` (CR-011, CR-020, CR-021) → `references` (CR-010) → `evidence_strength` (CR-001, CR-002, CR-030, CR-042) → `complete`. Validation stops after the first stage that reports an error, so a broken manifest is not followed by hundreds of derived findings. Warnings and info never stop it, except that a Markdown-only package (`PKG_MARKDOWN_ONLY`) stops after `artifacts` with `ok: true`, for the fallback import (CON-016). Issues never contain a detected secret value, only the detector name and location.
+
+**Who detects each code.** The contract library detects every code above except the ones that need runtime state, which belong to the component named here:
+
+| Code | Detected by |
+|---|---|
+| `PKG_NOT_FOUND` | Package importer (IMP-201) |
+| `PKG_REVISION_MISMATCH`, `PKG_REVISION_UNVERIFIABLE` | Readiness and freshness (IMP-202) |
+| `PKG_LANGUAGE_UNAVAILABLE` | Language selection (IMP-201, IMP-116) |
+| `SCOPE_DENIED` | Scope-enforcing proxy (IMP-401) |
+| `PRODUCTION_REFUSED` | Policy engine (IMP-006) |
+| `SUBMISSION_REQUIRES_APPROVAL` | Form-interaction policy (IMP-403) |
+| `JOB_CANCELLED`, `BUDGET_EXHAUSTED` | Job orchestrator (IMP-008) |
+| `CONTAINER_RUNTIME_MISSING` | Container workers (IMP-501) |
 
 ## 10. Versioning and compatibility
 
@@ -280,4 +316,17 @@ Reviewers: one maintainer familiar with each affected producer or consumer.
 
 ## 12. Fixtures
 
-`fixtures/contract/valid/` and `fixtures/contract/invalid/<error-code>/`. Each invalid fixture has a `expected.json` stating `{code, json_pointer}`. CI asserts that every error code in §9 and PRD §13.10 and every CR rule has at least one fixture (IMP-005).
+| Path | Content | Maintained |
+|---|---|---|
+| `fixtures/contract/valid/<schema>.<case>.json` | One canonical document per schema not covered by a package | By hand |
+| `fixtures/contract/packages/valid/<case>/` | Complete Documentation Packages: `mode-a-saa` (source, SAA) and `mode-b-qaa` (runtime, QAA) | By hand; manifest checksums by `pnpm fixtures` |
+| `fixtures/contract/invalid/<error-code>/<case>/` | `expected.json` plus `package/` or `input.json` | Generated by `pnpm fixtures` from the valid fixtures (`packages/contract/scripts/fixtures.mjs`) |
+
+`expected.json` is `{kind, code, rule?, severity, ok}`, where `kind` ∈ `package`, `scenario`, `execution`, `defect_transition` selects the validator. Warning and info cases have `ok: true`. Each case changes one thing, and the conformance test requires the expected code (and rule) and no other error.
+
+CI asserts that:
+- both valid packages pass every stage with no findings;
+- every catalog code has a fixture unless §9 assigns it to another component, and no code is both;
+- every CR rule has a fixture;
+- the correlation report refers only to IDs that exist in the two valid packages;
+- the generated fixtures are up to date (`pnpm fixtures:check`).

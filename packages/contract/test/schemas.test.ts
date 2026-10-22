@@ -1,204 +1,144 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { beforeAll, describe, expect, it } from "vitest";
-import type { Ajv2020 } from "ajv/dist/2020.js";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
   CONTRACT_SCHEMA_NAMES,
-  createContractAjv,
   loadContractSchemas,
   schemaId,
+  validateDocument,
   type ContractSchemaName,
 } from "../src/index.js";
+import { contractAjv } from "../src/validation/shared.js";
+import { packageDoc, readJson, validDoc, validDocsDir, validPackagesDir, type Json } from "./helpers.js";
 
-const validFixtureDir = fileURLToPath(new URL("../../../fixtures/contract/valid/", import.meta.url));
-
-type Json = Record<string, unknown>;
 const clone = <T>(value: T): T => structuredClone(value);
-const fixture = (name: string): Json => JSON.parse(readFileSync(`${validFixtureDir}${name}.json`, "utf8")) as Json;
-
-let ajv: Ajv2020;
-const validate = (schema: ContractSchemaName, document: unknown) => {
-  const fn = ajv.getSchema(schemaId(schema));
-  if (!fn) throw new Error(`schema not registered: ${schema}`);
-  const ok = fn(document) as boolean;
-  return { ok, errors: fn.errors ?? [] };
+const ROLE_SCHEMAS: Record<string, ContractSchemaName> = {
+  system_model: "system-model",
+  evidence_index: "evidence-index",
+  diff_report: "diff-report",
+  completeness_report: "completeness-report",
 };
-const expectInvalid = (schema: ContractSchemaName, document: unknown) => {
-  expect(validate(schema, document).ok).toBe(false);
-};
-
-beforeAll(() => {
-  ajv = createContractAjv();
-});
+const isValid = (schema: ContractSchemaName, doc: unknown) => validateDocument(schema, doc).ok;
 
 describe("contract schemas [@req CON-001] [@req CON-008] [@req CON-027]", () => {
   it("every schema loads with the expected $id and compiles in strict mode", () => {
     const schemas = loadContractSchemas();
     expect([...schemas.keys()]).toEqual([...CONTRACT_SCHEMA_NAMES]);
-    for (const name of CONTRACT_SCHEMA_NAMES) {
-      expect(() => ajv.getSchema(schemaId(name))).not.toThrow();
-    }
+    for (const name of CONTRACT_SCHEMA_NAMES) expect(contractAjv().getSchema(schemaId(name))).toBeDefined();
   });
 });
 
-describe("valid fixtures [@req CON-002] [@req CON-003] [@req CON-004] [@req CON-020] [@req CON-026]", () => {
-  const files = readdirSync(validFixtureDir).filter((f) => f.endsWith(".json"));
+// Canonical examples: single documents plus every JSON artifact of the valid packages.
+const singleDocs = readdirSync(validDocsDir)
+  .filter((f) => f.endsWith(".json"))
+  .map((f) => ({ label: f, schema: f.split(".")[0] as ContractSchemaName, doc: readJson(join(validDocsDir, f)) }));
+const packageDocs = readdirSync(validPackagesDir).flatMap((pkg) => {
+  const manifest = packageDoc(pkg, "manifest.json");
+  const artifacts = (manifest.artifacts as Json[]).filter((a) => ROLE_SCHEMAS[a.role as string]);
+  return [
+    { label: `${pkg}/manifest.json`, schema: "package-manifest" as ContractSchemaName, doc: manifest },
+    ...artifacts.map((a) => ({
+      label: `${pkg}/${String(a.path)}`,
+      schema: ROLE_SCHEMAS[a.role as string] as ContractSchemaName,
+      doc: packageDoc(pkg, a.path as string),
+    })),
+  ];
+});
 
-  it.each(files)("%s validates against its schema", (file) => {
-    const schema = file.split(".")[0] as ContractSchemaName;
-    expect(CONTRACT_SCHEMA_NAMES).toContain(schema);
-    const result = validate(schema, JSON.parse(readFileSync(`${validFixtureDir}${file}`, "utf8")));
-    expect(result.errors).toEqual([]);
-    expect(result.ok).toBe(true);
-  });
+describe("canonical examples [@req CON-002] [@req CON-003] [@req CON-004] [@req CON-020] [@req CON-026]", () => {
+  it.each([...singleDocs, ...packageDocs].map((x) => [x.label, x] as const))(
+    "%s validates against its schema",
+    (_label, x) => {
+      const result = validateDocument(x.schema, x.doc);
+      expect(result.issues).toEqual([]);
+    },
+  );
 
-  it("schemas without a valid fixture are exactly the known backlog (IMP-005 closes it)", () => {
-    const covered = new Set(files.map((f) => f.split(".")[0]));
-    const missing = CONTRACT_SCHEMA_NAMES.filter((n) => n !== "common" && !covered.has(n));
-    expect(missing).toEqual(["diff-report", "analysis-response", "test-plan", "manual-test-pack"]);
+  it("every contract schema has at least one canonical example", () => {
+    const covered = new Set([...singleDocs, ...packageDocs].map((x) => x.schema));
+    expect(CONTRACT_SCHEMA_NAMES.filter((n) => n !== "common" && !covered.has(n))).toEqual([]);
   });
 });
 
 describe("structural rules enforced by the schemas", () => {
+  const manifestB = () => clone(packageDoc("mode-b-qaa", "manifest.json"));
+  const manifestA = () => clone(packageDoc("mode-a-saa", "manifest.json"));
+  const modelA = () => clone(packageDoc("mode-a-saa", "system-model.json"));
+
   it("rejects production environments [@req SEC-009]", () => {
-    const m = fixture("package-manifest.mode-b");
+    const m = manifestB();
     (m.observed_environments as Json[])[0]!.classification = "production";
-    expectInvalid("package-manifest", m);
-  });
-
-  it("ties repository presence to the evidence profile [@req CON-020] [@req CON-025]", () => {
-    const b = fixture("package-manifest.mode-b");
-    b.repository = clone(fixture("package-manifest.mode-a").repository);
-    expectInvalid("package-manifest", b);
-
-    const a = fixture("package-manifest.mode-a");
-    a.repository = null;
-    expectInvalid("package-manifest", a);
-  });
-
-  it("requires observed environments when runtime evidence is available [@req CON-021]", () => {
-    const b = fixture("package-manifest.mode-b");
-    delete b.observed_environments;
-    expectInvalid("package-manifest", b);
-  });
-
-  it("requires previous_package from version 2 on [@req CON-002]", () => {
-    const a = fixture("package-manifest.mode-a");
-    delete a.previous_package;
-    expectInvalid("package-manifest", a);
+    expect(isValid("package-manifest", m)).toBe(false);
   });
 
   it("rejects dirty git revisions without a dirty fingerprint [@req CON-006]", () => {
-    const a = fixture("package-manifest.mode-a");
-    const revision = (a.repository as Json).revision as Json;
+    const m = manifestA();
+    const revision = (m.repository as Json).revision as Json;
     revision.worktree_dirty = true;
-    expectInvalid("package-manifest", a);
+    expect(isValid("package-manifest", m)).toBe(false);
     revision.dirty_fingerprint = `sha256:${"a".repeat(64)}`;
-    expect(validate("package-manifest", a).ok).toBe(true);
+    expect(isValid("package-manifest", m)).toBe(true);
   });
 
   it("rejects artifact paths that escape the package [@req SEC-001]", () => {
     for (const path of ["../outside.json", "/etc/passwd", "docs/../../x.md", "C:/x.json"]) {
-      const a = fixture("package-manifest.mode-a");
-      (a.artifacts as Json[])[0]!.path = path;
-      expectInvalid("package-manifest", a);
+      const m = manifestA();
+      (m.artifacts as Json[])[0]!.path = path;
+      expect(isValid("package-manifest", m)).toBe(false);
     }
   });
 
   it("requires a rationale for inferred entities and a gap for unresolved ones [@req SAA-FR-010]", () => {
-    const sm = fixture("system-model.registration");
-    const role = (sm.entities as Json[]).find((e) => e.kind === "actor_role")!;
-    delete role.confidence_rationale;
-    expectInvalid("system-model", sm);
+    const sm = modelA();
+    delete (sm.entities as Json[]).find((e) => e.kind === "actor_role")!.confidence_rationale;
+    expect(isValid("system-model", sm)).toBe(false);
 
-    const sm2 = fixture("system-model.registration");
-    const module = (sm2.entities as Json[])[0]!;
+    const sm2 = modelA();
+    const module = (sm2.entities as Json[])[2]!;
     module.status = "unresolved";
     module.evidence_ids = [];
-    expectInvalid("system-model", sm2);
+    expect(isValid("system-model", sm2)).toBe(false);
     module.gap_ids = ["gap:email-delivery"];
-    expect(validate("system-model", sm2).ok).toBe(true);
-  });
-
-  it("keeps workflow discovery status consistent with unresolved hops [@req CON-024]", () => {
-    const sm = fixture("system-model.registration");
-    const wf = (sm.workflows as Json[])[0]!;
-    wf.discovery_status = "reconstructed";
-    expectInvalid("system-model", sm);
-
-    const sm2 = fixture("system-model.registration");
-    (sm2.workflows as Json[])[0]!.unresolved_hops = [];
-    expectInvalid("system-model", sm2);
+    expect(isValid("system-model", sm2)).toBe(true);
   });
 
   it("requires source location for source evidence and environment for runtime evidence [@req CON-004] [@req CON-021]", () => {
-    const ev = fixture("evidence-index.registration");
-    delete ((ev.evidence as Json[])[0] as Json).range;
-    expectInvalid("evidence-index", ev);
-
-    const ev2 = fixture("evidence-index.registration");
-    delete ((ev2.evidence as Json[])[2] as Json).environment_id;
-    expectInvalid("evidence-index", ev2);
-  });
-
-  it("derives the oracle class from the expected-result basis [@req QAA-FR-041] [@req CON-005]", () => {
-    const sc = fixture("scenario.nib-12-digits");
-    const expected = ((sc.steps as Json[])[2] as Json).expected_result as Json;
-    expected.oracle_class = "intended";
-    expectInvalid("scenario", sc);
-
-    const sc2 = fixture("scenario.nib-12-digits");
-    const expected2 = ((sc2.steps as Json[])[2] as Json).expected_result as Json;
-    delete expected2.saa_status;
-    expectInvalid("scenario", sc2);
-
-    const sc3 = fixture("scenario.nib-12-digits");
-    const expected3 = ((sc3.steps as Json[])[2] as Json).expected_result as Json;
-    expected3.basis = "observed";
-    expected3.oracle_class = "observed";
-    expect(validate("scenario", sc3).ok).toBe(true);
+    const evA = clone(packageDoc("mode-a-saa", "evidence-index.json"));
+    delete ((evA.evidence as Json[])[0] as Json).range;
+    expect(isValid("evidence-index", evA)).toBe(false);
+    const evB = clone(packageDoc("mode-b-qaa", "evidence-index.json"));
+    delete ((evB.evidence as Json[])[0] as Json).environment_id;
+    expect(isValid("evidence-index", evB)).toBe(false);
   });
 
   it("requires the literal language of text-based locators [@req LOC-010]", () => {
-    const sc = fixture("scenario.nib-12-digits");
-    const target = (((sc.steps as Json[])[1] as Json).automation as Json).target as Json;
-    delete target.literal_language;
-    expectInvalid("scenario", sc);
-  });
-
-  it("requires a reason for needs_clarification scenarios [@req QAA-FR-034]", () => {
-    const sc = fixture("scenario.nib-12-digits");
-    delete sc.status_reason;
-    expectInvalid("scenario", sc);
+    const sc = validDoc("scenario.nib-12-digits");
+    delete ((((sc.steps as Json[])[1] as Json).automation as Json).target as Json).literal_language;
+    expect(isValid("scenario", sc)).toBe(false);
   });
 
   it("requires a configured environment for automated approvals [@req QAA-FR-052] [@req QAA-FR-112]", () => {
-    const ap = fixture("approval.manual");
+    const ap = validDoc("approval.manual");
     ap.mode = "automated";
-    expectInvalid("approval", ap);
+    expect(isValid("approval", ap)).toBe(false);
   });
 
   it("labels manual results as tester-reported and keeps automated runs on configured environments [@req QAA-FR-086]", () => {
-    const run = fixture("run-result.manual");
+    const run = validDoc("run-result.manual");
     ((run.cases as Json[])[0] as Json).reported_by = "executor";
-    expectInvalid("run-result", run);
-
-    const run2 = fixture("run-result.manual");
+    expect(isValid("run-result", run)).toBe(false);
+    const run2 = validDoc("run-result.manual");
     run2.kind = "automated";
-    ((run2.cases as Json[])[0] as Json).reported_by = "executor";
-    ((run2.cases as Json[])[0] as Json).failure_category = "assertion_failure";
-    expectInvalid("run-result", run2);
+    Object.assign((run2.cases as Json[])[0] as Json, {
+      reported_by: "executor",
+      failure_category: "assertion_failure",
+    });
+    expect(isValid("run-result", run2)).toBe(false);
   });
 
   it("has no aggregate score in readiness assessments [@req CON-028]", () => {
-    const ra = fixture("readiness-assessment.mode-a");
+    const ra = validDoc("readiness-assessment.mode-a");
     ra.score = 0.8;
-    expectInvalid("readiness-assessment", ra);
-  });
-
-  it("states counts only within the examined scope [@req SAA-FR-045]", () => {
-    const cr = fixture("completeness-report.f1");
-    cr.count_scope = "system_total";
-    expectInvalid("completeness-report", cr);
+    expect(isValid("readiness-assessment", ra)).toBe(false);
   });
 });

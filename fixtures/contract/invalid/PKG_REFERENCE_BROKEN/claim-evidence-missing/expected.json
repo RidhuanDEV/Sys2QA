@@ -1,0 +1,1 @@
+{ "kind": "package", "code": "PKG_REFERENCE_BROKEN", "rule": "CR-010", "severity": "error", "ok": false }
