@@ -11,12 +11,12 @@
 | Product | Sys2QA (working name of the platform) |
 | Components | SAA — System Analysis Agent; QAA — Quality Assurance Agent; shared Sys2QA platform and SAA→QAA contract |
 | Document type | Authoritative unified Product Requirements Document |
-| Document status | **Draft for maintainer review.** Not yet approved. Nothing described here is implemented or tested. |
-| Version | 1.0.0-draft.4 |
+| Document status | **Approved baseline 1.0.0** (2026-10-22), approved under the maintainer's delegation (see §1.4). Nothing described here is implemented or tested yet. |
+| Version | 1.0.0 |
 | Last updated | 2026-10-21 |
 | Supersedes (after approval) | `SAA_PRD.md` (SAA PRD, Draft v1.0, 2026-10-21) and `QAA-PRD-SAA-QAA-collaboration.md` (QAA PRD, v0.2, 2026-10-21) |
 | Primary audience | Maintainers, contributors, agent/tooling developers, QA engineers, security reviewers |
-| License | Apache-2.0 (OD-09, approved); `LICENSE` file not yet added |
+| License | Apache-2.0 (OD-09); `LICENSE` file at repository root |
 
 ### 1.1 Revision history
 
@@ -25,6 +25,7 @@
 | SAA PRD v1.0 (draft) | 2026-10-21 | Maintainer | Source document: SAA product and architecture baseline |
 | QAA PRD v0.2 | 2026-10-21 | Maintainer | Source document: QAA product requirements with SAA integration (§26) |
 | 1.0.0-draft.1 | 2026-10-21 | Consolidation | Merged both source PRDs into one product specification; defined versioned SAA→QAA contract; added reconciliation log, open decisions and traceability matrix |
+| 1.0.0 | 2026-10-22 | Approved baseline (maintainer delegation) | OD-30 closed (native process isolation for L2); PRD approved as implementation baseline; §1.4 related documents and precedence; `LICENSE` added |
 | 1.0.0-draft.4 | 2026-10-22 | Maintainer review 3 + decisions | Approved OD-01, 02, 04–10, 12–23, 27, 29 (Implementation Baseline §9.8). OD-16: automated workers in Linux containers. New SYS-005 interface parity, SAA-FR-047 adapter support matrix, CON-027 single contract library, CON-028 three status dimensions; new open OD-30 |
 | 1.0.0-draft.3 | 2026-10-21 | Maintainer review 2 + decisions | Closed OD-24 (QAA owns URL discovery), OD-25 (observe-only forms), OD-26 (first release = Gates 1–5), OD-28 (CLI + web UI). SAA defined by responsibility; release gates and security release gates; workflow discovery statuses; separate discovery metrics; form-interaction policy; Approved/Withdrawn statuses |
 | 1.0.0-draft.2 | 2026-10-21 | Maintainer review revision | Evidence-adaptive product: starting modes A–D (repository, URL, both, package); automatic workflow discovery and catalog (no workflow names required); evidence-source-neutral model and contract; shared runtime observation service; QA objectives; environment-optional QA; not a DevOps agent; outcome-sliced roadmap |
@@ -57,9 +58,32 @@ Every normative statement in this document has one of these statuses. **A status
 | **Assumption (A-nn)** | Belief the plan depends on, to be validated. See §31.1. |
 | **Open decision (OD-nn)** | Choice requiring human resolution, with alternatives and a recommendation. See §31.4. |
 
-**Implementation readiness rule.** A requirement may be implemented when it is Confirmed or Approved and does not depend on an open decision (§31.4.2). Proposed requirements need maintainer approval first. Release gates (§27.2) decide *when* a P0 requirement must be validated.
+**Implementation readiness rule.** A requirement may be implemented when it is Confirmed or Approved and does not depend on an open decision (§31.4.2). Proposed requirements need maintainer approval first. **With the approval of baseline 1.0.0, every requirement marked Proposed in this version is Approved for implementation**; later additions start as Proposed again. Release gates (§27.2) decide *when* a P0 requirement must be validated.
 
 Priorities: **P0** = essential to the product definition (release timing is set by release gates, §27); **P1** = next release after the MVP vertical slice; **P2** = later. Normative keywords **must**, **must not**, **should** and **may** follow their usual specification meaning.
+
+
+### 1.4 Delegation, related documents and precedence
+
+**Delegation.** On 2026-10-22 the maintainer delegated remaining decisions to Claude ("pilih keputusan anda saja yang terbaik"). Decisions taken under that delegation are labeled as such and remain reversible by the maintainer through a new decision and ADR.
+
+**Related documents.** This PRD defines *what* and *why*. The engineering documents below define *how* and *how it is proven*:
+
+| Document | Path | Source of truth for |
+|---|---|---|
+| Documentation index | `docs/README.md` | Map of all documents and ownership |
+| Implementation Plan & Backlog | `docs/00-project/implementation-plan.md` | Tasks, dependencies, order, status |
+| Software Architecture | `docs/01-architecture/software-architecture.md` | Current architecture, module boundaries, dependency rules |
+| ADRs | `docs/01-architecture/adr/` | Why decisions were made |
+| Contract Specification | `docs/02-contracts/contract-specification.md` (+ `schemas/` once created) | Field-level contract and semantics |
+| Data Model & Storage | `docs/03-design/data-model.md` | Internal persistence |
+| Threat Model & Security Architecture | `docs/04-security/threat-model.md` | Threats, trust boundaries, controls, security tests |
+| Test Strategy & Verification Plan | `docs/05-quality/test-strategy.md` | How requirements and gates are proven |
+
+**Precedence.**
+1. Product behavior, requirements and priorities: this PRD wins.
+2. Field-level contract details: the Contract Specification and its JSON Schemas win. PRD §13 remains the normative product-level summary, and a conflict between them is a defect to be fixed in both.
+3. Architecture: the Software Architecture document reflects the current state; ADRs record why.
 
 ---
 
@@ -497,7 +521,7 @@ This baseline turns the approved decisions (§31.4.1) into binding implementatio
 **Shape.** A **modular monolith with isolated workers**, not distributed microservices.
 - SAA, QAA and platform are separate domain modules with strict dependency rules.
 - They run as one local application (T1, OD-01).
-- Browser workers and risky operations are isolated. Automated-execution workers run in Linux containers (OD-16); for discovery workers, see OD-30.
+- Browser workers and risky operations are isolated. Automated-execution workers run in Linux containers (OD-16). Discovery and targeted-verification browsers run as native worker processes, one per job (OD-30).
 
 **Monorepo (TypeScript, OD-05). Illustrative layout; final names are set when the repository is created:**
 
@@ -1293,6 +1317,7 @@ QAA validates in this order and stops at the first `error`. Every result is mach
 | `PKG_SECRET_SUSPECTED` | error | Validator detects a likely raw secret value | `blocked`; do not display the value; advise re-export |
 | `PKG_EVIDENCE_REVISION_MISMATCH` | error | Evidence revision differs from package revision | `blocked` (no silent merge) |
 | `PKG_EVIDENCE_PROFILE_INCONSISTENT` | error | For example, an SAA-produced package containing runtime-discovery evidence, a QAA-produced package containing source evidence, runtime evidence without `observed_environments`, source evidence with `repository: null`, or a `cannot_establish` item contradicted by a `source_verified` claim | `blocked`; list offending records |
+| `PKG_CLAIM_EXCEEDS_EVIDENCE` | error | A claim's or relationship's status is not supported by its evidence types (Contract Spec CR-001/002), e.g. `WRITES_TO` from runtime-only evidence | `blocked`; list offending records |
 | `PKG_ANALYSIS_PARTIAL` | warning | `partial` | `review_only` |
 | `PKG_REVISION_MISMATCH` | warning | Revision ≠ baseline | Freshness `mismatched`; `review_only` for affected flows |
 | `PKG_REVISION_UNVERIFIABLE` | warning | Deployed revision unknown | Freshness `unverifiable`; execution approval requires an explicit baseline confirmation |
@@ -1970,7 +1995,7 @@ All browser controls (SEC-003, 007, 008, 009, 019, 020, 024, 025) are enforced b
 | SEC-009 | **Environment classification:** environments are `development`, `staging` or `production`; discovery and execution refuse `production` in MVP; classification shown before approval and execution | QAA | P0 | C | Production-classified env cannot run | QAA §16.4, X-09 |
 | SEC-010 | **Destructive actions and test data:** discovery never submits suspected destructive forms; scenarios that create/update/delete/approve/publish/send are flagged `state_changing` and need explicit approval and cleanup plan or irreversibility acknowledgment; possession of URL/credentials is never sufficient | QAA | P0 | C | Unflagged state-changing fixture is detected by validator; approval gate enforced | QAA §16.4, FR-025, MD-3 note |
 | SEC-011 | **Credential handling:** secret references only; exposed only to the specific worker at runtime; short-lived tokens preferred; no cross-project/tenant reuse of auth state; revocation and deletion instructions documented | Platform, QAA | P0 | C | Worker for project A cannot read project B secrets | QAA §16.3 |
-| SEC-012 | **Worker isolation:** automated-execution (L3) workers run in disposable Linux containers on every host OS (OD-16); discovery isolation per OD-30; disposable workers per job; isolation between projects/tenants; workers receive only required credentials and repository material; re-check authorization, approval, scope and run state before starting | QAA | P0 | C | Cross-project artifact access fixture denied | QAA §15.2, §19 |
+| SEC-012 | **Worker isolation:** automated-execution (L3) workers run in disposable Linux containers on every host OS (OD-16); discovery and targeted-verification browsers run natively in one OS process per job with a fresh browser context (OD-30); disposable workers per job; isolation between projects/tenants; workers receive only required credentials and repository material; re-check authorization, approval, scope and run state before starting | QAA | P0 | C | Cross-project artifact access fixture denied | QAA §15.2, §19 |
 | SEC-013 | **Sandbox for repository code execution (L4):** if ever enabled, strong isolation, no default secrets or internal network, allowlisted commands, audit | SAA, QAA | P1 (SAA runtime) / deferred (QAA) | C | — | SAA §12.2(3), QAA §16.2 |
 | SEC-014 | **Audit trail:** record authorization declarations, scope changes, credential configuration and use, approvals, run start/cancel, L4 actions, exports and deletions; no secret values | Platform | P0 | C | Audit entries exist for each listed action in E2E test | SAA §12.2(9), QAA §16.6 |
 | SEC-015 | **Retention and deletion:** configurable retention for source excerpts/indexes, prompts/outputs, recordings, screenshots, traces; project deletion removes artefacts incl. object storage per documented backup policy; cache deletion removes excerpts | Platform | P0 | C | Deletion test leaves no project artefacts | SAA §12.3, QAA §16.5 |
@@ -2565,14 +2590,14 @@ QAA FR-010 was clarified, and the QAA FR-021 … 028 scope was extended to QAA r
 | Model Context Protocol | Selected interface (SAA §4.3); SDK choice open | SAA MCP server |
 | LLM provider(s) or local model | Optional, operator-configured (OD-07) | Planning, synthesis, scenario generation |
 | Parsers/indexers (e.g., Tree-sitter, language servers, TypeScript compiler API) | Suggested by SAA §6.2, not selected | SAA adapters |
-| Docker-compatible container runtime (Linux containers; WSL2-based on Windows) | **Required for automated execution only** (OD-16); not needed for analysis, discovery (pending OD-30) or manual QA | L3 workers; later the L4 sandbox |
+| Docker-compatible container runtime (Linux containers; WSL2-based on Windows) | **Required for automated execution only** (OD-16); not needed for analysis, discovery (OD-30) or manual QA | L3 workers; later the L4 sandbox |
 | Embedded database (SQLite) and local job queue | Approved (OD-01, OD-08); PostgreSQL/Redis only if T2 is added later | Operational state, index, jobs |
 
 ### 31.4 Decisions
 
 #### 31.4.1 Closed decisions
 
-All decisions below are **Approved** by the maintainer (OD-03, 24–26, 28 on 2026-10-21; the rest on 2026-10-22 after maintainer review 3). They form the Implementation Baseline (§9.8).
+All decisions below are **Approved**: OD-03, 24–26 and 28 by the maintainer on 2026-10-21; OD-01, 02, 04–23, 27 and 29 by the maintainer on 2026-10-22 after review 3; OD-30 under the maintainer's delegation on 2026-10-22. They form the Implementation Baseline (§9.8).
 
 | ID | Decision | Approved outcome | Consequence recorded in |
 |---|---|---|---|
@@ -2605,6 +2630,7 @@ All decisions below are **Approved** by the maintainer (OD-03, 24–26, 28 on 20
 | OD-27 | Runtime evidence freshness | **Per environment**, conservative default, immediate invalidation on a known deployment change | CON-021, §13.11 |
 | OD-28 | Interfaces in the first release | **CLI and web UI together**, with MCP and Skill, all over the same application services (SYS-005) | §23.1, §9.8 |
 | OD-29 | Read-only form classification | **Heuristics only propose; the user confirms each form on first use; GET-only by default.** Button names or labels alone never make a form "safe" | SEC-024 |
+| OD-30 | Isolation for L2 discovery and targeted-verification browsers | **Native Playwright, one OS process and a fresh browser context per job; egress enforced by the runtime observation service's local proxy; no container required.** Decided under maintainer delegation: observe-only discovery submits nothing by default, and URL-only users most need an infrastructure-free path (MD-6) | SEC-012, ADR-005 |
 
 #### 31.4.2 Open decisions
 
@@ -2612,7 +2638,7 @@ Implementation of a requirement that depends on an open decision must not start 
 
 | ID | Decision | Alternatives | Impact | Recommendation | Blocks |
 |---|---|---|---|---|---|
-| OD-30 | Isolation for L2 discovery and targeted-verification browsers | (a) Same Linux containers as L3 (OD-16); (b) native Playwright, one OS process and a fresh browser context per job, egress enforced by the runtime observation service; containers optional | (a) makes a container runtime a prerequisite for URL-only users; (b) keeps Mode B infrastructure-free (MD-6) with weaker isolation for observe-only work | **(b)**: observe-only discovery submits nothing by default, and MD-6 matters most for URL-only users | Gate 4 |
+| — | *None open at baseline 1.0.0.* | | | | |
 
 ### 31.5 OD-05 detail — implementation language options (decided: Option A)
 
@@ -2708,7 +2734,7 @@ Carried from the source PRDs. Used as guidance only; no certification or complia
 | RC-C18 | SAA-FR-009 traced "user-selected workflows", which assumes the user knows them | Discovery first (SAA-FR-040); SAA-FR-009 deepens discovered items | Resolved (P) |
 | RC-C19 | Maintainer review roadmap (layer-ordered) vs. its own principle "prove the complete experience before breadth" | Review 2 proposed release gates; **maintainer decided first release = Gates 1–5 (OD-26)** | Resolved (Ap) |
 | RC-C20 | §8 defined SAA as repository-only while §9.2 gave it URL discovery (draft.2) | SAA defined by responsibility (source-based analysis); URL discovery is QAA's (OD-24) | Resolved |
-| RC-C21 | OD-16 Linux-container workers vs. MD-6 "no infrastructure prerequisites" (consolidation recommended native process isolation) | Maintainer decided containers for L3; recorded as a documented X-22 exception limited to automated execution; discovery isolation left open as OD-30 | Resolved (Ap) for L3; **OD-30** for L2 |
+| RC-C21 | OD-16 Linux-container workers vs. MD-6 "no infrastructure prerequisites" (consolidation recommended native process isolation) | Maintainer decided containers for L3; recorded as a documented X-22 exception limited to automated execution; discovery isolation left open as OD-30 | Resolved (Ap): containers for L3; native process isolation for L2 (OD-30) |
 
 ### A.3 Terminology alignment
 
