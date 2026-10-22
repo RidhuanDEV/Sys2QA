@@ -72,17 +72,18 @@ Collision rule: if two different natural keys derive the same local ID, the deri
 
 ## 4. Operational state schema (SQLite `state`)
 
-DDL sketch; the final DDL lives in migrations (IMP-007). All tables have `created_at` and `updated_at`. Append-only tables are marked.
+The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); this table summarizes it. All tables are `STRICT` and have `created_at` and `updated_at`; enumerations from the PRD and contract are `CHECK` constraints; `*_json` columns must hold valid JSON. Append-only tables are marked: their triggers reject `UPDATE` always, and `DELETE` unless the row's project has a `project_deletions` tombstone. For that, every append-only table carries `project_id` (nullable where a row can be installation-wide).
 
 | Table | Key columns | Notes |
 |---|---|---|
 | `projects` | `id`, `name`, `default_languages_json`, `archived_at` | |
+| `project_deletions` | `project_id`, `requested_by`, `requested_at` | **Append-only** tombstone written before deleting a project; no foreign key, so it outlives the project and authorizes the cascade through append-only tables (IMP-019) |
 | `evidence_sources` | `id`, `project_id`, `kind ∈ {source_root, environment, package}`, `ref`, `added_at` | A project's starting mode is derived from its sources (SYS-001) |
 | `authorization_declarations` | `id`, `project_id`, `declared_by`, `declared_at`, `scope_json`, `operation_level`, `prohibitions_json` | **Append-only**; latest active per source |
 | `environments` | `id`, `project_id`, `base_url`, `classification`, `state`, `local_owner_mode` | `classification = production` ⇒ refused by policy |
 | `scope_policies` | `environment_id`, `version`, `policy_json` | **Append-only** versions |
 | `credential_profiles` | `id`, `environment_id`, `role_name`, `secret_ref` | Values live in class F |
-| `jobs` | `id`, `type`, `project_id`, `state`, `priority`, `payload_json`, `budget_json`, `attempt`, `max_attempts`, `idempotency_key UNIQUE`, `lease_owner`, `lease_expires_at`, `cancel_requested_at`, `error_json` | Queue and history; see Operational notes §7 |
+| `jobs` | `id`, `type`, `project_id?`, `state ∈ {queued, running, cancelling, completed, failed, cancelled}`, `priority`, `payload_json`, `budget_json`, `attempt`, `max_attempts`, `idempotency_key UNIQUE`, `lease_owner`, `lease_expires_at`, `cancel_requested_at`, `error_json` | Queue and history; see Operational notes §7 |
 | `job_events` | `job_id`, `seq`, `at`, `event`, `data_json` | **Append-only** progress and state changes |
 | `analysis_runs` | `id`, `project_id`, `producer`, `status`, `artifact_path`, `revision_json`, `coverage_json` | |
 | `packages` | `package_id`, `version`, `producer`, `path`, `manifest_sha256`, `imported_from_import_id?` | Immutable rows |
@@ -120,10 +121,11 @@ Rebuild procedure: drop `idx_*` → stream every `skb/` and `observed/` partitio
 2. **Packages** are written to a staging directory, validated, checksummed, and then moved into `packages/` in one rename. They are never modified afterwards.
 3. **State.** Every application-service command runs in one SQLite transaction (`BEGIN IMMEDIATE`). The audit event for the command is written in the same transaction.
 4. **Cross-store ordering.** Artifacts are written first; the state row referencing them is committed second. Orphan artifacts (no referencing row) are removed by the recovery sweep. Rows never reference missing artifacts.
-5. **Single writer.** Only the host writes `state.db`. Workers return results to the host; they never open the database.
+5. **Single writer.** Only the host writes `state.db`. Workers return results to the host; they never open the database. One host per home directory is enforced by `<sys2qa-home>/host.lock` (pid and hostname); a lock whose process no longer exists on this machine is taken over, and a lock from another hostname is always respected.
 
 ## 7. Operational notes for jobs (detail in a later Job Lifecycle spec)
 
+- States: `queued` → `running` → `completed` | `failed`; `cancel` moves `queued` to `cancelled` and `running` to `cancelling`, then `cancelled` once the worker has stopped. Being leased is recorded by `lease_owner` and `lease_expires_at`, not by a separate state.
 - Leasing: the host leases a job (`lease_owner`, `lease_expires_at`) and renews the lease while the worker reports progress.
 - On host start, jobs with expired leases are marked `failed` (reason `host_restart`) or re-queued if their type is marked resumable and `attempt < max_attempts`.
 - Idempotency: enqueue uses `idempotency_key`, so repeated requests reuse the existing job (NFR-004).
@@ -148,13 +150,16 @@ Project deletion removes: the state rows (in one transaction), `projects/<id>/`,
 ## 9. Recovery
 
 On every host start:
-1. Run migrations (forward-only).
-2. Run the integrity check (`PRAGMA quick_check`); on failure, refuse to start and print restore guidance.
+1. Run the integrity check (`PRAGMA quick_check`); on failure, refuse to start (`STATE_INTEGRITY_FAILED`) and print restore guidance. It runs before migrations so that a damaged file is never migrated.
+2. Run migrations (forward-only).
 3. Recover jobs with expired leases (§7).
 4. Sweep `*.tmp-*` files and orphan run directories.
 5. Rebuild the index if its version differs from the code's index version.
 
 ## 10. Migrations
 
-- Numbered SQL migrations in `packages/platform/migrations/`; each is tested on a fixture database from the previous version.
+- Numbered SQL migrations `NNNN_name.sql` in `packages/platform/migrations/`, contiguous from 0001; each runs in one `BEGIN IMMEDIATE` transaction and is recorded in `schema_migrations` with a sha256 of its text (line endings normalized). Each is tested on a fixture database from the previous version.
+- The host refuses to start on a database that has a migration it does not know (`STATE_NEWER_THAN_CODE`, i.e. a downgrade) or whose applied migration text has changed (`STATE_MIGRATION_INVALID`).
+- The index (class C) is not migrated: `migrations/index-schema.sql` is versioned by `INDEX_SCHEMA_VERSION`; on a mismatch every `idx_*` table is dropped and recreated empty, and the host rebuilds the index from artifacts (IMP-115).
+- Connection settings: `journal_mode = WAL`, `synchronous = FULL` (authoritative state favors durability over write speed), `foreign_keys = ON`, `busy_timeout = 5000`.
 - Artifact formats are never migrated in place. Reading an older contract version uses the contract library's compatibility rules (Contract Spec §10).
