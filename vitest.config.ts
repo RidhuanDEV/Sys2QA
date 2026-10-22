@@ -6,7 +6,7 @@ export default defineConfig({
   resolve: { conditions: ["source"] },
   ssr: { resolve: { conditions: ["source"] } },
   test: {
-    include: ["apps/*/test/**/*.test.ts", "packages/*/test/**/*.test.ts"],
+    include: ["apps/*/test/**/*.test.ts", "packages/*/test/**/*.test.ts", "tests/**/*.test.ts"],
     passWithNoTests: false,
   },
 });

@@ -114,6 +114,19 @@ Forbidden, among others:
 - any module other than `platform` → LLM SDKs;
 - any module other than `contract` declaring contract types or validators (CON-027).
 
+Enforcement (IMP-002): `scripts/dependency-rules.mjs`, run by `pnpm deps:check` in CI stage 1 and proven by `tests/architecture/dependency-rules.test.ts` against the fixture tree `fixtures/dependency-rules/`. The rules as implemented:
+
+| Rule | Meaning |
+|---|---|
+| `<module>-allowed-modules` | One rule per package, generated from the table above |
+| `apps-only-app-services`, `apps-contract-types-only`, `apps-independent` | Apps import only `app-services`, and `contract` with `import type`; apps never import each other |
+| `public-entry-only` | Another module is imported only through its public entry `src/index.ts` (what `@sys2qa/<name>` resolves to). "Host API only" and "ports only" above are therefore decided by what `saa-adapters` and `platform` export from their entry points |
+| `network-only-in-runtime-observer` | `http`, `https`, `http2`, `net`, `tls`, `dgram`, `dns` and HTTP/WebSocket client packages. A loopback HTTP server uses Fastify, which is not affected |
+| `browser-only-in-runtime-observer-and-test-runner` | Playwright. `test-runner` is included because it drives the browser inside L3 containers |
+| `llm-sdk-only-in-platform` | Known LLM SDK packages |
+| `contract-validation-only-in-contract` | `ajv`, `ajv-formats`, `json-schema-to-typescript` |
+| `no-circular`, `not-to-unresolvable` | No import cycles; every import resolves |
+
 ### 4.2 Ports and adapters inside the host
 
 `platform` defines ports for storage (operational state and index), artifact store (filesystem), secret store, LLM, clock, ID generation, and the job queue. Domain modules depend on ports only, so a T2 server topology replaces adapters, not domain logic (ADR-001).

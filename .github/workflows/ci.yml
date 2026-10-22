@@ -30,6 +30,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm schemas:check
       - run: pnpm fixtures:check
+      - run: pnpm deps:check
       - run: pnpm docs:links
 
   test:

@@ -1,0 +1,17 @@
+{
+  "files": {
+    "packages/saa-core/src/imports-qaa-core.ts": ["saa-core-allowed-modules"],
+    "apps/cli/src/imports-domain.ts": ["apps-only-app-services"],
+    "apps/cli/src/contract-value.ts": ["apps-contract-types-only"],
+    "apps/cli/src/contract-type.ts": [],
+    "apps/web/src/imports-cli.ts": ["apps-independent", "public-entry-only"],
+    "packages/app-services/src/imports-internal.ts": ["public-entry-only"],
+    "packages/evidence/src/http-client.ts": ["network-only-in-runtime-observer"],
+    "packages/runtime-observer/src/http-client.ts": [],
+    "packages/qaa-core/src/llm-sdk.ts": ["llm-sdk-only-in-platform", "not-to-unresolvable"],
+    "packages/platform/src/browser.ts": ["browser-only-in-runtime-observer-and-test-runner", "not-to-unresolvable"],
+    "packages/test-runner/src/browser.ts": ["not-to-unresolvable"],
+    "packages/saa-core/src/validator.ts": ["contract-validation-only-in-contract", "not-to-unresolvable"]
+  },
+  "cycles": [["packages/system-model/src/cycle-a.ts", "packages/system-model/src/cycle-b.ts"]]
+}
