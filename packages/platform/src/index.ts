@@ -4,5 +4,7 @@ export * from "./canonical-json.js";
 export * from "./ids.js";
 export * from "./jobs/index.js";
 export * from "./logging/logger.js";
+export * from "./policy/index.js";
+export * from "./projects/index.js";
 export * from "./redaction.js";
 export * from "./storage/index.js";

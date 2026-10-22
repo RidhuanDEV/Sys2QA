@@ -80,8 +80,8 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `project_deletions` | `project_id`, `requested_by`, `requested_at` | **Append-only** tombstone written before deleting a project; no foreign key, so it outlives the project and authorizes the cascade through append-only tables (IMP-019) |
 | `evidence_sources` | `id`, `project_id`, `kind ∈ {source_root, environment, package}`, `ref`, `added_at` | A project's starting mode is derived from its sources (SYS-001) |
 | `authorization_declarations` | `id`, `project_id`, `declared_by`, `declared_at`, `scope_json`, `operation_level`, `prohibitions_json` | **Append-only**; latest active per source |
-| `environments` | `id`, `project_id`, `base_url`, `classification`, `state`, `local_owner_mode` | `classification = production` ⇒ refused by policy |
-| `scope_policies` | `environment_id`, `version`, `policy_json` | **Append-only** versions |
+| `environments` | `id` (= its `environment` evidence source), `project_id`, `base_url`, `classification`, `state`, `local_owner_mode`, `scope_json` | `classification = production` ⇒ refused by policy. `scope_json` (allowed hosts, path prefixes; migration 0003) is the input the scope policy is derived from; configuration requires a declaration, and the base URL must be inside the scope (QAA-FR-002) |
+| `scope_policies` | `environment_id`, `version`, `project_id`, `policy_json` | **Append-only** versions. The policy combines the environment scope with the latest declaration (level ceiling, state-changing permission, prohibitions); a new version is written only when that combination changes |
 | `credential_profiles` | `id`, `environment_id`, `role_name`, `secret_ref` | Values live in class F |
 | `jobs` | `id`, `type`, `project_id?`, `state ∈ {queued, running, cancelling, completed, failed, cancelled}`, `priority`, `payload_json`, `budget_json`, `attempt`, `max_attempts`, `idempotency_key UNIQUE`, `lease_owner`, `lease_expires_at`, `cancel_requested_at`, `run_after?`, `last_progress_at?`, `error_json` | Queue and history; see Operational notes §7. `run_after` and `last_progress_at` added by migration 0002 |
 | `job_events` | `job_id`, `seq`, `at`, `event`, `data_json` | **Append-only** progress and state changes |
@@ -99,7 +99,7 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `defect_transitions` | `defect_id`, `seq`, `from`, `to`, `by`, `at`, `reason` | **Append-only** |
 | `audit_events` | `seq`, `project_id?`, `at`, `actor`, `action`, `target`, `details_json`, `prev_hash`, `hash` | **Append-only**; details pass through the redactor, and fields it replaced are listed in `details.redacted_paths` (SEC-004, SEC-014). One hash chain per project and one for installation-wide events (`project_id` NULL): `hash = sha256(canonical JSON of the event and prev_hash)`. Deleting a project removes its chain; the installation-wide `project.deleted` event records that chain's last hash. Actions are the catalog `AUDIT_ACTIONS` in `@sys2qa/platform` |
 | `model_usage` | `job_id`, `provider`, `model`, `prompt_template_version`, `tokens_in`, `tokens_out`, `cost?` | NFR-011 |
-| `settings` | `key`, `value_json` | |
+| `settings` | `key`, `value_json` | Installation settings, including the administrator switches `l4_enabled` and `local_owner_mode_enabled` (both off by default; changes are audited as `settings.changed`), and `index_schema_version` |
 | `schema_migrations` | `version`, `applied_at` | |
 
 ## 5. Index schema (SQLite `idx`, rebuildable)

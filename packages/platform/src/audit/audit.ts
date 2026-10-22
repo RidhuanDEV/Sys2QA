@@ -23,6 +23,7 @@ export const AUDIT_ACTIONS = [
   "l4.action",
   "export.created",
   "data.deleted",
+  "settings.changed",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
