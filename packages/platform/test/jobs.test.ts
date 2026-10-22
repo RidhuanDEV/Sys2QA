@@ -261,7 +261,7 @@ describe("worker processes [@req QAA-FR-066]", () => {
       o.tick();
       await o.drain();
       const done = store.get(job.id)!;
-      expect(done.state).toBe("completed");
+      expect(done.state, JSON.stringify(done.error)).toBe("completed");
       const result = store.events(job.id).at(-1)!.data.result as {
         echo: unknown;
         execArgv: string[];

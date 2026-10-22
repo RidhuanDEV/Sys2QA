@@ -7,6 +7,6 @@ process.on("message", (message) => {
       type: "result",
       result: { echo: message.job.payload, execArgv: process.execArgv, envKeys: Object.keys(process.env) },
     },
-    () => process.exit(0),
+    () => process.disconnect(),
   );
 });

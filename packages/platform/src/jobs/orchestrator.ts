@@ -35,7 +35,10 @@ export interface JobTypeDefinition {
   concurrency?: number;
 }
 
-/** Worker protocol over the IPC channel. Parent → child: start, cancel. Child → parent: progress, result, error. */
+/**
+ * Worker protocol over the IPC channel. Parent → child: start, cancel. Child → parent: progress, result, error.
+ * After sending its result or error a worker disconnects (`process.disconnect()`) and exits.
+ */
 export type WorkerMessage =
   | { type: "start"; job: { id: string; type: string; payload: unknown; budget: Job["budget"] } }
   | { type: "cancel" }
@@ -348,7 +351,9 @@ export class JobOrchestrator {
           resolve();
         } else if (!outcome) outcome = { kind: "error", message: error.message, transient: true };
       });
-      child.on("exit", (code, signal) => {
+      // "close" rather than "exit": Node may report the exit before the last IPC messages are delivered
+      // (observed on Windows), which would lose a result the worker did send.
+      child.on("close", (code, signal) => {
         if (killTimer) clearTimeout(killTimer);
         controller.signal.removeEventListener("abort", onAbort);
         if (controller.signal.aborted) finishStopped();
