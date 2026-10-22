@@ -104,3 +104,43 @@ describe("observability commands [@req QAA-FR-103] [@req OBS-001] [@req OBS-004]
     );
   });
 });
+
+describe("doctor and configuration [@req NFR-007] [@req SEC-018]", () => {
+  it("reports every prerequisite with remediation and shows the model provider disclosure", async () => {
+    expect(await main(["doctor", "--home", home, "--json"], io())).toBe(EXIT_CODES.ok);
+    const report = (
+      JSON.parse(out) as {
+        data: {
+          status: string;
+          checks: Array<{ id: string; status: string; remediation?: string }>;
+          llm_disclosure: { mode: string };
+        };
+      }
+    ).data;
+    expect(report.checks.map((c) => c.id)).toEqual([
+      "node",
+      "sqlite",
+      "home",
+      "disk_space",
+      "git",
+      "config",
+      "llm",
+      "browser",
+      "container_runtime",
+    ]);
+    for (const check of report.checks) if (check.status !== "ok") expect(check.remediation, check.id).toBeTruthy();
+    expect(report.llm_disclosure.mode).toBe("deterministic_only");
+    out = "";
+    expect(await main(["config", "show", "--home", home, "--json"], io())).toBe(EXIT_CODES.ok);
+    expect(
+      (JSON.parse(out) as { data: { llm_disclosure: { text: { en: string } } } }).data.llm_disclosure.text.en,
+    ).toContain("Nothing is sent");
+  });
+
+  it("fails doctor with the unavailable exit code when a prerequisite fails", async () => {
+    const failing = { ...io(), env: { SYS2QA_LLM_BASE_URL: "https://llm.example.com/v1", SYS2QA_LLM_MODEL: "m" } };
+    expect(await main(["doctor", "--home", home], failing)).toBe(EXIT_CODES.unavailable);
+    expect(out).toContain("[FAIL] Model provider");
+    expect(out).toContain("overall: fail");
+  });
+});

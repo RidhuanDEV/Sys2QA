@@ -9,6 +9,7 @@ import {
   renderPrometheus,
   type Operation as PolicyOperation,
 } from "@sys2qa/platform";
+import { runDoctor } from "./doctor.js";
 import { serviceError } from "./errors.js";
 import { defineOperation, type Operation } from "./operations.js";
 
@@ -291,6 +292,33 @@ const systemSetSetting = defineOperation<
   run: ({ host, caller }, input) => host.projects.setSetting(input.key, input.value, caller.actor),
 });
 
+const systemConfig = defineOperation<Record<string, never>, unknown>({
+  name: "system.config",
+  title: "Effective configuration",
+  description:
+    "The effective configuration, where each setting came from, and what the model provider receives (SEC-018).",
+  level: "none",
+  effect: "read",
+  input: { type: "object", additionalProperties: false },
+  run: ({ host }) => ({
+    file: host.config.file,
+    config: host.config.config,
+    sources: host.config.sources,
+    llm_disclosure: host.llm.disclosure(),
+  }),
+});
+
+const systemDoctor = defineOperation<Record<string, never>, unknown>({
+  name: "system.doctor",
+  title: "Check prerequisites",
+  description:
+    "Node.js, SQLite driver, home directory, disk space, Git, configuration, model provider, browser runtime and container runtime (NFR-007).",
+  level: "none",
+  effect: "read",
+  input: { type: "object", additionalProperties: false },
+  run: ({ host }) => runDoctor({ home: host.home }),
+});
+
 const MAX_PACKAGE_FILES = 10_000;
 const MAX_PACKAGE_BYTES = 256 * 1024 * 1024;
 
@@ -346,6 +374,8 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   systemMetrics,
   systemHealth,
   systemSetSetting,
+  systemConfig,
+  systemDoctor,
   projectCreate,
   projectList,
   projectGet,

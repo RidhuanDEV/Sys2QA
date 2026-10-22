@@ -70,6 +70,9 @@ importers:
       '@sys2qa/platform':
         specifier: workspace:*
         version: link:../platform
+      '@sys2qa/runtime-observer':
+        specifier: workspace:*
+        version: link:../runtime-observer
       fastify:
         specifier: ^5.12.7
         version: 5.12.7

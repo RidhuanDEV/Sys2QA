@@ -6,6 +6,7 @@ import {
   AppServices,
   openHost,
   readHostEndpoint,
+  runDoctor,
   type ErrorKind,
   type HostOptions,
   type ServiceResult,
@@ -55,6 +56,8 @@ const COMMANDS: Record<string, Command> = {
     build: (_p, v) => ({ operation: "system.metrics", input: v.prometheus === true ? { format: "prometheus" } : {} }),
   },
   health: { usage: "health", build: () => ({ operation: "system.health", input: {} }) },
+  doctor: { usage: "doctor", build: () => ({ operation: "system.doctor", input: {} }) },
+  "config show": { usage: "config show", build: () => ({ operation: "system.config", input: {} }) },
   "settings set": {
     usage: "settings set <l4_enabled|local_owner_mode_enabled|telemetry_enabled> <on|off>",
     build: ([key, value]) => ({
@@ -203,10 +206,16 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
     return EXIT_CODES.usage;
   }
   const home = str(values.home) ?? defaultHome(io.env);
-  const result = await run(home, request.operation, request.input, io);
+  // doctor runs without a host so that it can diagnose a host that cannot start; same report as system.doctor.
+  const result: ServiceResult =
+    key === "doctor"
+      ? { ok: true, data: await runDoctor({ home, env: io.env }) }
+      : await run(home, request.operation, request.input, io);
   if (values.json) io.stdout(`${JSON.stringify(result, null, 2)}\n`);
   else if (result.ok) io.stdout(`${human(result.data)}\n`);
   else io.stderr(`error ${result.error.code}: ${result.error.message}\n  next: ${result.error.remediation}\n`);
+  if (key === "doctor" && result.ok && (result.data as { status: string }).status === "fail")
+    return EXIT_CODES.unavailable;
   return result.ok ? EXIT_CODES.ok : EXIT_CODES[result.error.kind];
 }
 
@@ -218,7 +227,7 @@ async function run(home: string, operation: string, input: Record<string, unknow
   mkdirSync(home, { recursive: true });
   let host;
   try {
-    host = openHost({ home, ...io.host });
+    host = openHost({ home, env: io.env, ...io.host });
   } catch (error) {
     const e = error as { code?: string; message?: string; remediation?: string };
     return {
@@ -241,6 +250,20 @@ async function run(home: string, operation: string, input: Record<string, unknow
 
 function human(data: unknown): string {
   if (data === null || typeof data !== "object") return String(data);
+  if ("checks" in data && Array.isArray((data as { checks: unknown }).checks) && "llm_disclosure" in data) {
+    const report = data as unknown as {
+      status: string;
+      checks: Array<{ status: string; title: string; detail: string; remediation?: string }>;
+    };
+    const mark = { ok: "ok  ", warn: "warn", fail: "FAIL" } as Record<string, string>;
+    return [
+      ...report.checks.map(
+        (c) =>
+          `[${mark[c.status] ?? c.status}] ${c.title}: ${c.detail}${c.remediation && c.status !== "ok" ? `\n       next: ${c.remediation}` : ""}`,
+      ),
+      `overall: ${report.status}`,
+    ].join("\n");
+  }
   if ("format" in data && (data as { format: string }).format === "prometheus")
     return (data as unknown as { text: string }).text.trimEnd();
   return JSON.stringify(data, null, 2);

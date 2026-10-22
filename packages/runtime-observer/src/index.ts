@@ -1,3 +1,2 @@
-// Scope-enforcing proxy, browser workers, runtime discovery (ADR-005, ADR-007)
-// Scaffold only (IMP-001). Implementation arrives with later IMP tasks.
-export {};
+// Runtime observation: scope-enforcing proxy, browser workers, discovery (IMP-401 onwards)
+export * from "./prerequisites.js";

@@ -85,9 +85,9 @@ Columns: **Reqs** = PRD requirement IDs the task implements (it must provide tag
 | IMP-015 | Security harness: secret-leak scanner over all outputs, injection corpus, SSRF/DNS fixture servers, malicious adapter, malicious packages | SEC-003, SEC-022, SAA-FR-019 | IMP-001 | Harness runs; known-bad stubs are detected | done |
 | IMP-016 | Application-services layer skeleton; CLI, local HTTP API (loopback, token, origin checks) and MCP shells; parity test harness; IPC to a running host | SYS-002, SYS-005, NFR-010 | IMP-004, IMP-006, IMP-008 | A sample command runs identically via CLI, API and MCP (PT); ST-12 passes | done |
 | IMP-017 | Traceability tooling (`pnpm trace`): PRD ID parser, test-tag scanner, report | — (process) | IMP-001 | Report lists P0 requirements without tests; unknown tags fail CI | done |
-| IMP-018 | Observability: metrics command and endpoint, health checks, opt-in telemetry switch (off by default) | OBS-001, OBS-004, OBS-005, QAA-FR-103 | IMP-008 | Default config sends nothing (test) | in_progress |
+| IMP-018 | Observability: metrics command and endpoint, health checks, opt-in telemetry switch (off by default) | OBS-001, OBS-004, OBS-005, QAA-FR-103 | IMP-008 | Default config sends nothing (test) | done |
 | IMP-019 | Retention and deletion jobs; project deletion across state, files and secrets | SEC-015 | IMP-007, IMP-010 | ST-18 passes; deletion leaves no project artifacts | todo |
-| IMP-020 | Configuration layering and `sys2qa doctor` (Node, browsers, SQLite driver, optional container runtime) | NFR-007, OSS-001 | IMP-016 | `doctor` reports each prerequisite with remediation; the configuration output shows the LLM provider and data disclosure (SEC-018, carried over from IMP-011) | todo |
+| IMP-020 | Configuration layering and `sys2qa doctor` (Node, browsers, SQLite driver, optional container runtime) | NFR-007, OSS-001 | IMP-016 | `doctor` reports each prerequisite with remediation; the configuration output shows the LLM provider and data disclosure (SEC-018, carried over from IMP-011) | in_progress |
 
 ### Gate 1 — Repository → system model
 
@@ -214,7 +214,14 @@ Exposed as `system.metrics`, `system.health` and `system.set_setting` (audited),
 - the default configuration sends nothing;
 - the payload contains no project names, paths or IDs.
 
-Done when CI is green. |
+**Done 2026-10-22:** CI run #15 (`1daea27`) green on all 7 jobs. |
+| 2026-10-22 | IMP-020 | `loadConfig`: defaults → `<home>/config.json` → `SYS2QA_*` → overrides; schema-validated with the source of each setting; refuses a config file containing a secret. The host now takes its LLM backend, log level and LLM exclusions from the configuration. Doctor checks:
+- Node ≥ 22.12, and the SQLite driver with ≥ 3.37 and FTS5;
+- a writable home, disk space and Git;
+- configuration validity and the model provider disclosure, including the remote-without-consent failure;
+- in `runtime-observer`, the browser runtime (optional probe; Playwright is not a dependency yet) and the container runtime.
+
+`system.config` and `system.doctor` operations; `sys2qa config show` and `sys2qa doctor` (runs without a host; exit 6 on failure; human report with `next:` lines). Done when CI is green. |
 | 2026-10-22 | IMP-004 | `packages/contract/src/validation/`: error catalog for every code (en/id title and remediation, `toErrorObject`), staged `validatePackage` in PRD §13.10 order (stops after the first stage with errors), CR-001…CR-070 (`validateScenario`, `checkExecutionAllowed`, `checkDefectTransition`), secret detectors that never echo values, revision keys, oracle derivation. Schema-enforced rules carry their rule ID. Codes that need runtime state are assigned to their components in Contract Specification §9. Unreleased schema amendment: `gap.coverage_category` (for CR-030). **Done 2026-10-22:** CI run #3 (`8486270`) green on all 7 jobs. |
 | 2026-10-22 | IMP-005 | Two complete valid packages (`mode-a-saa`, `mode-b-qaa`) plus single-document examples now cover all 18 schemas. 43 generated invalid cases under `fixtures/contract/invalid/` (`pnpm fixtures`, checked in CI by `pnpm fixtures:check`). Conformance tests require every contract-detected code and every CR rule to have a case with exactly its expected code. The runner SAA and QAA CI use is `validatePackage` from `@sys2qa/contract` plus this suite; a CLI wrapper arrives with the CLI shell (IMP-016). 151 tests; `pnpm verify` green locally. **Done 2026-10-22:** CI run #3 (`8486270`) green on all 7 jobs. |
 
