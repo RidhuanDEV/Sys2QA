@@ -13,4 +13,4 @@ export { checkExecutionAllowed, type ExecutionRequest } from "./execution.js";
 export { checkDefectTransition, DEFECT_TRANSITIONS, type DefectTransitionContext } from "./defect.js";
 export { deriveOracleClass, objectivePermitsBasis } from "./oracle.js";
 export { revisionKey, revisionsEqual } from "./revision.js";
-export { detectSecrets, SECRET_DETECTOR_NAMES, type SecretFinding } from "./secrets.js";
+export { detectSecrets, redactSecrets, SECRET_DETECTOR_NAMES, type SecretFinding } from "./secrets.js";

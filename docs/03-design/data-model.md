@@ -97,7 +97,7 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `case_results` / `step_results` | `run_id`, `scenario_id`, `version`, `step_id`, `doc_json` | **Append-only**; corrections create new records with `supersedes` |
 | `defects` | `id`, `state`, `severity`, `priority`, `links_json` | |
 | `defect_transitions` | `defect_id`, `seq`, `from`, `to`, `by`, `at`, `reason` | **Append-only** |
-| `audit_events` | `seq`, `at`, `actor`, `action`, `target`, `details_json` | **Append-only**; no secret values (SEC-014). Hash-chained (`prev_hash`) for tamper evidence |
+| `audit_events` | `seq`, `project_id?`, `at`, `actor`, `action`, `target`, `details_json`, `prev_hash`, `hash` | **Append-only**; details pass through the redactor, and fields it replaced are listed in `details.redacted_paths` (SEC-004, SEC-014). One hash chain per project and one for installation-wide events (`project_id` NULL): `hash = sha256(canonical JSON of the event and prev_hash)`. Deleting a project removes its chain; the installation-wide `project.deleted` event records that chain's last hash. Actions are the catalog `AUDIT_ACTIONS` in `@sys2qa/platform` |
 | `model_usage` | `job_id`, `provider`, `model`, `prompt_template_version`, `tokens_in`, `tokens_out`, `cost?` | NFR-011 |
 | `settings` | `key`, `value_json` | |
 | `schema_migrations` | `version`, `applied_at` | |

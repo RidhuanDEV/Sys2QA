@@ -19,6 +19,7 @@ const DETECTORS: ReadonlyArray<{ name: string; pattern: RegExp }> = [
   { name: "google_api_key", pattern: /\bAIza[0-9A-Za-z_-]{35}\b/g },
   { name: "stripe_key", pattern: /\b(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{16,}\b/g },
   { name: "anthropic_or_openai_key", pattern: /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{20,}/g },
+  { name: "bearer_token", pattern: /\bBearer\s+[A-Za-z0-9._~+/-]{16,}=*/g },
   { name: "jwt", pattern: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g },
   {
     name: "credential_assignment",
@@ -37,3 +38,29 @@ export function detectSecrets(text: string): SecretFinding[] {
 }
 
 export const SECRET_DETECTOR_NAMES: readonly string[] = DETECTORS.map((d) => d.name);
+
+/** For redaction, a private key is masked through its END marker (or the end of the text), not just its header. */
+const REDACTION_PATTERNS: ReadonlyArray<{ name: string; pattern: RegExp }> = DETECTORS.map((d) =>
+  d.name === "private_key_block"
+    ? {
+        name: d.name,
+        pattern:
+          /-----BEGIN [A-Z ]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY(?: BLOCK)?-----|$)/g,
+      }
+    : d,
+);
+
+/** Replaces every detected secret with `[REDACTED:<detector>]` (SEC-004). */
+export function redactSecrets(text: string): { text: string; findings: SecretFinding[] } {
+  const findings: SecretFinding[] = [];
+  let out = text;
+  for (const { name, pattern } of REDACTION_PATTERNS) {
+    pattern.lastIndex = 0;
+    out = out.replace(pattern, (_match, ...args: unknown[]) => {
+      const index = args.find((a): a is number => typeof a === "number") ?? 0;
+      findings.push({ detector: name, index });
+      return `[REDACTED:${name}]`;
+    });
+  }
+  return { text: out, findings };
+}

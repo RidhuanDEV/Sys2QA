@@ -7,6 +7,7 @@ import {
   detectSecrets,
   ERROR_CATALOG,
   objectivePermitsBasis,
+  redactSecrets,
   revisionKey,
   toErrorObject,
   validateDocument,
@@ -71,6 +72,7 @@ describe("secret detection [@req SEC-004] [@req CON-017]", () => {
     ["github_token", `token ghp_${"a".repeat(36)}`],
     ["jwt", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"],
     ["credential_assignment", 'password = "hunter2hunter2"'],
+    ["bearer_token", "Authorization: Bearer 9f8e7d6c5b4a39281706f5e4d3c2b1a0"],
   ])("detects %s", (detector, text) => {
     expect(detectSecrets(text).map((f) => f.detector)).toContain(detector);
   });
@@ -84,6 +86,21 @@ describe("secret detection [@req SEC-004] [@req CON-017]", () => {
     "page:web:/registrasi",
   ])("does not flag %s", (text) => {
     expect(detectSecrets(text)).toEqual([]);
+  });
+});
+
+describe("secret redaction [@req SEC-004]", () => {
+  it("replaces each secret with its detector name and masks a private key through its END marker", () => {
+    const body = "MIIEowIBAAKCAQEAu1SU1LfVLPHCozMxH2Mo4lgOEePzNm0tRgeLezV6ffAt0gun";
+    const input = `key=AKIAIOSFODNN7EXAMPLE\n-----BEGIN RSA PRIVATE KEY-----\n${body}\n-----END RSA PRIVATE KEY-----\ntail`;
+    const { text, findings } = redactSecrets(input);
+    expect(text).toBe("key=[REDACTED:aws_access_key_id]\n[REDACTED:private_key_block]\ntail");
+    expect(findings.map((f) => f.detector).sort()).toEqual(["aws_access_key_id", "private_key_block"]);
+  });
+
+  it("masks an unterminated private key to the end of the text and leaves clean text unchanged", () => {
+    expect(redactSecrets("-----BEGIN PRIVATE KEY-----\nabc").text).toBe("[REDACTED:private_key_block]");
+    expect(redactSecrets("page:web:/registrasi").text).toBe("page:web:/registrasi");
   });
 });
 
