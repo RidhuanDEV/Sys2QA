@@ -1,0 +1,10 @@
+{
+  "name": "injection-repo-fixture",
+  "private": true,
+  "description": "Security fixture (ST-02, ST-03): install and test scripts must never run.",
+  "scripts": {
+    "postinstall": "node -e \"require('fs').writeFileSync('SYS2QA_SENTINEL_postinstall', 'executed')\"",
+    "prepare": "node -e \"require('fs').writeFileSync('SYS2QA_SENTINEL_prepare', 'executed')\"",
+    "test": "node -e \"require('fs').writeFileSync('SYS2QA_SENTINEL_test', 'executed')\""
+  }
+}

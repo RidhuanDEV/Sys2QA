@@ -1,6 +1,7 @@
 /**
  * Secret detectors (CR-060, SEC-004). Findings never contain the matched value.
- * Detectors are deliberately specific; a generic "password = …" detector skips obvious placeholders.
+ * Detectors are deliberately specific. The credential-assignment detector accepts prefixed names (`DB_PASSWORD`,
+ * `AWS_SECRET_ACCESS_KEY`) and skips obvious placeholders and code references (`process.env.X`, `req.body.password`).
  */
 export interface SecretFinding {
   detector: string;
@@ -24,7 +25,7 @@ const DETECTORS: ReadonlyArray<{ name: string; pattern: RegExp }> = [
   {
     name: "credential_assignment",
     pattern:
-      /\b(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?key|auth[_-]?token|client[_-]?secret)\b\s*[:=]\s*["']?(?!REDACTED\b|secretref:|<|\$\{|\*{3,}|x{3,}|changeme\b)[^\s"'<>]{8,}/gi,
+      /\b(?:[A-Za-z0-9]+[_-])*(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?key|secret[_-]?key|auth[_-]?token|client[_-]?secret)\b\s*[:=]\s*["']?(?!REDACTED\b|\[REDACTED|secretref:|<|\$\{|\*{3,}|x{3,}|changeme\b|process\.env\b|os\.environ\b|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+(?:[\s;,)]|$))[^\s"'<>]{8,}/gi,
   },
 ];
 

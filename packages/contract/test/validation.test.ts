@@ -73,6 +73,8 @@ describe("secret detection [@req SEC-004] [@req CON-017]", () => {
     ["jwt", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"],
     ["credential_assignment", 'password = "hunter2hunter2"'],
     ["bearer_token", "Authorization: Bearer 9f8e7d6c5b4a39281706f5e4d3c2b1a0"],
+    ["credential_assignment", "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"],
+    ["credential_assignment", "DB_PASSWORD=s3cr3t-db-pa55word"],
   ])("detects %s", (detector, text) => {
     expect(detectSecrets(text).map((f) => f.detector)).toContain(detector);
   });
@@ -82,6 +84,9 @@ describe("secret detection [@req SEC-004] [@req CON-017]", () => {
     "api_key = secretref:applicant",
     "token: <your token here>",
     "client_secret=${CLIENT_SECRET}",
+    "password = process.env.DB_PASSWORD;",
+    "const password = req.body.password;",
+    "password: [REDACTED:jwt]",
     "sha256:" + "0".repeat(64),
     "page:web:/registrasi",
   ])("does not flag %s", (text) => {

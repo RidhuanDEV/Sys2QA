@@ -101,6 +101,8 @@ All target-bound network traffic passes through one scope-enforcing proxy. All u
 
 Every test below is automated and runs in CI. The relevant subset must pass before the corresponding operation is enabled (PRD §27.4).
 
+The shared harness (IMP-015) is `tests/security/harness/` with fixtures in `fixtures/security/`: planted fake secrets and a leak scanner that also checks base64, base64url, URL-encoded and JSON-escaped forms (ST-04); an injection corpus planted in a fixture repository and page, plus policy-state snapshots (ST-03); an SSRF fixture server with a request log, and a DNS-rebinding `lookup` (ST-05, ST-06); a malicious adapter stub, a connection trap and sentinel files (ST-02, ST-14); and a ZIP writer and reader with hostile archives (ST-13). Each detector is proven against a deliberately bad stub in `tests/security/harness.test.ts`, so a passing ST test cannot come from a blind detector.
+
 | Test | Verifies | Method | Gate |
 |---|---|---|---|
 | ST-01 | Root sandbox | Fixture repo with `../`, absolute paths, symlinks to `/etc`, junctions on Windows; assert denial and audit | G1 |
@@ -131,3 +133,4 @@ Every test below is automated and runs in CI. The relevant subset must pass befo
 | Misuse against systems the user does not own (MD-3) | Product trust model; mitigated by scope, observe-only default, approvals, production refusal | Community or legal feedback |
 | L2 native browsers are less isolated than containers (OD-30) | Observe-only by default; keeps URL-only users infrastructure-free | A browser sandbox escape is disclosed, or read-only submissions see heavy use |
 | HTTPS path-level checks are not enforced at the proxy (no TLS interception) | Host-level enforcement at the proxy plus navigation-level checks; TLS interception adds more risk | Path-scoped policies become a common requirement |
+| A secret with no recognizable shape (a plain password or a bare 40-character key) in free text, with no credential-like name nearby, is not detected by the secret detectors | Redaction also works by field name, by credential-like names in text (`DB_PASSWORD=…`), and by exact match on every credential the secret store injects; shape-free detection would flag ordinary text | A leak of such a value is reported, or a high-precision entropy detector becomes available |
