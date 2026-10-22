@@ -92,7 +92,7 @@ describe("valid packages [@req CON-009] [@req CON-019] [@req CON-020] [@req CON-
   });
 });
 
-describe("conformance fixtures [@req CON-005] [@req CON-009] [@req CON-018] [@req CON-023] [@req CON-024] [@req CON-025] [@req CR-rules]", () => {
+describe("conformance fixtures [@req CON-005] [@req CON-009] [@req CON-018] [@req CON-023] [@req CON-024] [@req CON-025]", () => {
   it.each(cases.map((c) => [c.id, c] as const))("%s produces exactly its expected code", (_id, c) => {
     const result = run(c.expected.kind, c.dir);
     const matching = result.issues.filter((i) => i.code === c.expected.code);

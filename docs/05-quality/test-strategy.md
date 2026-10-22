@@ -31,6 +31,13 @@ PRD requirement (e.g. SAA-FR-040)
 
 The report is generated, never hand-edited. That keeps requirement-test mapping in one place: the tests.
 
+Implementation (`scripts/traceability.mjs`):
+- Requirements are the rows of PRD tables headed `ID | Requirement | … | Pri | St`; withdrawn rows (`St = W`) are skipped, and a mixed priority such as "P0 (propagation) / P1 (diff)" counts as P0.
+- A requirement's owning gate is the earliest gate in the Implementation Plan backlog whose task lists it. A test checks that every P0 requirement has an owner.
+- Tags may also name contract rules (`CR-xxx`, Contract Specification §8). Tags may sit on a `describe` block or on a test.
+- `pnpm trace` runs the tests with Vitest's JSON reporter and counts only passing tests. CI runs it in one test cell (Ubuntu, Node 24) and uploads `reports/` as the `traceability` artifact. `pnpm trace:check` (in `verify` and CI stage 1) scans tags without running tests and fails on unknown tags.
+- Process tooling that implements no requirement (such as this report) has untagged tests.
+
 ## 2. Test levels
 
 | Level | ID prefix | Scope | Tooling | Runs |
