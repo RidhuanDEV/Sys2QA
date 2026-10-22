@@ -1,7 +1,14 @@
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { CONTRACT_VERSION, validatePackage } from "@sys2qa/contract";
-import { OPERATION_LEVELS, PERMISSION_LEVELS, type Operation as PolicyOperation } from "@sys2qa/platform";
+import {
+  checkHealth,
+  collectMetrics,
+  OPERATION_LEVELS,
+  PERMISSION_LEVELS,
+  renderPrometheus,
+  type Operation as PolicyOperation,
+} from "@sys2qa/platform";
 import { serviceError } from "./errors.js";
 import { defineOperation, type Operation } from "./operations.js";
 
@@ -233,6 +240,57 @@ const policyCheck = defineOperation<
   },
 });
 
+const systemMetrics = defineOperation<{ format?: "json" | "prometheus" }, unknown>({
+  name: "system.metrics",
+  title: "Metrics",
+  description:
+    "Queue depth, job outcomes and durations, stuck jobs, worker crashes, model usage and resource use (OBS-001, QAA-FR-103).",
+  level: "none",
+  effect: "read",
+  input: { type: "object", additionalProperties: false, properties: { format: { enum: ["json", "prometheus"] } } },
+  run: ({ host }, input) => {
+    const metrics = collectMetrics({
+      db: host.state.db,
+      jobs: host.jobs,
+      now: host.now,
+      stateDbPath: join(host.home, "state.db"),
+    });
+    return input.format === "prometheus" ? { format: "prometheus", text: renderPrometheus(metrics) } : metrics;
+  },
+});
+
+const systemHealth = defineOperation<Record<string, never>, unknown>({
+  name: "system.health",
+  title: "Health",
+  description: "State integrity, schema version, audit chain, stuck jobs and disk space (OBS-004).",
+  level: "none",
+  effect: "read",
+  input: { type: "object", additionalProperties: false },
+  run: ({ host }) => checkHealth({ db: host.state.db, jobs: host.jobs, now: host.now, home: host.home }),
+});
+
+const systemSetSetting = defineOperation<
+  { key: "l4_enabled" | "local_owner_mode_enabled" | "telemetry_enabled"; value: boolean },
+  unknown
+>({
+  name: "system.set_setting",
+  title: "Change an administrator setting",
+  description:
+    "Turns repository code execution (L4), local owner mode or anonymous aggregate telemetry on or off. All are off by default. Telemetry sends only counts and versions, never source, secrets, paths, IDs or knowledge-base content (OBS-005). Every change is audited.",
+  level: "none",
+  effect: "write",
+  input: {
+    type: "object",
+    additionalProperties: false,
+    required: ["key", "value"],
+    properties: {
+      key: { enum: ["l4_enabled", "local_owner_mode_enabled", "telemetry_enabled"] },
+      value: { type: "boolean" },
+    },
+  },
+  run: ({ host, caller }, input) => host.projects.setSetting(input.key, input.value, caller.actor),
+});
+
 const MAX_PACKAGE_FILES = 10_000;
 const MAX_PACKAGE_BYTES = 256 * 1024 * 1024;
 
@@ -285,6 +343,9 @@ const packageValidate = defineOperation<{ path: string }, unknown>({
 
 export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   systemInfo,
+  systemMetrics,
+  systemHealth,
+  systemSetSetting,
   projectCreate,
   projectList,
   projectGet,

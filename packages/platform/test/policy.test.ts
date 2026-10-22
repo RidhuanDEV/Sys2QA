@@ -22,7 +22,7 @@ import {
 } from "../src/index.js";
 
 const ROOT = resolve("/work/acme-portal");
-const OFF: PlatformSettings = { l4_enabled: false, local_owner_mode_enabled: false };
+const OFF: PlatformSettings = { l4_enabled: false, local_owner_mode_enabled: false, telemetry_enabled: false };
 
 function declaration(
   level: Declaration["operation_level"],

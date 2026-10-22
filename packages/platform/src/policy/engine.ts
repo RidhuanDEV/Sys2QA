@@ -59,9 +59,15 @@ export interface PlatformSettings {
   l4_enabled: boolean;
   /** Administrator switch for local owner mode (SEC-008); off by default. */
   local_owner_mode_enabled: boolean;
+  /** Anonymous aggregate telemetry (OBS-005); off by default, opt-in only. */
+  telemetry_enabled: boolean;
 }
 
-export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = { l4_enabled: false, local_owner_mode_enabled: false };
+export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
+  l4_enabled: false,
+  local_owner_mode_enabled: false,
+  telemetry_enabled: false,
+};
 
 export type PolicyTarget = { kind: "path"; path: string } | { kind: "url"; url: string };
 

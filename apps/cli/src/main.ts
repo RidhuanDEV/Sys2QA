@@ -50,6 +50,18 @@ const defined = (o: Record<string, unknown>) =>
 /** Commands take paths, URLs and generated IDs, never names the user must already know (PRD §23.4). */
 const COMMANDS: Record<string, Command> = {
   info: { usage: "info", build: () => ({ operation: "system.info", input: {} }) },
+  metrics: {
+    usage: "metrics [--prometheus]",
+    build: (_p, v) => ({ operation: "system.metrics", input: v.prometheus === true ? { format: "prometheus" } : {} }),
+  },
+  health: { usage: "health", build: () => ({ operation: "system.health", input: {} }) },
+  "settings set": {
+    usage: "settings set <l4_enabled|local_owner_mode_enabled|telemetry_enabled> <on|off>",
+    build: ([key, value]) => ({
+      operation: "system.set_setting",
+      input: defined({ key, value: value === "on" ? true : value === "off" ? false : value }),
+    }),
+  },
   "project create": {
     usage: "project create <name> [--language <code>]...",
     build: ([name], v) => ({ operation: "project.create", input: defined({ name, languages: list(v.language) }) }),
@@ -138,6 +150,7 @@ const OPTIONS = {
   path: { type: "string", multiple: true },
   "local-owner-mode": { type: "boolean" },
   input: { type: "string" },
+  prometheus: { type: "boolean" },
 } as const;
 
 function safeUser(): string {
@@ -228,5 +241,7 @@ async function run(home: string, operation: string, input: Record<string, unknow
 
 function human(data: unknown): string {
   if (data === null || typeof data !== "object") return String(data);
+  if ("format" in data && (data as { format: string }).format === "prometheus")
+    return (data as unknown as { text: string }).text.trimEnd();
   return JSON.stringify(data, null, 2);
 }

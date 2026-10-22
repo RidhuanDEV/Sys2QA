@@ -407,7 +407,9 @@ export class ProjectService {
 
   settings(): PlatformSettings {
     const rows = this.db
-      .prepare("SELECT key, value_json FROM settings WHERE key IN ('l4_enabled', 'local_owner_mode_enabled')")
+      .prepare(
+        "SELECT key, value_json FROM settings WHERE key IN ('l4_enabled', 'local_owner_mode_enabled', 'telemetry_enabled')",
+      )
       .all() as Array<{ key: keyof PlatformSettings; value_json: string }>;
     const out = { ...DEFAULT_PLATFORM_SETTINGS };
     for (const r of rows) out[r.key] = JSON.parse(r.value_json) === true;

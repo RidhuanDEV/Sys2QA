@@ -189,7 +189,10 @@ describe("SSRF and DNS fixtures (ST-05, ST-06)", () => {
       prohibitions: {},
     };
     for (const target of Object.values(SSRF_TARGETS))
-      expect(checkUrl(target, policy, { l4_enabled: false, local_owner_mode_enabled: false }), target).toBeDefined();
+      expect(
+        checkUrl(target, policy, { l4_enabled: false, local_owner_mode_enabled: false, telemetry_enabled: false }),
+        target,
+      ).toBeDefined();
   });
 
   it("alternates public and private answers to simulate DNS rebinding", () => {

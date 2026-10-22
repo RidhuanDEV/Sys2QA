@@ -77,3 +77,30 @@ describe("CLI [@req SYS-002] [@req NFR-010]", () => {
     expect(defaultHome({}).toLowerCase()).toContain("sys2qa");
   });
 });
+
+describe("observability commands [@req QAA-FR-103] [@req OBS-001] [@req OBS-004]", () => {
+  it("prints metrics in Prometheus format and the health report", async () => {
+    expect(await main(["metrics", "--prometheus", "--home", home], io())).toBe(EXIT_CODES.ok);
+    expect(out).toContain("# TYPE sys2qa_jobs_running gauge");
+    out = "";
+    expect(await main(["health", "--home", home, "--json"], io())).toBe(EXIT_CODES.ok);
+    expect((JSON.parse(out) as { data: { checks: Array<{ name: string }> } }).data.checks.map((c) => c.name)).toEqual(
+      expect.arrayContaining(["state_integrity", "migrations", "audit_chain", "jobs"]),
+    );
+  });
+
+  it("turns telemetry on only by an explicit setting [@req OBS-005]", async () => {
+    expect(await main(["info", "--home", home, "--json"], io())).toBe(EXIT_CODES.ok);
+    expect(
+      (JSON.parse(out) as { data: { settings: { telemetry_enabled: boolean } } }).data.settings.telemetry_enabled,
+    ).toBe(false);
+    out = "";
+    expect(await main(["settings", "set", "telemetry_enabled", "on", "--home", home, "--json"], io())).toBe(
+      EXIT_CODES.ok,
+    );
+    expect((JSON.parse(out) as { data: { telemetry_enabled: boolean } }).data.telemetry_enabled).toBe(true);
+    expect(await main(["settings", "set", "telemetry_enabled", "maybe", "--home", home], io())).toBe(
+      EXIT_CODES.invalid_input,
+    );
+  });
+});

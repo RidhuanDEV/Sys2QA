@@ -57,6 +57,21 @@ export async function startApiServer(services: AppServices, options: ApiServerOp
   });
 
   app.get("/api/v1/operations", async () => ({ ok: true, data: services.catalog() }));
+  // Scrape-friendly views of system.metrics and system.health (same token rules as every other route).
+  app.get("/api/v1/metrics", async (_request, reply) => {
+    const result = await services.execute(
+      "system.metrics",
+      { format: "prometheus" },
+      { interface: "api", actor: "local-user" },
+    );
+    if (!result.ok) return reply.code(HTTP_STATUS[result.error.kind]).send(result);
+    return reply.type("text/plain; version=0.0.4").send((result.data as { text: string }).text);
+  });
+  app.get("/api/v1/health", async (_request, reply) => {
+    const result = await services.execute("system.health", {}, { interface: "api", actor: "local-user" });
+    if (!result.ok) return reply.code(HTTP_STATUS[result.error.kind]).send(result);
+    return reply.code((result.data as { status: string }).status === "failing" ? 503 : 200).send(result);
+  });
   app.post<{ Params: { name: string } }>("/api/v1/operations/:name", async (request, reply) => {
     if (!request.headers["content-type"]?.startsWith("application/json")) {
       return reply.code(415).send(denied("CONTENT_TYPE_REJECTED", "send the input as application/json"));

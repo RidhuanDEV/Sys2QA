@@ -33,7 +33,7 @@ function call(
       },
     );
     req.on("error", reject);
-    req.end(options.body ?? "{}");
+    req.end((options.method ?? "POST") === "GET" ? undefined : (options.body ?? "{}"));
   });
 }
 
@@ -89,5 +89,30 @@ describe("ST-12 local API hardening", () => {
       (await call(server, { headers: { ...ok, "content-type": "application/x-www-form-urlencoded" }, body: "a=b" }))
         .status,
     ).toBe(415);
+  });
+});
+
+describe("metrics and health endpoints", () => {
+  it("serve Prometheus text and the health report behind the same token rules", async () => {
+    const home = mkdtempSync(join(tmpdir(), "sys2qa-metrics-"));
+    const host = openHost({ home, logSink: memorySink() });
+    const server = await startApiServer(new AppServices(host));
+    try {
+      const headers = { host: `127.0.0.1:${server.port}`, authorization: `Bearer ${server.token}` };
+      const metrics = await call(server, { path: "/api/v1/metrics", method: "GET", headers });
+      expect(metrics.status).toBe(200);
+      expect(metrics.headers["content-type"]).toContain("text/plain");
+      expect(metrics.body).toContain("# TYPE sys2qa_jobs_running gauge");
+      expect(
+        (await call(server, { path: "/api/v1/metrics", method: "GET", headers: { host: headers.host } })).status,
+      ).toBe(401);
+      const health = await call(server, { path: "/api/v1/health", method: "GET", headers });
+      expect([200, 503]).toContain(health.status);
+      expect(JSON.parse(health.body)).toMatchObject({ ok: true, data: { checks: expect.any(Array) } });
+    } finally {
+      await server.close();
+      host.close();
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });
