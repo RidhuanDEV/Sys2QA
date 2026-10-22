@@ -83,7 +83,7 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `environments` | `id`, `project_id`, `base_url`, `classification`, `state`, `local_owner_mode` | `classification = production` ⇒ refused by policy |
 | `scope_policies` | `environment_id`, `version`, `policy_json` | **Append-only** versions |
 | `credential_profiles` | `id`, `environment_id`, `role_name`, `secret_ref` | Values live in class F |
-| `jobs` | `id`, `type`, `project_id?`, `state ∈ {queued, running, cancelling, completed, failed, cancelled}`, `priority`, `payload_json`, `budget_json`, `attempt`, `max_attempts`, `idempotency_key UNIQUE`, `lease_owner`, `lease_expires_at`, `cancel_requested_at`, `error_json` | Queue and history; see Operational notes §7 |
+| `jobs` | `id`, `type`, `project_id?`, `state ∈ {queued, running, cancelling, completed, failed, cancelled}`, `priority`, `payload_json`, `budget_json`, `attempt`, `max_attempts`, `idempotency_key UNIQUE`, `lease_owner`, `lease_expires_at`, `cancel_requested_at`, `run_after?`, `last_progress_at?`, `error_json` | Queue and history; see Operational notes §7. `run_after` and `last_progress_at` added by migration 0002 |
 | `job_events` | `job_id`, `seq`, `at`, `event`, `data_json` | **Append-only** progress and state changes |
 | `analysis_runs` | `id`, `project_id`, `producer`, `status`, `artifact_path`, `revision_json`, `coverage_json` | |
 | `packages` | `package_id`, `version`, `producer`, `path`, `manifest_sha256`, `imported_from_import_id?` | Immutable rows |
@@ -129,7 +129,11 @@ Rebuild procedure: drop `idx_*` → stream every `skb/` and `observed/` partitio
 - Leasing: the host leases a job (`lease_owner`, `lease_expires_at`) and renews the lease while the worker reports progress.
 - On host start, jobs with expired leases are marked `failed` (reason `host_restart`) or re-queued if their type is marked resumable and `attempt < max_attempts`.
 - Idempotency: enqueue uses `idempotency_key`, so repeated requests reuse the existing job (NFR-004).
-- Retries only for transient infrastructure errors; never for steps that are not idempotent (QAA-FR-067).
+- Retries only for transient infrastructure errors; never for steps that are not idempotent (QAA-FR-067). A job type opts in with `retry: "transient"`; then only `TransientJobError` and worker crashes are retried, after `run_after` (exponential backoff, at most 60 s), while `attempt < max_attempts`. Every other failure is final.
+- Cancellation: a queued job becomes `cancelled` at once. A running job becomes `cancelling`, its handler's `AbortSignal` fires (worker processes receive a `cancel` message), and after the grace period a worker process is killed. An in-process handler that ignores the signal is settled as `cancelled` and its later output is discarded, because its lease is gone. A job that finishes while `cancelling` still ends `cancelled`.
+- Budgets (NFR-002): `budget_json` holds per-job limits. The orchestrator enforces `max_duration_ms` and passes `max_memory_mb` to worker processes as `--max-old-space-size`; handlers count other resources (`max_pages`, `max_files`, `max_tokens`, …). An exceeded budget fails the job with `BUDGET_EXHAUSTED`; a partial job is never `completed`.
+- Stuck jobs (QAA-FR-102): a `running` or `cancelling` job whose lease expired, or which reported no progress (`last_progress_at`) within the configured window, is reported as stuck. Detection never cancels by itself.
+- Error codes in `error_json`: `JOB_FAILED`, `JOB_CANCELLED`, `BUDGET_EXHAUSTED`, `WORKER_CRASHED`, `LEASE_EXPIRED`, `JOB_TYPE_UNKNOWN`.
 
 ## 8. Retention and deletion (SEC-015, OD-14)
 
