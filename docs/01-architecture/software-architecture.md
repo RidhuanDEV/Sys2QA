@@ -226,6 +226,14 @@ Checks happen at enqueue time **and** inside the worker before the first action 
 
 Parity is verified by running the same scripted scenarios through CLI, HTTP API and MCP and comparing decisions, states and error codes (SYS-005, IMP-902).
 
+Implementation (IMP-016):
+- **Application services** (`@sys2qa/app-services`): an operation catalog (name, permission level, read/write effect, JSON Schema input). Every interface calls `AppServices.execute(name, input, caller)`, which validates the input, runs the operation, logs `service.call`, and returns `{ok, data}` or `{ok: false, error}`. The error is `{code, kind, message, remediation, retryable, details?}` (NFR-010). L4 operations are hidden from the catalog unless L4 is enabled.
+- **CLI exit codes** (stable): 0 ok; 1 internal; 2 usage or invalid input; 3 denied (`SCOPE_DENIED`, `PRODUCTION_REFUSED`, `DECLARATION_REQUIRED`); 4 not found; 5 conflict; 6 unavailable (for example another host holds the state). `--json` prints the same result object as the HTTP API.
+- **Local HTTP API**: `POST /api/v1/operations/<name>` and `GET /api/v1/operations`. It binds 127.0.0.1 with a random port and a 256-bit session token. The Host header must be `127.0.0.1:<port>` or `localhost:<port>` (DNS-rebinding defense). A browser `Origin` must be allowlisted, bodies must be JSON (at most 1 MB), and errors map to HTTP 400/403/404/409/500/503.
+- **IPC to a running host**: a host that serves the API writes `<home>/host.json` (pid, URL, token; mode 0600). A CLI started later sends its call there instead of opening `state.db`. Without that file, a second process is refused by `host.lock`.
+- **MCP**: one tool per catalog operation, with the operation's JSON Schema as `inputSchema`, `annotations` (`readOnlyHint`, `openWorldHint: false`) and `_meta` `sys2qa/level` and `sys2qa/effect`. The MCP server is a host process (stdio).
+- **Development runner**: `pnpm sys2qa <command>` runs the CLI from source; packaging comes with the release tasks.
+
 ## 9. Deployment (T1)
 
 - Installation: `npm install -g <cli-package>` (name fixed at scaffold time). The first run performs `doctor` checks: Node version, Playwright browsers, SQLite driver, optional container runtime.

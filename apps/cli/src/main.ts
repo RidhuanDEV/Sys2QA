@@ -1,0 +1,232 @@
+import { homedir, userInfo } from "node:os";
+import { join, resolve } from "node:path";
+import { parseArgs } from "node:util";
+import {
+  ApiClient,
+  AppServices,
+  openHost,
+  readHostEndpoint,
+  type ErrorKind,
+  type HostOptions,
+  type ServiceResult,
+} from "@sys2qa/app-services";
+
+/** Stable exit codes (SAA-FR-014). Documented in Architecture §8. */
+export const EXIT_CODES: Record<"ok" | ErrorKind | "usage", number> = {
+  ok: 0,
+  internal: 1,
+  usage: 2,
+  invalid_input: 2,
+  denied: 3,
+  not_found: 4,
+  conflict: 5,
+  unavailable: 6,
+};
+
+export interface CliIo {
+  stdout: (text: string) => void;
+  stderr: (text: string) => void;
+  cwd: string;
+  env: Record<string, string | undefined>;
+  /** Overrides how the host is opened (tests). */
+  host?: Omit<HostOptions, "home">;
+}
+
+interface Command {
+  usage: string;
+  /** Builds the operation name and input from positional arguments and options. */
+  build(
+    positionals: string[],
+    values: Record<string, string | boolean | string[] | undefined>,
+    cwd: string,
+  ): { operation: string; input: Record<string, unknown> };
+}
+
+const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+const list = (v: unknown) => (Array.isArray(v) ? (v as string[]) : typeof v === "string" ? [v] : undefined);
+const defined = (o: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+
+/** Commands take paths, URLs and generated IDs, never names the user must already know (PRD §23.4). */
+const COMMANDS: Record<string, Command> = {
+  info: { usage: "info", build: () => ({ operation: "system.info", input: {} }) },
+  "project create": {
+    usage: "project create <name> [--language <code>]...",
+    build: ([name], v) => ({ operation: "project.create", input: defined({ name, languages: list(v.language) }) }),
+  },
+  "project list": { usage: "project list", build: () => ({ operation: "project.list", input: {} }) },
+  "project show": {
+    usage: "project show <project-id>",
+    build: ([project_id]) => ({ operation: "project.get", input: defined({ project_id }) }),
+  },
+  "source add": {
+    usage: "source add <project-id> <source_root|environment|package> <path-or-url>",
+    build: ([project_id, kind, ref], _v, cwd) => ({
+      operation: "project.add_source",
+      input: defined({ project_id, kind, ref: ref && kind !== "environment" ? resolve(cwd, ref) : ref }),
+    }),
+  },
+  declare: {
+    usage:
+      "declare <source-id> --level <L0|L1|L2|L2r|L3|L4> [--by <name>] [--root <path>]... [--allow-state-changing-tests]",
+    build: ([source_id], v, cwd) => ({
+      operation: "project.declare",
+      input: defined({
+        source_id,
+        declared_by: str(v.by) ?? safeUser(),
+        operation_level: str(v.level),
+        source_roots: list(v.root)?.map((r) => resolve(cwd, r)),
+        allow_state_changing_tests: v["allow-state-changing-tests"] === true ? true : undefined,
+      }),
+    }),
+  },
+  "env configure": {
+    usage:
+      "env configure <source-id> --url <base-url> --class <development|staging|production> --host <host[:port]>... [--path <prefix>]... [--local-owner-mode]",
+    build: ([source_id], v) => ({
+      operation: "project.configure_environment",
+      input: defined({
+        source_id,
+        base_url: str(v.url),
+        classification: str(v.class),
+        allowed_hosts: list(v.host),
+        path_prefixes: list(v.path),
+        local_owner_mode: v["local-owner-mode"] === true ? true : undefined,
+      }),
+    }),
+  },
+  "policy check": {
+    usage: "policy check <source-id> <operation> [--path <path> | --url <url>]",
+    build: ([source_id, operation], v, cwd) => ({
+      operation: "policy.check",
+      input: defined({
+        source_id,
+        operation,
+        target_path: str(v.path) && resolve(cwd, str(v.path)!),
+        target_url: str(v.url),
+      }),
+    }),
+  },
+  "validate package": {
+    usage: "validate package <path>",
+    build: ([path], _v, cwd) => ({
+      operation: "package.validate",
+      input: defined({ path: path && resolve(cwd, path) }),
+    }),
+  },
+  call: {
+    usage: "call <operation> [--input <json>]",
+    build: ([operation], v) => {
+      const raw = str(v.input) ?? "{}";
+      return { operation: operation ?? "", input: JSON.parse(raw) as Record<string, unknown> };
+    },
+  },
+};
+
+const OPTIONS = {
+  json: { type: "boolean" },
+  help: { type: "boolean", short: "h" },
+  home: { type: "string" },
+  language: { type: "string", multiple: true },
+  by: { type: "string" },
+  level: { type: "string" },
+  root: { type: "string", multiple: true },
+  "allow-state-changing-tests": { type: "boolean" },
+  url: { type: "string" },
+  class: { type: "string" },
+  host: { type: "string", multiple: true },
+  path: { type: "string", multiple: true },
+  "local-owner-mode": { type: "boolean" },
+  input: { type: "string" },
+} as const;
+
+function safeUser(): string {
+  try {
+    return userInfo().username;
+  } catch {
+    return "local-user";
+  }
+}
+
+export function defaultHome(env: Record<string, string | undefined>): string {
+  if (env.SYS2QA_HOME) return env.SYS2QA_HOME;
+  if (process.platform === "win32") return join(env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local"), "Sys2QA");
+  if (process.platform === "darwin") return join(homedir(), "Library", "Application Support", "Sys2QA");
+  return join(env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), "sys2qa");
+}
+
+function usage(): string {
+  return [
+    "Usage: sys2qa <command> [options] [--json]",
+    "",
+    ...Object.values(COMMANDS).map((c) => `  sys2qa ${c.usage}`),
+  ].join("\n");
+}
+
+/** Runs one CLI invocation and returns its exit code. Every command is exactly one application-service call. */
+export async function main(argv: string[], io: CliIo): Promise<number> {
+  let parsed: ReturnType<typeof parseArgs<{ options: typeof OPTIONS; allowPositionals: true; strict: true }>>;
+  try {
+    parsed = parseArgs({ args: argv, options: OPTIONS, allowPositionals: true, strict: true });
+  } catch (error) {
+    io.stderr(`${(error as Error).message}\n${usage()}\n`);
+    return EXIT_CODES.usage;
+  }
+  const { values, positionals } = parsed;
+  const key = [positionals.slice(0, 2).join(" "), positionals[0] ?? ""].find((k) => COMMANDS[k]);
+  if (values.help || !key) {
+    (values.help ? io.stdout : io.stderr)(`${usage()}\n`);
+    return values.help ? EXIT_CODES.ok : EXIT_CODES.usage;
+  }
+  let request: { operation: string; input: Record<string, unknown> };
+  try {
+    request = COMMANDS[key]!.build(
+      positionals.slice(key.split(" ").length),
+      values as Record<string, string | boolean | string[] | undefined>,
+      io.cwd,
+    );
+  } catch (error) {
+    io.stderr(`${(error as Error).message}\n`);
+    return EXIT_CODES.usage;
+  }
+  const home = str(values.home) ?? defaultHome(io.env);
+  const result = await run(home, request.operation, request.input, io);
+  if (values.json) io.stdout(`${JSON.stringify(result, null, 2)}\n`);
+  else if (result.ok) io.stdout(`${human(result.data)}\n`);
+  else io.stderr(`error ${result.error.code}: ${result.error.message}\n  next: ${result.error.remediation}\n`);
+  return result.ok ? EXIT_CODES.ok : EXIT_CODES[result.error.kind];
+}
+
+/** Uses a running host's local API when one exists (it holds state.db); otherwise opens the host in this process. */
+async function run(home: string, operation: string, input: Record<string, unknown>, io: CliIo): Promise<ServiceResult> {
+  const endpoint = readHostEndpoint(home);
+  if (endpoint) return new ApiClient(endpoint.url, endpoint.token).execute(operation, input);
+  const { mkdirSync } = await import("node:fs");
+  mkdirSync(home, { recursive: true });
+  let host;
+  try {
+    host = openHost({ home, ...io.host });
+  } catch (error) {
+    const e = error as { code?: string; message?: string; remediation?: string };
+    return {
+      ok: false,
+      error: {
+        code: e.code ?? "INTERNAL_ERROR",
+        kind: "unavailable",
+        message: e.message ?? String(error),
+        remediation: e.remediation ?? "Retry.",
+        retryable: false,
+      },
+    };
+  }
+  try {
+    return await new AppServices(host).execute(operation, input, { interface: "cli", actor: safeUser() });
+  } finally {
+    host.close();
+  }
+}
+
+function human(data: unknown): string {
+  if (data === null || typeof data !== "object") return String(data);
+  return JSON.stringify(data, null, 2);
+}

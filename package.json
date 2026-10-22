@@ -22,16 +22,20 @@
     "docs:links": "node scripts/check-doc-links.mjs",
     "trace": "vitest run --reporter=default --reporter=json --outputFile.json=reports/test-results.json && node scripts/traceability.mjs --results reports/test-results.json",
     "trace:check": "node scripts/traceability.mjs",
+    "sys2qa": "node --conditions=source --import tsx apps/cli/src/bin.ts",
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm fixtures:check && pnpm deps:check && pnpm trace:check && pnpm docs:links && pnpm test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/node": "^22.20.5",
     "dependency-cruiser": "^18.7.0",
     "eslint": "^10.13.0",
     "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.0",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "zod": "^4.6.7"
   }
 }

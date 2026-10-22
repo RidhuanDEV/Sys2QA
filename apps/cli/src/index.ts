@@ -1,3 +1,2 @@
 // Command-line interface (thin adapter over application services)
-// Scaffold only (IMP-001). Implementation arrives with later IMP tasks.
-export {};
+export { defaultHome, EXIT_CODES, main, type CliIo } from "./main.js";

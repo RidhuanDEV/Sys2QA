@@ -1,0 +1,92 @@
+import { validateJsonSchema } from "@sys2qa/contract";
+import { ProjectError, StorageError } from "@sys2qa/platform";
+import { OPERATIONS } from "./catalog.js";
+import { serviceError, ServiceError, SERVICE_ERRORS, type ServiceErrorDto } from "./errors.js";
+import type { Host } from "./host.js";
+import type { Caller, Operation } from "./operations.js";
+
+export type ServiceResult = { ok: true; data: unknown } | { ok: false; error: ServiceErrorDto };
+
+export interface OperationInfo {
+  name: string;
+  title: string;
+  description: string;
+  level: Operation["level"];
+  effect: Operation["effect"];
+  input: object;
+}
+
+/**
+ * The single entry point of every interface (SYS-005): CLI, HTTP API, MCP and Skill call `execute` with the same names
+ * and inputs and receive the same results and errors.
+ */
+export class AppServices {
+  readonly #operations: Map<string, Operation<never, unknown>>;
+
+  constructor(
+    readonly host: Host,
+    operations: ReadonlyArray<Operation<never, unknown>> = OPERATIONS,
+  ) {
+    this.#operations = new Map(operations.map((o) => [o.name, o]));
+  }
+
+  /** The catalog, without L4 operations unless L4 is enabled in this installation (SEC-006). */
+  catalog(): OperationInfo[] {
+    const l4 = this.host.projects.settings().l4_enabled;
+    return [...this.#operations.values()]
+      .filter((o) => o.level !== "L4" || l4)
+      .map((o) => ({
+        name: o.name,
+        title: o.title,
+        description: o.description,
+        level: o.level,
+        effect: o.effect,
+        input: o.input,
+      }));
+  }
+
+  async execute(name: string, input: unknown, caller: Caller): Promise<ServiceResult> {
+    const started = Date.now();
+    const result = await this.#execute(name, input ?? {}, caller);
+    this.host.logger.info("service.call", {
+      operation: name,
+      interface: caller.interface,
+      outcome: result.ok ? "ok" : "error",
+      ...(result.ok ? {} : { code: result.error.code }),
+      duration_ms: Date.now() - started,
+    });
+    return result;
+  }
+
+  async #execute(name: string, input: unknown, caller: Caller): Promise<ServiceResult> {
+    const operation = this.catalog().some((o) => o.name === name) ? this.#operations.get(name) : undefined;
+    if (!operation) return { ok: false, error: serviceError("OPERATION_UNKNOWN", `unknown operation ${name}`).toDto() };
+    const check = validateJsonSchema(operation.input, input);
+    if (!check.ok)
+      return {
+        ok: false,
+        error: serviceError("INPUT_INVALID", `invalid input for ${name}`, { problems: check.errors }).toDto(),
+      };
+    try {
+      const data = await operation.run({ host: this.host, caller }, input as never);
+      return { ok: true, data: JSON.parse(JSON.stringify(data ?? null)) as unknown };
+    } catch (error) {
+      return { ok: false, error: toServiceError(error, this.host).toDto() };
+    }
+  }
+}
+
+function toServiceError(error: unknown, host: Host): ServiceError {
+  if (error instanceof ServiceError) return error;
+  if (error instanceof ProjectError) {
+    const code = error.code === "INVALID" ? "INPUT_INVALID" : error.code;
+    return serviceError(code, error.message);
+  }
+  if (error instanceof StorageError && SERVICE_ERRORS[error.code])
+    return new ServiceError(error.code, SERVICE_ERRORS[error.code]!.kind, error.message, error.remediation);
+  const message = error instanceof Error ? error.message : String(error);
+  if (/UNIQUE constraint failed/.test(message)) return serviceError("CONFLICT", "the record already exists");
+  // Unexpected failures are logged (redacted) and reported without internals.
+  host.logger.error("service.unexpected_error", { error });
+  return serviceError("INTERNAL_ERROR", "an unexpected error occurred");
+}
