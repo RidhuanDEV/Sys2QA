@@ -98,7 +98,7 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `defects` | `id`, `state`, `severity`, `priority`, `links_json` | |
 | `defect_transitions` | `defect_id`, `seq`, `from`, `to`, `by`, `at`, `reason` | **Append-only** |
 | `audit_events` | `seq`, `project_id?`, `at`, `actor`, `action`, `target`, `details_json`, `prev_hash`, `hash` | **Append-only**; details pass through the redactor, and fields it replaced are listed in `details.redacted_paths` (SEC-004, SEC-014). One hash chain per project and one for installation-wide events (`project_id` NULL): `hash = sha256(canonical JSON of the event and prev_hash)`. Deleting a project removes its chain; the installation-wide `project.deleted` event records that chain's last hash. Actions are the catalog `AUDIT_ACTIONS` in `@sys2qa/platform` |
-| `model_usage` | `job_id`, `provider`, `model`, `prompt_template_version`, `tokens_in`, `tokens_out`, `cost?` | NFR-011 |
+| `model_usage` | `job_id?`, `project_id?`, `agent?`, `purpose`, `provider`, `model`, `prompt_template_version`, `tokens_in`, `tokens_out`, `cost?`, `outcome`, `duration_ms` | NFR-011; one row per LLM call, including failed calls (no prompt or output content). Attribution columns added by migration 0004 |
 | `settings` | `key`, `value_json` | Installation settings, including the administrator switches `l4_enabled` and `local_owner_mode_enabled` (both off by default; changes are audited as `settings.changed`), and `index_schema_version` |
 | `schema_migrations` | `version`, `applied_at` | |
 

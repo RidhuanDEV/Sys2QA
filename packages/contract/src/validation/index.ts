@@ -14,3 +14,4 @@ export { checkDefectTransition, DEFECT_TRANSITIONS, type DefectTransitionContext
 export { deriveOracleClass, objectivePermitsBasis } from "./oracle.js";
 export { revisionKey, revisionsEqual } from "./revision.js";
 export { detectSecrets, redactSecrets, SECRET_DETECTOR_NAMES, type SecretFinding } from "./secrets.js";
+export { validateJsonSchema, type JsonSchemaResult } from "./json-schema.js";

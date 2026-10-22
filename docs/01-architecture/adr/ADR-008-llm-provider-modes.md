@@ -27,6 +27,7 @@ Users choose their model provider or none. Repository and web content are untrus
 - Positive: works offline; clear separation of facts and interpretations.
 - Negative: scenario wording quality varies by provider; provider conformance tests are needed.
 - Follow-up: IMP-011.
+- Implementation (IMP-011): `LlmService` in `@sys2qa/platform`. Backends: `none` (deterministic-only), `openai_compatible` (chat-completions protocol, used by local runtimes such as Ollama, llama.cpp, vLLM and LM Studio, and by several hosted providers), and record/replay for CI. A non-loopback endpoint needs `remote_consent` (SEC-018). Native backends for other hosted APIs are added behind the same port, each with the provider conformance tests.
 
 ## Verification
 The full Gate 1 suite runs in deterministic-only mode; a provider conformance suite runs per supported backend.
