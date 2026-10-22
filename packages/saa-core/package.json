@@ -1,0 +1,15 @@
+{
+  "name": "@sys2qa/saa-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SAA: source analysis, workflow discovery, documentation, package export",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

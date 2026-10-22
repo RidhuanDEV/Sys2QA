@@ -1,0 +1,15 @@
+{
+  "name": "@sys2qa/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local web UI (thin adapter over the loopback HTTP API)",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

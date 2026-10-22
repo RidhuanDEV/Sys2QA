@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/analysis-request/1.0.json",
+  "title": "AnalysisRequest",
+  "description": "Bounded QAA → SAA follow-up investigation request (PRD §13.12, CON-015).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "const": "sys2qa.analysis-request"
+    },
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "request_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "system_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "base_package": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_ref"
+    },
+    "revision": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/revision"
+    },
+    "environment_id": {
+      "oneOf": [
+        {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "subject_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+      },
+      "minItems": 1
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trigger": {
+      "title": "RequestTrigger",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["test_failure", "contradiction", "gap", "user"]
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "budget": {
+      "title": "RequestBudget",
+      "type": "object",
+      "properties": {
+        "max_files": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_llm_tokens": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["max_files", "max_minutes"],
+      "additionalProperties": false
+    },
+    "max_permission_level": {
+      "type": "string",
+      "enum": ["L0", "L1"]
+    },
+    "requested_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "contract",
+    "schema_version",
+    "request_id",
+    "system_id",
+    "base_package",
+    "revision",
+    "subject_ids",
+    "question",
+    "trigger",
+    "budget",
+    "max_permission_level",
+    "requested_by",
+    "created_at"
+  ]
+}

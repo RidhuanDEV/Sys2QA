@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/adapter-protocol/1.0.json",
+  "title": "AdapterMessage",
+  "description": "JSON-RPC 2.0 messages between the adapter host and analyzer adapters over stdio (ADR-009).",
+  "oneOf": [
+    {
+      "title": "AdapterRequest",
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["integer", "string"]
+        },
+        "method": {
+          "type": "string",
+          "enum": ["initialize", "analyze", "cancel"]
+        },
+        "params": {
+          "type": "object"
+        }
+      },
+      "required": ["jsonrpc", "id", "method", "params"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "initialize"
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "https://sys2qa.dev/schemas/adapter-protocol/1.0.json#/$defs/initialize_params"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "analyze"
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "https://sys2qa.dev/schemas/adapter-protocol/1.0.json#/$defs/analyze_params"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "cancel"
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "https://sys2qa.dev/schemas/adapter-protocol/1.0.json#/$defs/cancel_params"
+              }
+            },
+            "type": "object"
+          }
+        }
+      ]
+    },
+    {
+      "title": "AdapterResponse",
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "type": ["integer", "string"]
+        },
+        "result": {
+          "type": "object"
+        },
+        "error": {
+          "$ref": "https://sys2qa.dev/schemas/adapter-protocol/1.0.json#/$defs/rpc_error"
+        }
+      },
+      "required": ["jsonrpc", "id"],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": ["result"]
+        },
+        {
+          "required": ["error"]
+        }
+      ]
+    },
+    {
+      "title": "AdapterNotification",
+      "type": "object",
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "method": {
+          "const": "progress"
+        },
+        "params": {
+          "$ref": "https://sys2qa.dev/schemas/adapter-protocol/1.0.json#/$defs/progress_params"
+        }
+      },
+      "required": ["jsonrpc", "method", "params"],
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {
+    "initialize_params": {
+      "title": "InitializeParams",
+      "type": "object",
+      "properties": {
+        "protocol_version": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+        },
+        "host_version": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+        }
+      },
+      "required": ["protocol_version", "host_version"],
+      "additionalProperties": false
+    },
+    "initialize_result": {
+      "title": "InitializeResult",
+      "type": "object",
+      "properties": {
+        "adapter_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "adapter_version": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+        },
+        "protocol_version": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+        },
+        "support_matrix": {
+          "title": "SupportMatrix",
+          "type": "object",
+          "properties": {
+            "languages": {
+              "type": "array",
+              "items": {
+                "title": "LanguageSupport",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "versions": {
+                    "type": "string"
+                  }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            },
+            "scanned_only_languages": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "frameworks": {
+              "type": "array",
+              "items": {
+                "title": "FrameworkSupport",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "versions": {
+                    "type": "string"
+                  },
+                  "entities": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/entity_kind"
+                    }
+                  },
+                  "relations": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/relationship_type"
+                    }
+                  },
+                  "workflow_tracing": {
+                    "type": "string",
+                    "enum": ["supported", "partial", "unsupported"]
+                  },
+                  "fixtures": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": ["name", "entities", "relations", "workflow_tracing", "fixtures"],
+                "additionalProperties": false
+              }
+            },
+            "prerequisites": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["languages", "scanned_only_languages", "frameworks", "prerequisites", "limitations"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["adapter_id", "adapter_version", "protocol_version", "support_matrix"],
+      "additionalProperties": false
+    },
+    "analyze_params": {
+      "title": "AnalyzeParams",
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "root_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "title": "FileRef",
+            "type": "object",
+            "properties": {
+              "path": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/repo_path"
+              },
+              "sha256": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/sha256"
+              }
+            },
+            "required": ["path", "sha256"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "budget": {
+          "title": "AdapterBudget",
+          "type": "object",
+          "properties": {
+            "max_ms": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_output_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": ["max_ms", "max_output_bytes"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["run_id", "root_id", "files", "budget"],
+      "additionalProperties": false
+    },
+    "analyze_result": {
+      "title": "AnalyzeResult",
+      "type": "object",
+      "properties": {
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/entity"
+          }
+        },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/relationship"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/evidence-index/1.0.json#/$defs/evidence"
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/coverage_item"
+          }
+        }
+      },
+      "required": ["entities", "relationships", "evidence", "coverage"],
+      "additionalProperties": false
+    },
+    "progress_params": {
+      "title": "ProgressParams",
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "files_done": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "files_total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["run_id", "files_done", "files_total"],
+      "additionalProperties": false
+    },
+    "cancel_params": {
+      "title": "CancelParams",
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        }
+      },
+      "required": ["run_id"],
+      "additionalProperties": false
+    },
+    "rpc_error": {
+      "title": "RpcError",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        },
+        "data": {
+          "$ref": "https://sys2qa.dev/schemas/error/1.0.json"
+        }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false
+    }
+  }
+}

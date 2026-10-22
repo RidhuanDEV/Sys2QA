@@ -1,0 +1,869 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/system-model/1.0.json",
+  "title": "SystemModel",
+  "description": "Contract view of the SKB (SAA) or the observed model (QAA) for one revision or observation window (Contract Specification §4).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "system_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "producer": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/producer_name"
+    },
+    "revision": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/revision"
+    },
+    "analysis_run_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "machine_text_language": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/entity"
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/relationship"
+      }
+    },
+    "component_traces": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/component_trace"
+      }
+    },
+    "workflows": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/workflow"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/claim"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/gap"
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/coverage_item"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "system_id",
+    "producer",
+    "revision",
+    "analysis_run_id",
+    "machine_text_language",
+    "entities",
+    "relationships",
+    "component_traces",
+    "workflows",
+    "claims",
+    "gaps",
+    "coverage"
+  ],
+  "$defs": {
+    "entity": {
+      "title": "Entity",
+      "type": "object",
+      "description": "System-model node. Kind-specific fields are listed as optional properties; unknown fields are preserved (minor-version tolerance).",
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "kind": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/entity_kind"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_boundary": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+        },
+        "origin": {
+          "type": "string",
+          "enum": ["source", "runtime", "annotation"]
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "gap_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "contradiction_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "description": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+        },
+        "confidence_rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route_pattern": {
+          "type": "string",
+          "minLength": 1
+        },
+        "module_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "access_preconditions": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "method": {
+          "type": "string"
+        },
+        "handler_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "page_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "submits_to": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "form_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "label_literal": {
+          "title": "LabelLiteral",
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "language": {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+            },
+            "source": {
+              "type": "string",
+              "enum": ["source_code", "runtime_observation"]
+            }
+          },
+          "required": ["value", "language", "source"],
+          "additionalProperties": false
+        },
+        "constraints": {
+          "title": "FieldConstraints",
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "pattern": {
+              "type": "string"
+            },
+            "min_length": {
+              "type": "integer"
+            },
+            "max_length": {
+              "type": "integer"
+            },
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "input_type": {
+              "type": "string"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "technical_rule": {
+          "type": "string"
+        },
+        "business_intent": {
+          "type": ["string", "null"]
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "expected_behavior": {
+          "type": "object"
+        },
+        "boundaries": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "subject": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "title": "StateTransition",
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              },
+              "trigger": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+              },
+              "guard": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+              },
+              "status": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+              },
+              "evidence_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+                }
+              }
+            },
+            "required": ["from", "to", "status", "evidence_ids"],
+            "additionalProperties": false
+          }
+        },
+        "invalid_transitions_known": {
+          "type": "array",
+          "items": {
+            "title": "KnownInvalidTransition",
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              },
+              "status": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+              },
+              "evidence_ids": {
+                "type": "array",
+                "items": {
+                  "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+                }
+              }
+            },
+            "required": ["from", "to", "status", "evidence_ids"],
+            "additionalProperties": false
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        }
+      },
+      "required": ["id", "kind", "name", "status", "origin", "evidence_ids"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "inferred"
+              }
+            },
+            "required": ["status"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["confidence_rationale"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unresolved"
+              }
+            },
+            "required": ["status"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["gap_ids"],
+            "properties": {
+              "gap_ids": {
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "else": {
+            "properties": {
+              "evidence_ids": {
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "state_machine"
+              }
+            },
+            "required": ["kind"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["states"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "business_rule"
+              }
+            },
+            "required": ["kind"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["statement"]
+          }
+        }
+      ]
+    },
+    "relationship": {
+      "title": "Relationship",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "type": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/relationship_type"
+        },
+        "from": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "to": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "confidence_rationale": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "type", "from", "to", "status", "evidence_ids"],
+      "additionalProperties": false
+    },
+    "trace_stop": {
+      "title": "TraceStop",
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "reason_code": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/stop_reason_code"
+        },
+        "gap_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        }
+      },
+      "required": ["reason_code", "gap_id"],
+      "additionalProperties": false
+    },
+    "component_trace": {
+      "title": "ComponentTrace",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "entry_point_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "relationship_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "stopped_at": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/trace_stop"
+          }
+        },
+        "status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+        }
+      },
+      "required": ["id", "entry_point_id", "relationship_ids", "stopped_at", "status"],
+      "additionalProperties": false
+    },
+    "workflow_step": {
+      "title": "WorkflowStep",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "entity_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validations": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "reads": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "side_effects": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        }
+      },
+      "required": ["id", "order", "entity_id", "action"],
+      "additionalProperties": false
+    },
+    "workflow_branch": {
+      "title": "WorkflowBranch",
+      "type": "object",
+      "properties": {
+        "from_step": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "condition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+        }
+      },
+      "required": ["from_step", "condition", "outcome", "status"],
+      "additionalProperties": false
+    },
+    "unresolved_hop": {
+      "title": "UnresolvedHop",
+      "type": "object",
+      "properties": {
+        "after_step": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "reason_code": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/stop_reason_code"
+        },
+        "gap_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": ["reason_code"],
+      "additionalProperties": false
+    },
+    "workflow": {
+      "title": "Workflow",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/workflow_category"
+        },
+        "origin": {
+          "type": "string",
+          "enum": ["source", "runtime"]
+        },
+        "discovery_status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/discovery_status"
+        },
+        "actor": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "entry_point_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "component_trace_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/workflow_step"
+          }
+        },
+        "branches": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/workflow_branch"
+          }
+        },
+        "unresolved_hops": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/unresolved_hop"
+          }
+        },
+        "completion": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/workflow_completion"
+        },
+        "deepened": {
+          "type": "boolean"
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "category",
+        "origin",
+        "discovery_status",
+        "entry_point_ids",
+        "component_trace_ids",
+        "steps",
+        "branches",
+        "unresolved_hops",
+        "completion",
+        "deepened",
+        "status"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "discovery_status": {
+                "const": "reconstructed"
+              }
+            },
+            "required": ["discovery_status"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "unresolved_hops": {
+                "maxItems": 0,
+                "type": "array"
+              },
+              "completion": {
+                "not": {
+                  "const": "unresolved"
+                }
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "discovery_status": {
+                "const": "partially_reconstructed"
+              }
+            },
+            "required": ["discovery_status"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "unresolved_hops": {
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        }
+      ]
+    },
+    "claim": {
+      "title": "Claim",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "text": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+        },
+        "status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+        },
+        "subject_entity_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "relationship_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "gap_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["static_analysis", "runtime_observation", "test_run", "annotation"]
+        },
+        "caveats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "last_validated_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence_rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "status",
+        "subject_entity_id",
+        "evidence_ids",
+        "scope",
+        "caveats",
+        "last_validated_revision"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "inferred"
+              }
+            },
+            "required": ["status"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["confidence_rationale"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unresolved"
+              }
+            },
+            "required": ["status"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["gap_ids"],
+            "properties": {
+              "gap_ids": {
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "else": {
+            "properties": {
+              "evidence_ids": {
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        }
+      ]
+    },
+    "gap": {
+      "title": "Gap",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["contradiction", "external_boundary", "missing_evidence", "unsupported", "unobservable", "ambiguity"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "impact": {
+          "type": "string"
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "related_entity_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "requires_human_clarification": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["unresolved", "resolved"]
+        }
+      },
+      "required": ["id", "type", "description", "requires_human_clarification", "status"],
+      "additionalProperties": false
+    },
+    "coverage_item": {
+      "title": "CoverageItem",
+      "type": "object",
+      "properties": {
+        "area": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["analyzed", "partial", "skipped", "failed", "unsupported", "excluded"]
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": ["area", "status"],
+      "additionalProperties": false
+    }
+  }
+}

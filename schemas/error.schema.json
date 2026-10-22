@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/error/1.0.json",
+  "title": "Sys2qaError",
+  "description": "Machine-readable error used by every interface (OBS-003, Contract Specification §9).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]+$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["error", "warning", "info"]
+    },
+    "message": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+    },
+    "artifact_id": {
+      "type": "string"
+    },
+    "json_pointer": {
+      "type": "string",
+      "pattern": "^(/([^~/]|~[01])*)*$"
+    },
+    "remediation": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+    },
+    "details": {
+      "type": "object"
+    }
+  },
+  "required": ["code", "severity", "message", "remediation"]
+}

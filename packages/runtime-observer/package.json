@@ -1,0 +1,15 @@
+{
+  "name": "@sys2qa/runtime-observer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scope-enforcing proxy, browser workers, runtime discovery (ADR-005, ADR-007)",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

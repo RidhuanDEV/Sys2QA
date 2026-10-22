@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/approval/1.0.json",
+  "title": "Approval",
+  "description": "Approval of one scenario version bound to a full baseline (QAA-FR-052, CR-055).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "approval_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/ulid_id"
+    },
+    "scenario_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "scenario_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseline": {
+      "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/baseline"
+    },
+    "environment_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "declared_environment_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "scope_policy_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "test_data_profile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["manual", "automated"]
+    },
+    "state_changing_ack": {
+      "type": "boolean"
+    },
+    "approver": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approved_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    },
+    "state": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/approval_state"
+    }
+  },
+  "required": [
+    "schema_version",
+    "approval_id",
+    "scenario_id",
+    "scenario_version",
+    "baseline",
+    "scope_policy_version",
+    "test_data_profile",
+    "mode",
+    "approver",
+    "approved_at",
+    "state"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "automated"
+          }
+        },
+        "required": ["mode"],
+        "type": "object"
+      },
+      "then": {
+        "required": ["environment_id"]
+      },
+      "else": {
+        "anyOf": [
+          {
+            "required": ["environment_id"]
+          },
+          {
+            "required": ["declared_environment_id"]
+          }
+        ]
+      }
+    }
+  ]
+}

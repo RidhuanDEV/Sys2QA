@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "defect_id": "defect:01JBQH00000000000000000000",
+  "title": {
+    "language": "en",
+    "value": "12-digit NIB accepted on registration"
+  },
+  "description": {
+    "language": "en",
+    "value": "Submitting a 12-digit NIB creates a registration; expected a format error."
+  },
+  "severity": "major",
+  "priority": "high",
+  "state": "new",
+  "suspected_type": "product_defect",
+  "links": {
+    "scenario_id": "scenario:registration.nib.invalid_length_12",
+    "scenario_version": 1,
+    "run_id": "mrun:01JBQG00000000000000000000",
+    "step_id": "S3",
+    "evidence_refs": ["blob:screenshot-1"]
+  },
+  "baseline": {
+    "packages": [
+      {
+        "package_id": "pkg:acme-portal",
+        "package_version": 3
+      }
+    ],
+    "revision": {
+      "kind": "git_commit",
+      "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80",
+      "worktree_dirty": false
+    }
+  },
+  "environment": {
+    "declared": {
+      "name": "Tester laptop against staging"
+    }
+  },
+  "created_at": "2026-10-21T10:12:30Z"
+}

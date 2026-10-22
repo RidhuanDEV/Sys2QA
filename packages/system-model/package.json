@@ -1,0 +1,15 @@
+{
+  "name": "@sys2qa/system-model",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "System model operations: graph queries, diff, ID derivation",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

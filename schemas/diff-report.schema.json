@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/diff-report/1.0.json",
+  "title": "DiffReport",
+  "description": "Model diff between two package versions (SAA-FR-038, CON-014).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "base": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_ref"
+    },
+    "target": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_ref"
+    },
+    "request_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "entities": {
+      "title": "EntityChanges",
+      "type": "object",
+      "properties": {
+        "added": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/diff-report/1.0.json#/$defs/entity_change"
+          }
+        },
+        "changed": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/diff-report/1.0.json#/$defs/entity_change"
+          }
+        },
+        "removed": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/diff-report/1.0.json#/$defs/entity_change"
+          }
+        }
+      },
+      "required": ["added", "changed", "removed"],
+      "additionalProperties": false
+    },
+    "renamed": {
+      "type": "array",
+      "items": {
+        "title": "Rename",
+        "type": "object",
+        "properties": {
+          "from": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "to": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["from", "to", "confidence", "rationale"],
+        "additionalProperties": false
+      }
+    },
+    "claims": {
+      "title": "ClaimChanges",
+      "type": "object",
+      "properties": {
+        "newly_stale": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "contradicted": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "changed": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        }
+      },
+      "required": ["newly_stale", "contradicted", "changed"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "base", "target", "entities", "renamed", "claims"],
+  "$defs": {
+    "entity_change": {
+      "title": "EntityChange",
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "kind": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/entity_kind"
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": ["id"],
+      "additionalProperties": false
+    }
+  }
+}

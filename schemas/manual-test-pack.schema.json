@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/manual-test-pack/1.0.json",
+  "title": "ManualTestPack",
+  "description": "Approved scenarios packaged for manual execution without a configured environment (QAA-FR-112).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "const": "sys2qa.manual-test-pack"
+    },
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "pack_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/ulid_id"
+    },
+    "created_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    },
+    "content_language": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+    },
+    "glossary_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json"
+      },
+      "minItems": 1
+    },
+    "approval_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/ulid_id"
+      },
+      "minItems": 1
+    },
+    "result_template": {
+      "title": "ResultTemplate",
+      "type": "object",
+      "properties": {
+        "schema": {
+          "const": "https://sys2qa.dev/schemas/run-result/1.0.json"
+        },
+        "instructions": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+        }
+      },
+      "required": ["schema", "instructions"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "contract",
+    "schema_version",
+    "pack_id",
+    "created_at",
+    "content_language",
+    "glossary_version",
+    "scenarios",
+    "approval_ids",
+    "result_template"
+  ]
+}

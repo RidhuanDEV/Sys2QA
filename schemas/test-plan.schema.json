@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/test-plan/1.0.json",
+  "title": "TestPlan",
+  "description": "QAA test plan (QAA-FR-030).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "plan_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "content_language": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+    },
+    "baseline": {
+      "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/baseline"
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+      },
+      "minItems": 1
+    },
+    "qa_objectives": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/qa_objective"
+      },
+      "minItems": 1
+    },
+    "scope": {
+      "title": "PlanScope",
+      "type": "object",
+      "properties": {
+        "in_scope": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "out_of_scope": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "exclusions_reason": {
+          "type": "string"
+        }
+      },
+      "required": ["in_scope", "out_of_scope"],
+      "additionalProperties": false
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "title": "PlanRisk",
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "description": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+          },
+          "impact": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "likelihood": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "exposure": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["id", "description", "impact", "likelihood", "rationale"],
+        "additionalProperties": false
+      }
+    },
+    "test_basis": {
+      "type": "array",
+      "items": {
+        "title": "TestBasisRef",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["package", "requirement", "user_confirmed_rule", "source_check", "observation", "prior_result"]
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["kind", "ref"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+      }
+    },
+    "exit_criteria": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+      },
+      "minItems": 1
+    },
+    "evidence_profile_summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "plan_id",
+    "content_language",
+    "baseline",
+    "objectives",
+    "qa_objectives",
+    "scope",
+    "risks",
+    "test_basis",
+    "assumptions",
+    "exit_criteria"
+  ]
+}

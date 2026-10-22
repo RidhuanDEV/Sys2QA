@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/evidence-index/1.0.json",
+  "title": "EvidenceIndex",
+  "description": "Evidence records referenced by claims and entities (Contract Specification §5).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "revision": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/revision"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/evidence-index/1.0.json#/$defs/evidence"
+      }
+    }
+  },
+  "required": ["schema_version", "revision", "evidence"],
+  "$defs": {
+    "evidence": {
+      "title": "Evidence",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "source_type": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/evidence_source_type"
+        },
+        "captured_at": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+        },
+        "extractor": {
+          "title": "Extractor",
+          "type": "object",
+          "properties": {
+            "adapter": {
+              "type": "string"
+            },
+            "component": {
+              "type": "string"
+            },
+            "version": {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["version", "method"],
+          "additionalProperties": false,
+          "anyOf": [
+            {
+              "required": ["adapter"]
+            },
+            {
+              "required": ["component"]
+            }
+          ]
+        },
+        "path": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/repo_path"
+        },
+        "range": {
+          "title": "SourceRange",
+          "type": "object",
+          "properties": {
+            "start_line": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "end_line": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "start_col": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "end_col": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": ["start_line", "end_line"],
+          "additionalProperties": false
+        },
+        "file_fingerprint": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/sha256"
+        },
+        "subtype": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/runtime_subtype"
+        },
+        "environment_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "url": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/url"
+        },
+        "observed_at": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+        },
+        "credential_profile_role": {
+          "type": "string"
+        },
+        "submission": {
+          "type": "string",
+          "enum": ["none", "read_only", "approved_test"]
+        },
+        "screenshot_digest": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/sha256"
+        },
+        "excerpt": {
+          "type": "string"
+        },
+        "excerpt_digest": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/sha256"
+        },
+        "excerpt_policy": {
+          "type": "string",
+          "enum": ["short_excerpt", "digest_only", "none"]
+        },
+        "annotator": {
+          "type": "string"
+        },
+        "test_ref": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "source_type", "captured_at", "extractor", "excerpt_policy"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "enum": [
+                  "source_code",
+                  "configuration",
+                  "schema",
+                  "migration",
+                  "manifest",
+                  "test_definition",
+                  "documentation",
+                  "git_history"
+                ]
+              }
+            },
+            "required": ["source_type"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["path", "range", "file_fingerprint"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_type": {
+                "const": "runtime_observation"
+              }
+            },
+            "required": ["source_type"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["subtype", "environment_id", "url", "observed_at", "submission"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "excerpt_policy": {
+                "const": "short_excerpt"
+              }
+            },
+            "required": ["excerpt_policy"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["excerpt"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "excerpt_policy": {
+                "const": "digest_only"
+              }
+            },
+            "required": ["excerpt_policy"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["excerpt_digest"]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/completeness-report/1.0.json",
+  "title": "CompletenessReport",
+  "description": "What a producer examined, found, could not resolve and could not reach (SAA-FR-045, QAA-FR-114). Counts are always within the examined scope (CR-043).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "producer": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/producer_name"
+    },
+    "run_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "count_scope": {
+      "const": "within_examined_scope"
+    },
+    "examined": {
+      "title": "ExaminedScope",
+      "type": "object",
+      "properties": {
+        "roots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "boundaries": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "constructs": {
+      "title": "ConstructCounts",
+      "type": "object",
+      "properties": {
+        "analyzed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "partial": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unsupported": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["analyzed", "partial", "unsupported"],
+      "additionalProperties": false
+    },
+    "entry_points_found": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "workflows_by_status": {
+      "title": "WorkflowsByStatus",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/discovery_status"
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "unresolved_workflow_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+      }
+    },
+    "unavailable_adapters": {
+      "type": "array",
+      "items": {
+        "title": "UnavailableAdapter",
+        "type": "object",
+        "properties": {
+          "adapter": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["adapter", "reason"],
+        "additionalProperties": false
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "title": "ExcludedArea",
+        "type": "object",
+        "properties": {
+          "area": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["area", "reason"],
+        "additionalProperties": false
+      }
+    },
+    "unexplored": {
+      "type": "array",
+      "items": {
+        "title": "UnexploredArea",
+        "type": "object",
+        "properties": {
+          "area": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["area", "reason"],
+        "additionalProperties": false
+      }
+    },
+    "forms_not_submitted": {
+      "type": "array",
+      "items": {
+        "title": "FormNotSubmitted",
+        "type": "object",
+        "properties": {
+          "form_id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "reason": {
+            "type": "string",
+            "enum": ["submission_requires_approval", "login_form", "state_changing", "read_only_not_enabled"]
+          }
+        },
+        "required": ["form_id", "reason"],
+        "additionalProperties": false
+      }
+    },
+    "improvement_suggestions": {
+      "type": "array",
+      "items": {
+        "title": "ImprovementSuggestion",
+        "type": "object",
+        "properties": {
+          "evidence_kind": {
+            "type": "string",
+            "enum": [
+              "source",
+              "runtime",
+              "requirement",
+              "credentials",
+              "environment",
+              "adapter",
+              "read_only_submissions"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "would_improve": {
+            "type": "array",
+            "items": {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+            }
+          }
+        },
+        "required": ["evidence_kind", "description"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "producer",
+    "run_id",
+    "count_scope",
+    "examined",
+    "constructs",
+    "entry_points_found",
+    "workflows_by_status",
+    "unresolved_workflow_ids",
+    "unavailable_adapters",
+    "excluded",
+    "unexplored",
+    "improvement_suggestions"
+  ]
+}

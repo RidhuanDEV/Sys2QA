@@ -10,7 +10,7 @@ Each type of information has **one** source of truth (ADR-010). Documents link t
 | [Implementation Plan & Backlog](00-project/implementation-plan.md) | In what order, and when is a task done? | Tasks, dependencies, requirement → task mapping, status | Baseline 1.0 |
 | [Software Architecture](01-architecture/software-architecture.md) | How is the system structured? | Modules, dependency rules, process model, data flows | Baseline 1.0 |
 | [ADRs](01-architecture/adr/README.md) | Why was it decided this way? | Decision rationale and consequences | ADR-001 … ADR-010 accepted |
-| [Contract Specification](02-contracts/contract-specification.md) | How do components exchange data without misunderstanding? | Fields, enumerations, semantic rules CR-xxx, error codes, versioning, governance | Baseline 1.0; schemas pending (IMP-003) |
+| [Contract Specification](02-contracts/contract-specification.md) | How do components exchange data without misunderstanding? | Fields, enumerations, semantic rules CR-xxx, error codes, versioning, governance | Baseline 1.0; schemas v1.0.0 in `schemas/` (IMP-003); semantic validators pending (IMP-004) |
 | [Data Model & Storage](03-design/data-model.md) | How is data stored, identified and recovered? | On-disk layout, SQLite schema, identity, transactions, retention, recovery | Baseline 1.0 |
 | [Threat Model & Security Architecture](04-security/threat-model.md) | What can go wrong and what stops it? | Assets, trust boundaries, threats, controls, security tests ST-xx | Baseline 1.0 |
 | [Test Strategy & Verification Plan](05-quality/test-strategy.md) | How do we prove it works? | Traceability, test levels, fixtures, metrics, CI, gate acceptance | Baseline 1.0 |

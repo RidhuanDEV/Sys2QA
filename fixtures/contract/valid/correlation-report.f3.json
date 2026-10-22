@@ -1,0 +1,37 @@
+{
+  "contract": "sys2qa.correlation-report",
+  "schema_version": "1.0.0",
+  "report_id": "corr:01JBQD00000000000000000000",
+  "saa_package": {
+    "package_id": "pkg:acme-portal",
+    "package_version": 3
+  },
+  "qaa_package": {
+    "package_id": "pkg:acme-portal-observed",
+    "package_version": 1
+  },
+  "revision_correspondence": "user_confirmed",
+  "links": [
+    {
+      "observed_id": "page:observed:/registrasi",
+      "source_id": "page:web:/registrasi",
+      "rationale": "Same path; same form field labels.",
+      "confidence": "high"
+    }
+  ],
+  "unmatched": {
+    "observed": ["page:observed:/promo"],
+    "source": ["route:GET:/api/legacy-export"]
+  },
+  "discrepancies": [
+    {
+      "id": "discrepancy:nib-maxlength",
+      "type": "constraint_mismatch",
+      "observed_ids": ["field:observed:/registrasi#nib"],
+      "source_ids": ["field:web:/registrasi#registration.nib"],
+      "description": "Browser field allows 16 characters; source enforces exactly 13 digits.",
+      "possibly_version_related": false
+    }
+  ],
+  "generated_at": "2026-10-21T09:10:00Z"
+}

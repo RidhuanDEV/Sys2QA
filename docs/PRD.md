@@ -964,6 +964,7 @@ A claim may be published as `source_verified` only if its evidence refers to a r
 - **Not unquestionable truth** (C, QAA §1.1): QAA preserves provenance and certainty labels, verifies relevant claims, and surfaces discrepancies.
 - **Loose coupling**: either side can be tested alone against the published JSON Schemas and conformance fixtures (CON-018).
 - **Two producers, one schema** (OD-24, CON-025): SAA produces packages from source evidence and QAA from runtime evidence. Both pass the same validator. In Mode C they stay separate, linked by a QAA correlation report (CON-026).
+- **Examples.** Inline JSON examples in this PRD are abbreviated and illustrative. The schema-valid canonical versions are in `fixtures/contract/valid/` and are validated in CI. Where they differ (for example `title.value` rather than `title.text`), the fixture and schema are authoritative (§1.4).
 - **Revision-bound**: a package describes exactly one revision. Evidence from incompatible revisions is never silently merged (SAA §7.4).
 
 ### 13.2 Package structure

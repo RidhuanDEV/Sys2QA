@@ -1,0 +1,31 @@
+{
+  "name": "sys2qa-monorepo",
+  "private": true,
+  "type": "module",
+  "description": "Sys2QA — evidence-based system analysis (SAA) and quality assurance (QAA) platform",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "schemas:types": "node packages/contract/scripts/generate-types.mjs",
+    "schemas:check": "node packages/contract/scripts/generate-types.mjs --check",
+    "docs:links": "node scripts/check-doc-links.mjs",
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm docs:links && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^4.1.12"
+  }
+}

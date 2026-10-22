@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/common/1.0.json",
+  "title": "Sys2qaCommon",
+  "description": "Shared definitions for every Sys2QA contract schema (Contract Specification §1, §7).",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "title": "Id",
+      "pattern": "^[a-z][a-z0-9_]*:[^\\s]{1,256}$",
+      "description": "Semantic or operational ID: <kind>:<local-id> (PRD §13.4)."
+    },
+    "ulid_id": {
+      "type": "string",
+      "title": "UlidId",
+      "pattern": "^[a-z][a-z0-9_]*:[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Operational record ID: <kind>:<ULID>."
+    },
+    "timestamp": {
+      "type": "string",
+      "title": "Timestamp",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$",
+      "description": "RFC 3339 UTC timestamp with Z suffix."
+    },
+    "sha256": {
+      "type": "string",
+      "title": "Sha256",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "title": "Semver",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "language_tag": {
+      "type": "string",
+      "title": "LanguageTag",
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP 47 language tag."
+    },
+    "lang_text": {
+      "title": "LangText",
+      "type": "object",
+      "properties": {
+        "language": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["language", "value"],
+      "additionalProperties": false
+    },
+    "repo_path": {
+      "type": "string",
+      "title": "RepoPath",
+      "minLength": 1,
+      "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(^|/)\\.\\.(/|$))[^\\\\]+$",
+      "description": "Repository-relative POSIX path; never absolute, never containing '..'."
+    },
+    "url": {
+      "type": "string",
+      "title": "Url",
+      "format": "uri"
+    },
+    "secret_ref": {
+      "type": "string",
+      "title": "SecretRef",
+      "pattern": "^secretref:[A-Za-z0-9._-]{1,128}$"
+    },
+    "fixture_ref": {
+      "type": "string",
+      "title": "FixtureRef",
+      "pattern": "^fixture:[A-Za-z0-9._/-]{1,256}$"
+    },
+    "artifact_id": {
+      "type": "string",
+      "title": "ArtifactId",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "package_ref": {
+      "title": "PackageRef",
+      "type": "object",
+      "properties": {
+        "package_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "package_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": ["package_id", "package_version"],
+      "additionalProperties": false
+    },
+    "git_commit_revision": {
+      "title": "GitCommitRevision",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "git_commit"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        },
+        "worktree_dirty": {
+          "type": "boolean"
+        },
+        "dirty_fingerprint": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/sha256"
+        }
+      },
+      "required": ["kind", "value", "worktree_dirty"],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "worktree_dirty": {
+            "const": true
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": ["dirty_fingerprint"]
+      }
+    },
+    "content_fingerprint_revision": {
+      "title": "ContentFingerprintRevision",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "content_fingerprint"
+        },
+        "value": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/sha256"
+        }
+      },
+      "required": ["kind", "value"],
+      "additionalProperties": false
+    },
+    "observation_window_revision": {
+      "title": "ObservationWindowRevision",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "observation_window"
+        },
+        "environment_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "observed_from": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+        },
+        "observed_to": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+        }
+      },
+      "required": ["kind", "environment_id", "observed_from", "observed_to"],
+      "additionalProperties": false
+    },
+    "source_revision": {
+      "title": "SourceRevision",
+      "oneOf": [
+        {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/git_commit_revision"
+        },
+        {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/content_fingerprint_revision"
+        }
+      ]
+    },
+    "revision": {
+      "title": "Revision",
+      "oneOf": [
+        {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/git_commit_revision"
+        },
+        {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/content_fingerprint_revision"
+        },
+        {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/observation_window_revision"
+        }
+      ]
+    },
+    "producer_name": {
+      "title": "ProducerName",
+      "type": "string",
+      "enum": ["SAA", "QAA"]
+    },
+    "analysis_status": {
+      "title": "AnalysisStatus",
+      "type": "string",
+      "enum": ["completed", "completed_with_limitations", "partial", "failed", "cancelled"]
+    },
+    "claim_status": {
+      "title": "ClaimStatus",
+      "type": "string",
+      "enum": [
+        "source_verified",
+        "runtime_observed",
+        "test_verified",
+        "inferred",
+        "contradicted",
+        "unresolved",
+        "stale",
+        "human_asserted"
+      ]
+    },
+    "expected_result_basis": {
+      "title": "ExpectedResultBasis",
+      "type": "string",
+      "enum": [
+        "requirement_backed",
+        "user_confirmed",
+        "saa_documented",
+        "source_supported",
+        "observed",
+        "inferred",
+        "unresolved"
+      ]
+    },
+    "oracle_class": {
+      "title": "OracleClass",
+      "type": "string",
+      "enum": ["intended", "implemented", "observed", "none"]
+    },
+    "qa_objective": {
+      "title": "QaObjective",
+      "type": "string",
+      "enum": ["characterization", "implementation_conformance", "requirement_conformance", "exploratory"]
+    },
+    "discovery_status": {
+      "title": "DiscoveryStatus",
+      "type": "string",
+      "enum": ["reconstructed", "partially_reconstructed", "known_not_traceable", "excluded", "not_observed"]
+    },
+    "workflow_completion": {
+      "title": "WorkflowCompletion",
+      "type": "string",
+      "enum": ["complete_within_static_scope", "partial", "runtime_observed_for_run", "unresolved"]
+    },
+    "workflow_category": {
+      "title": "WorkflowCategory",
+      "type": "string",
+      "enum": [
+        "user_interface",
+        "api",
+        "business_process",
+        "data_lifecycle",
+        "async_processing",
+        "scheduled_processing",
+        "integration",
+        "auth",
+        "error_recovery",
+        "cross_component"
+      ]
+    },
+    "coverage_value": {
+      "title": "CoverageValue",
+      "type": "string",
+      "enum": ["complete", "partial", "absent", "not_applicable", "unsupported", "unobservable"]
+    },
+    "coverage_category": {
+      "title": "CoverageCategory",
+      "type": "string",
+      "enum": [
+        "modules",
+        "routes_pages",
+        "roles_permissions",
+        "business_rules",
+        "workflows",
+        "state_transitions",
+        "api_contracts",
+        "data_model",
+        "integrations",
+        "error_paths"
+      ]
+    },
+    "readiness": {
+      "title": "Readiness",
+      "type": "string",
+      "enum": ["ready", "ready_with_gaps", "review_only", "blocked"]
+    },
+    "package_freshness": {
+      "title": "PackageFreshness",
+      "type": "string",
+      "enum": ["current", "mismatched", "stale", "unverifiable"]
+    },
+    "scenario_status": {
+      "title": "ScenarioStatus",
+      "type": "string",
+      "enum": ["draft", "needs_clarification", "pending_review", "approved", "rejected", "deferred", "superseded"]
+    },
+    "scenario_freshness": {
+      "title": "ScenarioFreshness",
+      "type": "string",
+      "enum": ["current", "potentially_stale", "stale"]
+    },
+    "approval_state": {
+      "title": "ApprovalState",
+      "type": "string",
+      "enum": ["active", "suspended", "invalidated", "superseded", "revoked"]
+    },
+    "run_state": {
+      "title": "RunState",
+      "type": "string",
+      "enum": ["created", "queued", "running", "paused", "completed", "failed", "cancelled", "blocked", "abandoned"]
+    },
+    "case_outcome": {
+      "title": "CaseOutcome",
+      "type": "string",
+      "enum": ["passed", "failed", "blocked", "inconclusive", "not_run", "skipped"]
+    },
+    "failure_category": {
+      "title": "FailureCategory",
+      "type": "string",
+      "enum": [
+        "assertion_failure",
+        "navigation_error",
+        "timeout",
+        "blocked_request",
+        "out_of_scope_blocked",
+        "unsupported_step",
+        "test_data_error",
+        "cleanup_failure",
+        "runner_failure",
+        "environment_unavailable",
+        "credential_failure"
+      ]
+    },
+    "defect_state": {
+      "title": "DefectState",
+      "type": "string",
+      "enum": [
+        "new",
+        "triaged",
+        "confirmed",
+        "rejected",
+        "duplicate",
+        "needs_info",
+        "fixed",
+        "ready_for_retest",
+        "closed",
+        "reopened"
+      ]
+    },
+    "severity": {
+      "title": "Severity",
+      "type": "string",
+      "enum": ["critical", "major", "minor", "trivial"]
+    },
+    "priority": {
+      "title": "Priority",
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "entity_kind": {
+      "title": "EntityKind",
+      "type": "string",
+      "enum": [
+        "system",
+        "project",
+        "module",
+        "file",
+        "function",
+        "class",
+        "page",
+        "route",
+        "form",
+        "field",
+        "api",
+        "schema",
+        "table",
+        "column",
+        "orm_model",
+        "actor_role",
+        "permission",
+        "workflow",
+        "business_rule",
+        "state_machine",
+        "entity",
+        "integration",
+        "job",
+        "queue_topic",
+        "config_key",
+        "deployment_unit",
+        "secret_ref",
+        "test",
+        "requirement"
+      ]
+    },
+    "relationship_type": {
+      "title": "RelationshipType",
+      "type": "string",
+      "enum": [
+        "CONTAINS",
+        "IMPORTS",
+        "CALLS",
+        "REFERENCES",
+        "EXPOSES",
+        "CONSUMES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PUBLISHES",
+        "SUBSCRIBES_TO",
+        "AUTHENTICATES_WITH",
+        "AUTHORIZES_WITH",
+        "VALIDATES",
+        "CONFIGURED_BY",
+        "DEPLOYED_AS",
+        "TESTS",
+        "USES_SCHEMA",
+        "DEPENDS_ON",
+        "TRIGGERS",
+        "SENDS_TO",
+        "NAVIGATES_TO",
+        "SUBMITS_TO",
+        "TRANSITIONS_TO",
+        "SATISFIES"
+      ]
+    },
+    "evidence_source_type": {
+      "title": "EvidenceSourceType",
+      "type": "string",
+      "enum": [
+        "source_code",
+        "configuration",
+        "schema",
+        "migration",
+        "manifest",
+        "test_definition",
+        "documentation",
+        "git_history",
+        "runtime_observation",
+        "test_result",
+        "human_annotation",
+        "requirement_document"
+      ]
+    },
+    "runtime_subtype": {
+      "title": "RuntimeSubtype",
+      "type": "string",
+      "enum": ["page", "navigation", "form", "validation_message", "state_message", "access_outcome"]
+    },
+    "evidence_availability": {
+      "title": "EvidenceAvailability",
+      "type": "string",
+      "enum": ["available", "partial", "unavailable"]
+    },
+    "revision_correspondence": {
+      "title": "RevisionCorrespondence",
+      "type": "string",
+      "enum": ["user_confirmed", "observed", "unconfirmed", "not_applicable"]
+    },
+    "permission_level": {
+      "title": "PermissionLevel",
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L2r", "L3", "L4"]
+    },
+    "environment_classification": {
+      "title": "EnvironmentClassification",
+      "type": "string",
+      "enum": ["development", "staging"],
+      "description": "Production is never a valid target (SEC-009)."
+    },
+    "automation_action": {
+      "title": "AutomationAction",
+      "type": "string",
+      "enum": ["navigate", "click", "fill", "select", "check", "uncheck"]
+    },
+    "assertion_type": {
+      "title": "AssertionType",
+      "type": "string",
+      "enum": ["visible", "hidden", "text", "value", "url", "enabled", "disabled"]
+    },
+    "stop_reason_code": {
+      "title": "StopReasonCode",
+      "type": "string",
+      "enum": [
+        "dynamic_registration",
+        "reflection_or_di_unresolved",
+        "external_service",
+        "missing_repository",
+        "unsupported_construct",
+        "config_unavailable",
+        "budget_exhausted",
+        "not_observable_at_runtime",
+        "submission_requires_approval",
+        "auth_required",
+        "out_of_scope"
+      ]
+    }
+  }
+}

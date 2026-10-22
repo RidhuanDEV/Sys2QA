@@ -1,0 +1,15 @@
+{
+  "name": "@sys2qa/platform",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Platform services: config, declarations, policy, jobs, audit, secrets, LLM port, i18n",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

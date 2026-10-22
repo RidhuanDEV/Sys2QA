@@ -1,0 +1,553 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/package-manifest/1.0.json",
+  "title": "PackageManifest",
+  "description": "Documentation Package manifest (PRD §13.3, Contract Specification §3).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "const": "sys2qa.documentation-package"
+    },
+    "package_schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "package_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "package_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "previous_package": {
+      "title": "PreviousPackage",
+      "type": "object",
+      "properties": {
+        "package_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["package_version", "revision"],
+      "additionalProperties": false
+    },
+    "producer": {
+      "title": "Producer",
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/producer_name"
+        },
+        "version": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+        },
+        "component": {
+          "type": "string"
+        },
+        "adapters": {
+          "type": "array",
+          "items": {
+            "title": "AdapterInfo",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "version": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+              },
+              "support_level": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": ["id", "version", "support_level"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["name", "version"],
+      "additionalProperties": false
+    },
+    "project": {
+      "title": "ProjectRef",
+      "type": "object",
+      "properties": {
+        "system_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["system_id", "name"],
+      "additionalProperties": false
+    },
+    "evidence_profile": {
+      "title": "EvidenceProfile",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_analysis": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/evidence_availability"
+        },
+        "runtime_observation": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/evidence_availability"
+        },
+        "documentation_import": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/evidence_availability"
+        },
+        "revision_correspondence": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/revision_correspondence"
+        },
+        "cannot_establish": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "source_analysis",
+        "runtime_observation",
+        "documentation_import",
+        "revision_correspondence",
+        "cannot_establish"
+      ]
+    },
+    "repository": {
+      "oneOf": [
+        {
+          "title": "RepositoryIdentity",
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": ["git", "filesystem"]
+            },
+            "identity": {
+              "type": "string",
+              "minLength": 1
+            },
+            "identity_source": {
+              "type": "string",
+              "enum": ["local_git_remote", "user_supplied"]
+            },
+            "revision": {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/source_revision"
+            },
+            "branch_hint": {
+              "type": "string"
+            }
+          },
+          "required": ["provider", "identity", "identity_source", "revision"],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "observed_environments": {
+      "type": "array",
+      "items": {
+        "title": "ObservedEnvironment",
+        "type": "object",
+        "properties": {
+          "environment_id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "base_url": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/url"
+          },
+          "classification": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/environment_classification"
+          },
+          "observed_from": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+          },
+          "observed_to": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+          },
+          "target_app_locale": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+          },
+          "deployed_revision": {
+            "title": "DeployedRevision",
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": ["string", "null"]
+              },
+              "source": {
+                "type": "string",
+                "enum": ["declared", "observed", "unknown"]
+              }
+            },
+            "required": ["value", "source"],
+            "additionalProperties": false
+          },
+          "permission_level_max": {
+            "type": "string",
+            "enum": ["L2", "L2r"]
+          },
+          "read_only_submissions": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "environment_id",
+          "base_url",
+          "classification",
+          "observed_from",
+          "observed_to",
+          "target_app_locale",
+          "deployed_revision",
+          "permission_level_max",
+          "read_only_submissions"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "analysis": {
+      "title": "AnalysisInfo",
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "profile": {
+          "type": "string",
+          "enum": ["overview", "standard", "deep"]
+        },
+        "status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/analysis_status"
+        },
+        "permission_level_max": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/permission_level"
+        },
+        "optional_actions_executed": {
+          "type": "array",
+          "items": {
+            "title": "OptionalAction",
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "minLength": 1
+              },
+              "approved_by": {
+                "type": "string",
+                "minLength": 1
+              },
+              "approved_at": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+              }
+            },
+            "required": ["action", "approved_by", "approved_at"],
+            "additionalProperties": false
+          }
+        },
+        "started_at": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+        },
+        "finished_at": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+        },
+        "scope": {
+          "title": "AnalysisScope",
+          "type": "object",
+          "properties": {
+            "roots": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "excluded": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "hosts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "run_id",
+        "status",
+        "permission_level_max",
+        "optional_actions_executed",
+        "started_at",
+        "finished_at",
+        "scope",
+        "limitations"
+      ],
+      "additionalProperties": false
+    },
+    "generated_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    },
+    "languages": {
+      "title": "PackageLanguages",
+      "type": "object",
+      "properties": {
+        "documentation": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+          },
+          "minItems": 1
+        },
+        "default": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+        },
+        "machine_text": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+        }
+      },
+      "required": ["documentation", "default", "machine_text"],
+      "additionalProperties": false
+    },
+    "coverage_summary": {
+      "title": "CoverageSummary",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/coverage_category"
+      },
+      "additionalProperties": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/coverage_value"
+      }
+    },
+    "redaction": {
+      "title": "RedactionPolicy",
+      "type": "object",
+      "properties": {
+        "secrets": {
+          "const": "redacted"
+        },
+        "excerpts": {
+          "type": "string",
+          "enum": ["short_excerpts", "digest_only", "none"]
+        },
+        "max_excerpt_chars": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["secrets", "excerpts", "max_excerpt_chars"],
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "title": "ArtifactEntry",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/artifact_id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system_model",
+              "evidence_index",
+              "diff_report",
+              "completeness_report",
+              "correlation_report",
+              "executive_summary",
+              "system_context",
+              "architecture",
+              "project_inventory",
+              "components",
+              "workflow_catalog",
+              "workflows",
+              "routes_and_pages",
+              "roles_and_permissions",
+              "business_rules",
+              "observed_behavior",
+              "api_contracts",
+              "data_model",
+              "integrations_events",
+              "configuration_deployment",
+              "tests_coverage",
+              "dependencies_impact",
+              "risks_contradictions",
+              "unknowns",
+              "asset"
+            ]
+          },
+          "path": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/repo_path"
+          },
+          "media_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/sha256"
+          },
+          "schema_version": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+          },
+          "language": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+          },
+          "translation_of": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/artifact_id"
+          },
+          "machine_translated": {
+            "type": "boolean"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": ["id", "role", "path", "media_type", "sha256"],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "media_type": {
+                  "const": "application/json"
+                }
+              },
+              "required": ["media_type"],
+              "type": "object"
+            },
+            "then": {
+              "required": ["schema_version"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "media_type": {
+                  "const": "text/markdown"
+                }
+              },
+              "required": ["media_type"],
+              "type": "object"
+            },
+            "then": {
+              "required": ["language"]
+            }
+          }
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "contract",
+    "package_schema_version",
+    "package_id",
+    "package_version",
+    "producer",
+    "project",
+    "evidence_profile",
+    "repository",
+    "analysis",
+    "generated_at",
+    "languages",
+    "coverage_summary",
+    "redaction",
+    "artifacts"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "package_version": {
+            "minimum": 2,
+            "type": "integer"
+          }
+        },
+        "required": ["package_version"],
+        "type": "object"
+      },
+      "then": {
+        "required": ["previous_package"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidence_profile": {
+            "properties": {
+              "source_analysis": {
+                "const": "unavailable"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "repository": {
+            "type": "null"
+          }
+        },
+        "type": "object"
+      },
+      "else": {
+        "properties": {
+          "repository": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidence_profile": {
+            "properties": {
+              "runtime_observation": {
+                "enum": ["available", "partial"]
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": ["observed_environments"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "adapter_id": "js-ts",
+    "adapter_version": "0.1.0",
+    "protocol_version": "1.0.0",
+    "support_matrix": {
+      "languages": [
+        {
+          "name": "TypeScript",
+          "versions": ">=4.9"
+        },
+        {
+          "name": "JavaScript",
+          "versions": "ES2015+"
+        }
+      ],
+      "scanned_only_languages": ["Vue SFC"],
+      "frameworks": [
+        {
+          "name": "Express",
+          "versions": "4.x, 5.x",
+          "entities": ["route", "api", "function"],
+          "relations": ["EXPOSES", "CALLS"],
+          "workflow_tracing": "partial",
+          "fixtures": ["fixtures/benchmarks/F1"]
+        }
+      ],
+      "prerequisites": [],
+      "limitations": ["Routes registered from runtime configuration are reported as unresolved."]
+    }
+  }
+}

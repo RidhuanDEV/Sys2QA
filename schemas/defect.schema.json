@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/defect/1.0.json",
+  "title": "Defect",
+  "description": "Defect record with severity, priority and lifecycle state (QAA-FR-088, PRD §15.12).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "defect_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/ulid_id"
+    },
+    "title": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+    },
+    "description": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+    },
+    "severity": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/severity"
+    },
+    "priority": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/priority"
+    },
+    "state": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/defect_state"
+    },
+    "suspected_type": {
+      "type": "string",
+      "enum": ["product_defect", "test_defect", "unknown"]
+    },
+    "links": {
+      "title": "DefectLinks",
+      "type": "object",
+      "properties": {
+        "scenario_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        },
+        "scenario_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "run_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/ulid_id"
+        },
+        "step_id": {
+          "type": "string",
+          "pattern": "^S[0-9]+$"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": ["scenario_id", "scenario_version", "run_id", "evidence_refs"],
+      "additionalProperties": false
+    },
+    "baseline": {
+      "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/baseline"
+    },
+    "environment": {
+      "$ref": "https://sys2qa.dev/schemas/run-result/1.0.json#/$defs/run_environment"
+    },
+    "duplicate_of": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/ulid_id"
+    },
+    "created_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "defect_id",
+    "title",
+    "severity",
+    "priority",
+    "state",
+    "suspected_type",
+    "links",
+    "baseline",
+    "environment",
+    "created_at"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "duplicate"
+          }
+        },
+        "required": ["state"],
+        "type": "object"
+      },
+      "then": {
+        "required": ["duplicate_of"]
+      }
+    }
+  ]
+}

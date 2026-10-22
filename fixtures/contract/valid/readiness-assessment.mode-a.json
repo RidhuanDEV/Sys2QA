@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "assessment_id": "ready:01JBQE00000000000000000000",
+  "package_refs": [
+    {
+      "package_id": "pkg:acme-portal",
+      "package_version": 3
+    }
+  ],
+  "execution_status": "completed_with_limitations",
+  "coverage": {
+    "workflows": "partial",
+    "business_rules": "partial"
+  },
+  "activities": {
+    "scenario_design": {
+      "readiness": "ready_with_gaps",
+      "reasons": ["State transitions absent for registration approval."]
+    },
+    "manual_preparation": {
+      "readiness": "ready_with_gaps",
+      "reasons": []
+    },
+    "automated_execution": {
+      "readiness": "blocked",
+      "reasons": ["No environment configured."]
+    }
+  },
+  "freshness": "current",
+  "materiality_overrides": [],
+  "assessed_at": "2026-10-21T09:20:00Z"
+}

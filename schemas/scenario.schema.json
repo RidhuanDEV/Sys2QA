@@ -1,0 +1,690 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/scenario/1.0.json",
+  "title": "Scenario",
+  "description": "One immutable-once-approved scenario version (PRD §15.10, Contract Specification §6.1).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "scenario_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "display_key": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]{3,}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "content_language": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+    },
+    "title": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+    },
+    "feature_ref": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "test_condition_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+      },
+      "minItems": 1
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1
+    },
+    "qa_objective": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/qa_objective"
+    },
+    "test_techniques": {
+      "type": "array",
+      "items": {
+        "title": "TechniqueUse",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "equivalence_partitioning",
+              "boundary_value_analysis",
+              "decision_table",
+              "state_transition",
+              "use_case",
+              "negative",
+              "error_guessing",
+              "exploratory_charter",
+              "role_matrix"
+            ]
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["id", "rationale"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "priority": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/priority"
+    },
+    "risk": {
+      "title": "ScenarioRisk",
+      "type": "object",
+      "properties": {
+        "impact": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "likelihood": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "exposure": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 25
+        },
+        "score_override_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["impact", "likelihood", "exposure", "score", "rationale"],
+      "additionalProperties": false
+    },
+    "execution_modes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["manual", "automated"]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "execution_classification": {
+      "type": "string",
+      "enum": ["manual_only", "automation_candidate", "automation_ready", "both"]
+    },
+    "state_changing": {
+      "type": "boolean"
+    },
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "title": "Precondition",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+          },
+          "credential_profile_ref": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/secret_ref"
+          }
+        },
+        "required": ["id", "text"],
+        "additionalProperties": false
+      }
+    },
+    "test_data": {
+      "type": "array",
+      "items": {
+        "title": "TestDatum",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value_ref": {
+            "oneOf": [
+              {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/fixture_ref"
+              },
+              {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/secret_ref"
+              }
+            ]
+          },
+          "sensitivity": {
+            "type": "string",
+            "enum": ["non_secret", "secret"]
+          }
+        },
+        "required": ["name", "value_ref", "sensitivity"],
+        "additionalProperties": false
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/step"
+      },
+      "minItems": 1
+    },
+    "cleanup": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+      }
+    },
+    "irreversible_ack": {
+      "type": "boolean"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+      }
+    },
+    "open_gaps": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+      }
+    },
+    "baseline": {
+      "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/baseline"
+    },
+    "freshness": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/scenario_freshness"
+    },
+    "status": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/scenario_status"
+    },
+    "status_reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "display_key",
+    "version",
+    "content_language",
+    "title",
+    "feature_ref",
+    "test_condition_ids",
+    "category",
+    "qa_objective",
+    "test_techniques",
+    "priority",
+    "risk",
+    "execution_modes",
+    "execution_classification",
+    "state_changing",
+    "preconditions",
+    "test_data",
+    "steps",
+    "cleanup",
+    "assumptions",
+    "open_gaps",
+    "baseline",
+    "freshness",
+    "status"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": ["needs_clarification", "rejected", "deferred"]
+          }
+        },
+        "required": ["status"],
+        "type": "object"
+      },
+      "then": {
+        "required": ["status_reason"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution_classification": {
+            "const": "automation_ready"
+          }
+        },
+        "required": ["execution_classification"],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "steps": {
+            "items": {
+              "required": ["automation"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "execution_modes": {
+            "contains": {
+              "const": "automated"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      }
+    }
+  ],
+  "$defs": {
+    "locator_target": {
+      "title": "LocatorTarget",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["route", "label", "role", "text", "test_id"]
+        },
+        "value": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "literal_language": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+        },
+        "source_ref": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        }
+      },
+      "required": ["kind"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": ["label", "role", "text"]
+              }
+            },
+            "required": ["kind"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["literal_language"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "role"
+              }
+            },
+            "required": ["kind"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["role"]
+          },
+          "else": {
+            "required": ["value"]
+          }
+        }
+      ]
+    },
+    "assertion": {
+      "title": "Assertion",
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/assertion_type"
+        },
+        "target": {
+          "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/locator_target"
+        },
+        "operator": {
+          "type": "string",
+          "enum": ["equals", "contains", "matches"]
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "automation": {
+      "title": "StepAutomation",
+      "type": "object",
+      "properties": {
+        "action": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/automation_action"
+        },
+        "target": {
+          "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/locator_target"
+        },
+        "value_ref": {
+          "oneOf": [
+            {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/fixture_ref"
+            },
+            {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/secret_ref"
+            }
+          ]
+        }
+      },
+      "required": ["action", "target"],
+      "additionalProperties": false
+    },
+    "expected_result": {
+      "title": "ExpectedResult",
+      "type": "object",
+      "additionalProperties": false,
+      "description": "oracle_class is derived from basis (CR-052). Non-requirement-level human_asserted maps to oracle 'none' (conservative).",
+      "properties": {
+        "description": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+        },
+        "assertions": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/assertion"
+          }
+        },
+        "basis": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/expected_result_basis"
+        },
+        "saa_status": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/claim_status"
+        },
+        "requirement_level": {
+          "type": "boolean"
+        },
+        "oracle_class": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/oracle_class"
+        },
+        "trace": {
+          "title": "ExpectedResultTrace",
+          "type": "object",
+          "properties": {
+            "saa_ids": {
+              "type": "array",
+              "items": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+              }
+            },
+            "evidence_ids": {
+              "type": "array",
+              "items": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+              }
+            },
+            "requirement_ids": {
+              "type": "array",
+              "items": {
+                "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+              }
+            }
+          },
+          "required": ["saa_ids", "evidence_ids", "requirement_ids"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["description", "assertions", "basis", "oracle_class", "trace"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "enum": ["requirement_backed", "user_confirmed"]
+              }
+            },
+            "required": ["basis"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "oracle_class": {
+                "const": "intended"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "enum": ["source_supported"]
+              }
+            },
+            "required": ["basis"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "oracle_class": {
+                "const": "implemented"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "enum": ["observed"]
+              }
+            },
+            "required": ["basis"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "oracle_class": {
+                "const": "observed"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "enum": ["inferred", "unresolved"]
+              }
+            },
+            "required": ["basis"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "oracle_class": {
+                "const": "none"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "const": "saa_documented"
+              }
+            },
+            "required": ["basis"],
+            "type": "object"
+          },
+          "then": {
+            "required": ["saa_status"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "const": "saa_documented"
+              },
+              "saa_status": {
+                "enum": ["source_verified", "test_verified"]
+              }
+            },
+            "required": ["basis", "saa_status"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "oracle_class": {
+                "const": "implemented"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "const": "saa_documented"
+              },
+              "saa_status": {
+                "const": "runtime_observed"
+              }
+            },
+            "required": ["basis", "saa_status"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "oracle_class": {
+                "const": "observed"
+              }
+            },
+            "type": "object"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "const": "saa_documented"
+              },
+              "saa_status": {
+                "const": "human_asserted"
+              },
+              "requirement_level": {
+                "const": true
+              }
+            },
+            "required": ["basis", "saa_status", "requirement_level"],
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "oracle_class": {
+                "const": "intended"
+              }
+            },
+            "type": "object"
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "basis": {
+                  "const": "saa_documented"
+                },
+                "saa_status": {
+                  "const": "human_asserted"
+                }
+              },
+              "required": ["basis", "saa_status"],
+              "type": "object"
+            },
+            "then": {
+              "properties": {
+                "oracle_class": {
+                  "const": "none"
+                }
+              },
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    "step": {
+      "title": "ScenarioStep",
+      "type": "object",
+      "properties": {
+        "step_id": {
+          "type": "string",
+          "pattern": "^S[0-9]+$"
+        },
+        "instruction": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/lang_text"
+        },
+        "automation": {
+          "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/automation"
+        },
+        "expected_result": {
+          "oneOf": [
+            {
+              "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/expected_result"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["step_id", "instruction", "expected_result"],
+      "additionalProperties": false
+    },
+    "baseline": {
+      "title": "Baseline",
+      "type": "object",
+      "properties": {
+        "packages": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_ref"
+          },
+          "minItems": 1
+        },
+        "revision": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/revision"
+        },
+        "correlation_report_id": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+        }
+      },
+      "required": ["packages", "revision"],
+      "additionalProperties": false
+    }
+  }
+}

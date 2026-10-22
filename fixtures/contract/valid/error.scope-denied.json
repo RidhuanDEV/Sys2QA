@@ -1,0 +1,15 @@
+{
+  "code": "SCOPE_DENIED",
+  "severity": "error",
+  "message": {
+    "language": "en",
+    "value": "Navigation to 10.0.0.5 was blocked: private address outside the declared scope."
+  },
+  "remediation": {
+    "language": "en",
+    "value": "Add the host to the scope declaration or enable local owner mode for this named target."
+  },
+  "details": {
+    "host": "10.0.0.5"
+  }
+}

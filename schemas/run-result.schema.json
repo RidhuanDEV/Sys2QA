@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/run-result/1.0.json",
+  "title": "RunResult",
+  "description": "Manual or automated run with case and step results (Contract Specification §6.3). Manual results are always tester-reported.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "run_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/ulid_id"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["manual", "automated"]
+    },
+    "state": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/run_state"
+    },
+    "environment": {
+      "$ref": "https://sys2qa.dev/schemas/run-result/1.0.json#/$defs/run_environment"
+    },
+    "baseline": {
+      "$ref": "https://sys2qa.dev/schemas/scenario/1.0.json#/$defs/baseline"
+    },
+    "started_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    },
+    "finished_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    },
+    "browser": {
+      "type": "string"
+    },
+    "viewport": {
+      "type": "string"
+    },
+    "locale": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/language_tag"
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "title": "CaseResult",
+        "type": "object",
+        "properties": {
+          "scenario_id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "approval_id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/ulid_id"
+          },
+          "outcome": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/case_outcome"
+          },
+          "failure_category": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/failure_category"
+          },
+          "cleanup_outcome": {
+            "type": "string",
+            "enum": ["not_needed", "succeeded", "failed", "skipped"]
+          },
+          "reported_by": {
+            "type": "string",
+            "enum": ["tester", "executor"]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "title": "StepResult",
+              "type": "object",
+              "properties": {
+                "step_id": {
+                  "type": "string",
+                  "pattern": "^S[0-9]+$"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["pass", "fail", "blocked", "not_applicable", "not_run"]
+                },
+                "expected": {
+                  "type": "string"
+                },
+                "actual": {
+                  "type": "string"
+                },
+                "assertion_results": {
+                  "type": "array",
+                  "items": {
+                    "title": "AssertionResult",
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/assertion_type"
+                      },
+                      "expected": {
+                        "type": "string"
+                      },
+                      "actual": {
+                        "type": "string"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "enum": ["passed", "failed", "error"]
+                      },
+                      "elapsed_ms": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": ["type", "expected", "actual", "outcome"],
+                    "additionalProperties": false
+                  }
+                },
+                "evidence_refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "notes": {
+                  "type": "string"
+                }
+              },
+              "required": ["step_id", "status"],
+              "additionalProperties": false
+            },
+            "minItems": 1
+          },
+          "defect_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+            }
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": ["scenario_id", "version", "approval_id", "outcome", "reported_by", "steps"],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "outcome": {
+                  "const": "failed"
+                }
+              },
+              "required": ["outcome"],
+              "type": "object"
+            },
+            "then": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "reported_by": {
+                      "const": "tester"
+                    }
+                  }
+                },
+                {
+                  "required": ["failure_category"]
+                }
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "outcome": {
+                  "enum": ["skipped", "blocked", "inconclusive"]
+                }
+              },
+              "required": ["outcome"],
+              "type": "object"
+            },
+            "then": {
+              "anyOf": [
+                {
+                  "required": ["reason"]
+                },
+                {
+                  "required": ["failure_category"]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "required": ["schema_version", "run_id", "kind", "state", "environment", "baseline", "started_at", "cases"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "manual"
+          }
+        },
+        "required": ["kind"],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "cases": {
+            "items": {
+              "properties": {
+                "reported_by": {
+                  "const": "tester"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "automated"
+          }
+        },
+        "required": ["kind"],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "environment": {
+            "required": ["environment_id"],
+            "type": "object"
+          },
+          "cases": {
+            "items": {
+              "properties": {
+                "reported_by": {
+                  "const": "executor"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      }
+    }
+  ],
+  "$defs": {
+    "run_environment": {
+      "title": "RunEnvironment",
+      "oneOf": [
+        {
+          "title": "ConfiguredEnvironmentRef",
+          "type": "object",
+          "properties": {
+            "environment_id": {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+            }
+          },
+          "required": ["environment_id"],
+          "additionalProperties": false
+        },
+        {
+          "title": "DeclaredEnvironmentRef",
+          "type": "object",
+          "properties": {
+            "declared": {
+              "$ref": "https://sys2qa.dev/schemas/run-result/1.0.json#/$defs/declared_environment"
+            }
+          },
+          "required": ["declared"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "declared_environment": {
+      "title": "DeclaredEnvironment",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/url"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    }
+  }
+}

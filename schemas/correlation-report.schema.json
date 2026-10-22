@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/correlation-report/1.0.json",
+  "title": "CorrelationReport",
+  "description": "Mode C correlation between an SAA package and a QAA package (QAA-FR-115, CON-026).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "const": "sys2qa.correlation-report"
+    },
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "report_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "saa_package": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_ref"
+    },
+    "qaa_package": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_ref"
+    },
+    "revision_correspondence": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/revision_correspondence"
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "title": "CorrelationLink",
+        "type": "object",
+        "properties": {
+          "observed_id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "source_id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          }
+        },
+        "required": ["observed_id", "source_id", "rationale", "confidence"],
+        "additionalProperties": false
+      }
+    },
+    "unmatched": {
+      "title": "Unmatched",
+      "type": "object",
+      "properties": {
+        "observed": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "source": {
+          "type": "array",
+          "items": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        }
+      },
+      "required": ["observed", "source"],
+      "additionalProperties": false
+    },
+    "discrepancies": {
+      "type": "array",
+      "items": {
+        "title": "Discrepancy",
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["route_unreachable", "constraint_mismatch", "unmatched_page", "behavior_mismatch", "other"]
+          },
+          "observed_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+            }
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+            }
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "possibly_version_related": {
+            "type": "boolean"
+          },
+          "gap_id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          }
+        },
+        "required": ["id", "type", "observed_ids", "source_ids", "description", "possibly_version_related"],
+        "additionalProperties": false
+      }
+    },
+    "generated_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "contract",
+    "schema_version",
+    "report_id",
+    "saa_package",
+    "qaa_package",
+    "revision_correspondence",
+    "links",
+    "unmatched",
+    "discrepancies",
+    "generated_at"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "revision_correspondence": {
+            "const": "unconfirmed"
+          }
+        },
+        "required": ["revision_correspondence"],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "discrepancies": {
+            "items": {
+              "properties": {
+                "possibly_version_related": {
+                  "const": true
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      }
+    }
+  ]
+}

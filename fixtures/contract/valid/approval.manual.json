@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0.0",
+  "approval_id": "approval:01JBQF00000000000000000000",
+  "scenario_id": "scenario:registration.nib.invalid_length_12",
+  "scenario_version": 1,
+  "baseline": {
+    "packages": [
+      {
+        "package_id": "pkg:acme-portal",
+        "package_version": 3
+      }
+    ],
+    "revision": {
+      "kind": "git_commit",
+      "value": "4b775e0c2a9d1f3e5b7c9d0e1f2a3b4c5d6e7f80",
+      "worktree_dirty": false
+    }
+  },
+  "declared_environment_id": "denv:tester-laptop",
+  "scope_policy_version": 1,
+  "test_data_profile": "default",
+  "mode": "manual",
+  "approver": "user:local",
+  "approved_at": "2026-10-21T10:00:00Z",
+  "state": "active"
+}

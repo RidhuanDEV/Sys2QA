@@ -68,9 +68,9 @@ Columns: **Reqs** = PRD requirement IDs the task implements (it must provide tag
 
 | ID | Task | Reqs | Deps | Done when | Status |
 |---|---|---|---|---|---|
-| IMP-001 | Monorepo scaffold: pnpm workspaces, strict TS, ESLint/Prettier, Vitest, Playwright Test, CI matrix (Linux/macOS/Windows), docs link check | NFR-008, OSS-007, OSS-011 | — | Empty packages build and test on all three OSs; CI stages 1–2 run | todo |
+| IMP-001 | Monorepo scaffold: pnpm workspaces, strict TS, ESLint/Prettier, Vitest, Playwright Test, CI matrix (Linux/macOS/Windows), docs link check | NFR-008, OSS-007, OSS-011 | — | Empty packages build and test on all three OSs; CI stages 1–2 run | in_progress |
 | IMP-002 | Dependency rules (dependency-cruiser) per Architecture §4.1 | CON-027, SYS-005 | IMP-001 | A forbidden import in a test branch fails CI | todo |
-| IMP-003 | Author JSON Schemas v1.0.0 for every document in Contract Spec §2; generate TS types | CON-001, CON-002, CON-003, CON-004, CON-005, CON-006, CON-007, CON-008, CON-012, CON-020, CON-021, CON-024, CON-026 | IMP-001 | Schemas compile; generated types committed; PRD §13 examples validate (after field alignment) | todo |
+| IMP-003 | Author JSON Schemas v1.0.0 for every document in Contract Spec §2; generate TS types | CON-001, CON-002, CON-003, CON-004, CON-005, CON-006, CON-007, CON-008, CON-012, CON-020, CON-021, CON-024, CON-026 | IMP-001 | Schemas compile; generated types committed; PRD §13 examples validate (after field alignment) | in_progress |
 | IMP-004 | Contract library: Ajv validators, semantic rules CR-001…CR-070, error catalog, producer constraints | CON-009, CON-013, CON-019, CON-023, CON-025, CON-027, CON-028, OBS-003 | IMP-003 | Every CR rule and error code is implemented in `contract` only | todo |
 | IMP-005 | Contract fixtures: valid and invalid per error code and CR rule; conformance runner usable by SAA and QAA CI independently | CON-018 | IMP-004 | CI asserts each code and rule has ≥ 1 fixture | todo |
 | IMP-006 | Project model, evidence sources, scoped authorization declarations, scope policies (versioned), policy engine (L0–L4, production refusal, local owner mode) | SYS-001, SEC-005, SEC-006, QAA-FR-001, QAA-FR-002 | IMP-004, IMP-007 | Policy decisions unit-tested for every level; declarations append-only | todo |
@@ -187,7 +187,14 @@ Planned as follow-up milestones (PRD §27.5). Tasks are written when the milesto
 - **QAA:** QAA-FR-007, 008, 019, 020, 027, 028, 039, 040, 043, 045, 056, 069, 070, 087, 094–096, 104, 113; QAA-FR-097 (P2).
 - **Other:** LOC-005, SEC-013, SEC-023 (partly covered by IMP-503), OSS-008.
 
-## 6. Risks to the plan
+## 6. Progress notes
+
+| Date | Task | Note |
+|---|---|---|
+| 2026-10-22 | IMP-001 | Scaffold in place: pnpm workspace, 13 packages per Architecture §4, strict TS, ESLint, Prettier, Vitest, docs link check, CI workflow (static checks + tests on Linux/macOS/Windows × Node 22/24). `pnpm verify` is green locally on Linux. **Remaining for done:** first green CI run on macOS and Windows. **Deviations:** (1) `engines.node` is `>=22.12.0` and CI tests 22 and 24, rather than pinning the Active LTS only (ADR-002); this widens support at no cost and matches the development environment. (2) Playwright Test is deferred to the first browser-level test (IMP-211/IMP-404) instead of being installed empty now. (3) TypeScript is pinned to `~6.0.3` because typescript-eslint supports `<6.1`; TypeScript 7 is re-evaluated when tooling supports it. |
+| 2026-10-22 | IMP-003 | 18 schemas v1.0.0 in `schemas/` (strict Ajv compile), generated types in `packages/contract/src/generated/types.ts` with `pnpm schemas:check` in CI, 14 canonical valid examples aligned from the PRD, 32 tests including negative tests for every schema-level rule. **Remaining for done:** first green CI run on all three OSs. Schemas still without a valid example (`diff-report`, `analysis-response`, `test-plan`, `manual-test-pack`) are tracked by a test and closed in IMP-005. |
+
+## 7. Risks to the plan
 
 | Risk | Signal | Response |
 |---|---|---|

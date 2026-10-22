@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/readiness-assessment/1.0.json",
+  "title": "ReadinessAssessment",
+  "description": "Three separate status dimensions (CON-028): execution status, coverage, and readiness per QA activity (CON-022). No aggregate score.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "assessment_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "package_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_ref"
+      },
+      "minItems": 1
+    },
+    "execution_status": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/analysis_status"
+    },
+    "coverage": {
+      "title": "AssessedCoverage",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/coverage_category"
+      },
+      "additionalProperties": {
+        "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/coverage_value"
+      }
+    },
+    "activities": {
+      "title": "ActivityReadinessSet",
+      "type": "object",
+      "properties": {
+        "scenario_design": {
+          "$ref": "https://sys2qa.dev/schemas/readiness-assessment/1.0.json#/$defs/activity_readiness"
+        },
+        "manual_preparation": {
+          "$ref": "https://sys2qa.dev/schemas/readiness-assessment/1.0.json#/$defs/activity_readiness"
+        },
+        "automated_execution": {
+          "$ref": "https://sys2qa.dev/schemas/readiness-assessment/1.0.json#/$defs/activity_readiness"
+        }
+      },
+      "required": ["scenario_design", "manual_preparation", "automated_execution"],
+      "additionalProperties": false
+    },
+    "freshness": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_freshness"
+    },
+    "materiality_overrides": {
+      "type": "array",
+      "items": {
+        "title": "MaterialityOverride",
+        "type": "object",
+        "properties": {
+          "gap_id": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+          },
+          "material": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "at": {
+            "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+          }
+        },
+        "required": ["gap_id", "material", "reason", "by", "at"],
+        "additionalProperties": false
+      }
+    },
+    "assessed_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "schema_version",
+    "assessment_id",
+    "package_refs",
+    "execution_status",
+    "coverage",
+    "activities",
+    "freshness",
+    "materiality_overrides",
+    "assessed_at"
+  ],
+  "$defs": {
+    "activity_readiness": {
+      "title": "ActivityReadiness",
+      "type": "object",
+      "properties": {
+        "readiness": {
+          "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/readiness"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["readiness", "reasons"],
+      "additionalProperties": false
+    }
+  }
+}

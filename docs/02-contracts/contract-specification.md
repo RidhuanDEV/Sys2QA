@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Status | Baseline 1.0; schemas not yet authored (IMP-003) |
+| Status | Baseline 1.0; schemas v1.0.0 authored (IMP-003); semantic validators pending (IMP-004) |
 | Contract version | 1.0.0 (target) |
 | Last updated | 2026-10-22 |
 | Source of truth for | Field-level contract, enumerations, semantic rules (CR-xxx), error codes, versioning and governance procedure |
-| Canonical machine form | `schemas/*.schema.json` (JSON Schema 2020-12), once IMP-003 is done (ADR-003) |
+| Canonical machine form | `schemas/*.schema.json` (JSON Schema 2020-12, ADR-003); changelog in `schemas/CHANGELOG.md`; canonical examples in `fixtures/contract/valid/` |
 | Product-level summary | PRD §13. On conflict, this document wins for fields; the PRD wins for product behavior; the conflict itself is a defect to fix in both |
 
 The contract is everything that crosses a boundary between SAA, QAA, adapters, workers and interfaces, or leaves the system as an export. It is implemented **once**, in `packages/contract` (CON-027).
@@ -27,6 +27,7 @@ The contract is everything that crosses a boundary between SAA, QAA, adapters, w
 | URLs | Absolute, scope-normalized; query values of parameters on the redaction list replaced with `REDACTED` |
 | Secrets | Never present. Only `secretref:<id>` references (SEC-004) |
 | Versions | `schema_version` on every top-level document; semantic versioning |
+| Validator configuration | Ajv 2020 with `strict: true`, `strictRequired: false` (because `required` inside `if`/`then` is idiomatic), `allowUnionTypes: true`, `allErrors: true`, plus `ajv-formats`. This configuration is part of the contract and lives only in `createContractAjv()` |
 
 ## 2. Schema catalog
 
@@ -127,7 +128,7 @@ Kind-specific fields: as in PRD §13.5 (`route_pattern`, `constraints`, `label_l
 |---|:-:|---|
 | `id`, `source_type`, `captured_at`, `extractor{adapter or component, version, method}` | ✓ | |
 | `path`, `range{start_line,end_line,start_col?,end_col?}`, `file_fingerprint` | ✓ for source types | Path inside analyzed root; fingerprint matches revision |
-| `subtype`, `environment_id`, `url`, `observed_at`, `credential_profile_role?`, `submission`, `screenshot_digest?` | ✓ for `runtime_observation` | `submission` ∈ `none`, `read_only` |
+| `subtype`, `environment_id`, `url`, `observed_at`, `credential_profile_role?`, `submission`, `screenshot_digest?` | ✓ for `runtime_observation` | `submission` ∈ `none`, `read_only`, `approved_test` (evidence captured during an approved test run; the only runtime evidence that may support `SUBMITS_TO` for a state-changing form, CR-002) |
 | `excerpt` or `excerpt_digest`, `excerpt_policy` | ✓ | `excerpt` ≤ `max_excerpt_chars`; never contains secrets (CR-060) |
 
 Source types: `source_code`, `configuration`, `schema`, `migration`, `manifest`, `test_definition`, `documentation`, `git_history`, `runtime_observation`, `test_result`, `human_annotation`, `requirement_document`.
@@ -188,6 +189,13 @@ Source types: `source_code`, `configuration`, `schema`, `migration`, `manifest`,
 | Entity kinds | `system`, `project`, `module`, `file`, `function`, `class`, `page`, `route`, `form`, `field`, `api`, `schema`, `table`, `column`, `orm_model`, `actor_role`, `permission`, `workflow`, `business_rule`, `state_machine`, `entity`, `integration`, `job`, `queue_topic`, `config_key`, `deployment_unit`, `secret_ref`, `test`, `requirement` |
 | Relationship types | PRD §12.1 list (`CONTAINS` … `SATISFIES`) |
 | Automation actions (MVP) | `navigate`, `click`, `fill`, `select`, `check`, `uncheck` |
+| Workflow category | `user_interface`, `api`, `business_process`, `data_lifecycle`, `async_processing`, `scheduled_processing`, `integration`, `auth`, `error_recovery`, `cross_component` (PRD §11.6) |
+| Coverage category | `modules`, `routes_pages`, `roles_permissions`, `business_rules`, `workflows`, `state_transitions`, `api_contracts`, `data_model`, `integrations`, `error_paths` |
+| Artifact role | PRD §12.2 roles plus `system_model`, `evidence_index`, `diff_report`, `completeness_report`, `correlation_report`, `workflow_catalog`, `observed_behavior`, `asset` |
+| Permission level | `L0`, `L1`, `L2`, `L2r`, `L3`, `L4` |
+| Environment classification | `development`, `staging` (production is not representable, SEC-009) |
+| Test technique | `equivalence_partitioning`, `boundary_value_analysis`, `decision_table`, `state_transition`, `use_case`, `negative`, `error_guessing`, `exploratory_charter`, `role_matrix` |
+| Locator target kind | `route`, `label`, `role`, `text`, `test_id` (`label`, `role` and `text` require `literal_language`) |
 | Assertion types (MVP) | `visible`, `hidden`, `text`, `value`, `url`, `enabled`, `disabled` |
 
 ## 8. Semantic rules (implemented only in `packages/contract`)

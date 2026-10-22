@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sys2qa.dev/schemas/analysis-response/1.0.json",
+  "title": "AnalysisResponse",
+  "description": "SAA response to an analysis request.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "const": "sys2qa.analysis-response"
+    },
+    "schema_version": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/semver"
+    },
+    "request_id": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/id"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["answered", "partial", "rejected"]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "result_package": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/package_ref"
+    },
+    "responded_at": {
+      "$ref": "https://sys2qa.dev/schemas/common/1.0.json#/$defs/timestamp"
+    }
+  },
+  "required": ["contract", "schema_version", "request_id", "outcome", "responded_at"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "rejected"
+          }
+        },
+        "required": ["outcome"],
+        "type": "object"
+      },
+      "then": {
+        "required": ["reason"]
+      },
+      "else": {
+        "required": ["result_package"]
+      }
+    }
+  ]
+}
