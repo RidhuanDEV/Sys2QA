@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
 
-# Native modules whose install scripts may run (pnpm 10 blocks install scripts by default).
-onlyBuiltDependencies:
+# better-sqlite3 13 ships prebuilt N-API binaries for linux/darwin/win32 x64/arm64 in prebuilds/; its implicit
+# `node-gyp rebuild` install script (from binding.gyp) is never needed and fails without a C++ toolchain.
+ignoredBuiltDependencies:
   - better-sqlite3

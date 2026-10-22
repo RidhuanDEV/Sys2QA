@@ -18,6 +18,7 @@ Analysis output must be inspectable, diffable and exportable. Operational state 
   
   The two groups are separate schemas in one database file per installation. Only the index group may be dropped and rebuilt.
 - Driver: `better-sqlite3`, chosen for its synchronous API and prebuilt binaries. `node:sqlite` is re-evaluated when it is stable in the pinned Node LTS.
+  Since version 13 the package bundles N-API binaries for Linux (glibc and musl), macOS and Windows on x64 and arm64, so installation needs no C++ toolchain. Its implicit `node-gyp rebuild` install script is disabled (`ignoredBuiltDependencies` in `pnpm-workspace.yaml`), because it fails on machines without a compiler, including the Windows CI runners (CI run #6).
 - WAL mode; one writer (the host); migrations are versioned and forward-only.
 
 ## Alternatives considered
