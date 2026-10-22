@@ -1,0 +1,331 @@
+{
+  "locale": "en",
+  "version": "1.0.0",
+  "terms": {
+    "analysis_status": {
+      "completed": "Completed",
+      "completed_with_limitations": "Completed with limitations",
+      "partial": "Partial",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "claim_status": {
+      "source_verified": "Verified in source",
+      "runtime_observed": "Observed at runtime",
+      "test_verified": "Verified by tests",
+      "inferred": "Inferred",
+      "contradicted": "Contradicted",
+      "unresolved": "Unresolved",
+      "stale": "Stale",
+      "human_asserted": "Asserted by a person"
+    },
+    "expected_result_basis": {
+      "requirement_backed": "Backed by a requirement",
+      "user_confirmed": "Confirmed by a user",
+      "saa_documented": "Documented by SAA",
+      "source_supported": "Supported by source",
+      "observed": "Observed",
+      "inferred": "Inferred",
+      "unresolved": "Unresolved"
+    },
+    "oracle_class": {
+      "intended": "Intended behavior",
+      "implemented": "Implemented behavior",
+      "observed": "Observed behavior",
+      "none": "No oracle"
+    },
+    "qa_objective": {
+      "characterization": "Characterization",
+      "implementation_conformance": "Implementation conformance",
+      "requirement_conformance": "Requirement conformance",
+      "exploratory": "Exploratory"
+    },
+    "discovery_status": {
+      "reconstructed": "Reconstructed",
+      "partially_reconstructed": "Partially reconstructed",
+      "known_not_traceable": "Known, not traceable",
+      "excluded": "Excluded",
+      "not_observed": "Not observed"
+    },
+    "workflow_completion": {
+      "complete_within_static_scope": "Complete within static scope",
+      "partial": "Partial",
+      "runtime_observed_for_run": "Observed at runtime for this run",
+      "unresolved": "Unresolved"
+    },
+    "workflow_category": {
+      "user_interface": "User interface",
+      "api": "API",
+      "business_process": "Business process",
+      "data_lifecycle": "Data lifecycle",
+      "async_processing": "Asynchronous processing",
+      "scheduled_processing": "Scheduled processing",
+      "integration": "Integration",
+      "auth": "Authentication and authorization",
+      "error_recovery": "Error recovery",
+      "cross_component": "Cross-component"
+    },
+    "coverage_value": {
+      "complete": "Complete",
+      "partial": "Partial",
+      "absent": "Absent",
+      "not_applicable": "Not applicable",
+      "unsupported": "Unsupported",
+      "unobservable": "Unobservable"
+    },
+    "coverage_category": {
+      "modules": "Modules",
+      "routes_pages": "Routes and pages",
+      "roles_permissions": "Roles and permissions",
+      "business_rules": "Business rules",
+      "workflows": "Workflows",
+      "state_transitions": "State transitions",
+      "api_contracts": "API contracts",
+      "data_model": "Data model",
+      "integrations": "Integrations",
+      "error_paths": "Error paths"
+    },
+    "readiness": {
+      "ready": "Ready",
+      "ready_with_gaps": "Ready with gaps",
+      "review_only": "Review only",
+      "blocked": "Blocked"
+    },
+    "readiness_activity": {
+      "scenario_design": "Scenario design",
+      "manual_preparation": "Manual test preparation",
+      "automated_execution": "Automated execution"
+    },
+    "package_freshness": {
+      "current": "Current",
+      "mismatched": "Mismatched",
+      "stale": "Stale",
+      "unverifiable": "Unverifiable"
+    },
+    "scenario_status": {
+      "draft": "Draft",
+      "needs_clarification": "Needs clarification",
+      "pending_review": "Pending review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "deferred": "Deferred",
+      "superseded": "Superseded"
+    },
+    "scenario_freshness": {
+      "current": "Current",
+      "potentially_stale": "Potentially stale",
+      "stale": "Stale"
+    },
+    "approval_state": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "invalidated": "Invalidated",
+      "superseded": "Superseded",
+      "revoked": "Revoked"
+    },
+    "run_state": {
+      "created": "Created",
+      "queued": "Queued",
+      "running": "Running",
+      "paused": "Paused",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "blocked": "Blocked",
+      "abandoned": "Abandoned"
+    },
+    "job_state": {
+      "queued": "Queued",
+      "running": "Running",
+      "cancelling": "Cancelling",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "case_outcome": {
+      "passed": "Passed",
+      "failed": "Failed",
+      "blocked": "Blocked",
+      "inconclusive": "Inconclusive",
+      "not_run": "Not run",
+      "skipped": "Skipped"
+    },
+    "failure_category": {
+      "assertion_failure": "Assertion failure",
+      "navigation_error": "Navigation error",
+      "timeout": "Timeout",
+      "blocked_request": "Blocked request",
+      "out_of_scope_blocked": "Blocked: out of scope",
+      "unsupported_step": "Unsupported step",
+      "test_data_error": "Test data error",
+      "cleanup_failure": "Cleanup failure",
+      "runner_failure": "Runner failure",
+      "environment_unavailable": "Environment unavailable",
+      "credential_failure": "Credential failure"
+    },
+    "defect_state": {
+      "new": "New",
+      "triaged": "Triaged",
+      "confirmed": "Confirmed",
+      "rejected": "Rejected",
+      "duplicate": "Duplicate",
+      "needs_info": "Needs information",
+      "fixed": "Fixed",
+      "ready_for_retest": "Ready for retest",
+      "closed": "Closed",
+      "reopened": "Reopened"
+    },
+    "severity": {
+      "critical": "Critical",
+      "major": "Major",
+      "minor": "Minor",
+      "trivial": "Trivial"
+    },
+    "priority": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "entity_kind": {
+      "system": "System",
+      "project": "Project",
+      "module": "Module",
+      "file": "File",
+      "function": "Function",
+      "class": "Class",
+      "page": "Page",
+      "route": "Route",
+      "form": "Form",
+      "field": "Field",
+      "api": "API endpoint",
+      "schema": "Schema",
+      "table": "Table",
+      "column": "Column",
+      "orm_model": "ORM model",
+      "actor_role": "Actor role",
+      "permission": "Permission",
+      "workflow": "Workflow",
+      "business_rule": "Business rule",
+      "state_machine": "State machine",
+      "entity": "Domain entity",
+      "integration": "Integration",
+      "job": "Background job",
+      "queue_topic": "Queue topic",
+      "config_key": "Configuration key",
+      "deployment_unit": "Deployment unit",
+      "secret_ref": "Secret reference",
+      "test": "Test",
+      "requirement": "Requirement"
+    },
+    "relationship_type": {
+      "CONTAINS": "contains",
+      "IMPORTS": "imports",
+      "CALLS": "calls",
+      "REFERENCES": "references",
+      "EXPOSES": "exposes",
+      "CONSUMES": "consumes",
+      "READS_FROM": "reads from",
+      "WRITES_TO": "writes to",
+      "PUBLISHES": "publishes",
+      "SUBSCRIBES_TO": "subscribes to",
+      "AUTHENTICATES_WITH": "authenticates with",
+      "AUTHORIZES_WITH": "authorizes with",
+      "VALIDATES": "validates",
+      "CONFIGURED_BY": "configured by",
+      "DEPLOYED_AS": "deployed as",
+      "TESTS": "tests",
+      "USES_SCHEMA": "uses schema",
+      "DEPENDS_ON": "depends on",
+      "TRIGGERS": "triggers",
+      "SENDS_TO": "sends to",
+      "NAVIGATES_TO": "navigates to",
+      "SUBMITS_TO": "submits to",
+      "TRANSITIONS_TO": "transitions to",
+      "SATISFIES": "satisfies"
+    },
+    "evidence_source_type": {
+      "source_code": "Source code",
+      "configuration": "Configuration",
+      "schema": "Schema",
+      "migration": "Migration",
+      "manifest": "Manifest",
+      "test_definition": "Test definition",
+      "documentation": "Documentation",
+      "git_history": "Git history",
+      "runtime_observation": "Runtime observation",
+      "test_result": "Test result",
+      "human_annotation": "Human annotation",
+      "requirement_document": "Requirement document"
+    },
+    "runtime_subtype": {
+      "page": "Page",
+      "navigation": "Navigation",
+      "form": "Form",
+      "validation_message": "Validation message",
+      "state_message": "State message",
+      "access_outcome": "Access outcome"
+    },
+    "evidence_availability": {
+      "available": "Available",
+      "partial": "Partial",
+      "unavailable": "Unavailable"
+    },
+    "revision_correspondence": {
+      "user_confirmed": "Confirmed by a user",
+      "observed": "Observed",
+      "unconfirmed": "Unconfirmed",
+      "not_applicable": "Not applicable"
+    },
+    "environment_classification": {
+      "development": "Development",
+      "staging": "Staging"
+    },
+    "automation_action": {
+      "navigate": "Navigate",
+      "click": "Click",
+      "fill": "Fill in",
+      "select": "Select",
+      "check": "Check",
+      "uncheck": "Uncheck"
+    },
+    "assertion_type": {
+      "visible": "Is visible",
+      "hidden": "Is hidden",
+      "text": "Has text",
+      "value": "Has value",
+      "url": "URL matches",
+      "enabled": "Is enabled",
+      "disabled": "Is disabled"
+    },
+    "stop_reason_code": {
+      "dynamic_registration": "Dynamic registration",
+      "reflection_or_di_unresolved": "Reflection or dependency injection unresolved",
+      "external_service": "External service",
+      "missing_repository": "Missing repository",
+      "unsupported_construct": "Unsupported construct",
+      "config_unavailable": "Configuration unavailable",
+      "budget_exhausted": "Budget exhausted",
+      "not_observable_at_runtime": "Not observable at runtime",
+      "submission_requires_approval": "Submission requires approval",
+      "auth_required": "Authentication required",
+      "out_of_scope": "Out of scope"
+    },
+    "test_technique": {
+      "equivalence_partitioning": "Equivalence partitioning",
+      "boundary_value_analysis": "Boundary value analysis",
+      "decision_table": "Decision table",
+      "state_transition": "State transition",
+      "use_case": "Use case",
+      "negative": "Negative testing",
+      "error_guessing": "Error guessing",
+      "exploratory_charter": "Exploratory charter",
+      "role_matrix": "Role matrix"
+    },
+    "execution_classification": {
+      "manual_only": "Manual only",
+      "automation_candidate": "Automation candidate",
+      "automation_ready": "Ready for automation",
+      "both": "Manual and automated"
+    }
+  }
+}

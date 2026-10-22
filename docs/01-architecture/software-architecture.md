@@ -211,7 +211,7 @@ Checks happen at enqueue time **and** inside the worker before the first action 
 | Atomicity | Artifacts: temp file + fsync + rename. State: SQLite transactions. A package is visible only once complete |
 | Cancellation | Cooperative cancel → grace period → SIGKILL or container kill; cleanup job always scheduled. Worker processes receive only an allowlisted environment (`PATH`, temp directories, locale), never the host's credentials; secrets reach a job only through per-job injection (IMP-010) |
 | Budgets | Per-job time, memory, file count, page count and token budgets enforced by the orchestrator and workers |
-| Localization | Enum codes stored; text rendered through glossary; artifacts carry language tags |
+| Localization | Enum codes stored; text rendered through the versioned glossary (`packages/platform/i18n/glossary.<locale>.json`, referenced on exports as `<locale>@<version>`; a new locale is a new file); artifacts carry language tags; language resolved per dimension (override → project → user → `en`); a missing language is shown with a `fallback_language` marker; every machine translation passes the invariant check (protected tokens, numbers, negations) before it is stored (LOC-006) |
 | Observability | Structured JSON logs (redacted), metrics endpoint/command, audit table (OBS-001–006) |
 | Errors | One error catalog (code, severity, context, remediation) in `contract`, used by all interfaces |
 | Configuration | Layered: defaults → user config file → project config → env vars → CLI flags; secrets only as references |

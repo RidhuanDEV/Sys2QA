@@ -1,0 +1,331 @@
+{
+  "locale": "id",
+  "version": "1.0.0",
+  "terms": {
+    "analysis_status": {
+      "completed": "Selesai",
+      "completed_with_limitations": "Selesai dengan keterbatasan",
+      "partial": "Sebagian",
+      "failed": "Gagal",
+      "cancelled": "Dibatalkan"
+    },
+    "claim_status": {
+      "source_verified": "Terverifikasi di kode sumber",
+      "runtime_observed": "Teramati saat berjalan",
+      "test_verified": "Terverifikasi oleh pengujian",
+      "inferred": "Disimpulkan",
+      "contradicted": "Bertentangan",
+      "unresolved": "Belum terselesaikan",
+      "stale": "Kedaluwarsa",
+      "human_asserted": "Dinyatakan oleh manusia"
+    },
+    "expected_result_basis": {
+      "requirement_backed": "Didukung kebutuhan",
+      "user_confirmed": "Dikonfirmasi pengguna",
+      "saa_documented": "Didokumentasikan SAA",
+      "source_supported": "Didukung kode sumber",
+      "observed": "Teramati",
+      "inferred": "Disimpulkan",
+      "unresolved": "Belum terselesaikan"
+    },
+    "oracle_class": {
+      "intended": "Perilaku yang dimaksud",
+      "implemented": "Perilaku yang diimplementasikan",
+      "observed": "Perilaku yang teramati",
+      "none": "Tanpa oracle"
+    },
+    "qa_objective": {
+      "characterization": "Karakterisasi",
+      "implementation_conformance": "Kesesuaian implementasi",
+      "requirement_conformance": "Kesesuaian kebutuhan",
+      "exploratory": "Eksploratif"
+    },
+    "discovery_status": {
+      "reconstructed": "Terekonstruksi",
+      "partially_reconstructed": "Terekonstruksi sebagian",
+      "known_not_traceable": "Diketahui, tidak dapat ditelusuri",
+      "excluded": "Dikecualikan",
+      "not_observed": "Tidak teramati"
+    },
+    "workflow_completion": {
+      "complete_within_static_scope": "Lengkap dalam cakupan statis",
+      "partial": "Sebagian",
+      "runtime_observed_for_run": "Teramati saat berjalan untuk proses ini",
+      "unresolved": "Belum terselesaikan"
+    },
+    "workflow_category": {
+      "user_interface": "Antarmuka pengguna",
+      "api": "API",
+      "business_process": "Proses bisnis",
+      "data_lifecycle": "Siklus hidup data",
+      "async_processing": "Pemrosesan asinkron",
+      "scheduled_processing": "Pemrosesan terjadwal",
+      "integration": "Integrasi",
+      "auth": "Autentikasi dan otorisasi",
+      "error_recovery": "Pemulihan kesalahan",
+      "cross_component": "Lintas komponen"
+    },
+    "coverage_value": {
+      "complete": "Lengkap",
+      "partial": "Sebagian",
+      "absent": "Tidak ada",
+      "not_applicable": "Tidak berlaku",
+      "unsupported": "Tidak didukung",
+      "unobservable": "Tidak dapat diamati"
+    },
+    "coverage_category": {
+      "modules": "Modul",
+      "routes_pages": "Rute dan halaman",
+      "roles_permissions": "Peran dan izin",
+      "business_rules": "Aturan bisnis",
+      "workflows": "Alur kerja",
+      "state_transitions": "Transisi status",
+      "api_contracts": "Kontrak API",
+      "data_model": "Model data",
+      "integrations": "Integrasi",
+      "error_paths": "Jalur kesalahan"
+    },
+    "readiness": {
+      "ready": "Siap",
+      "ready_with_gaps": "Siap dengan celah",
+      "review_only": "Hanya untuk ditinjau",
+      "blocked": "Terblokir"
+    },
+    "readiness_activity": {
+      "scenario_design": "Perancangan skenario",
+      "manual_preparation": "Persiapan uji manual",
+      "automated_execution": "Eksekusi otomatis"
+    },
+    "package_freshness": {
+      "current": "Terkini",
+      "mismatched": "Tidak cocok",
+      "stale": "Kedaluwarsa",
+      "unverifiable": "Tidak dapat diverifikasi"
+    },
+    "scenario_status": {
+      "draft": "Draf",
+      "needs_clarification": "Perlu klarifikasi",
+      "pending_review": "Menunggu tinjauan",
+      "approved": "Disetujui",
+      "rejected": "Ditolak",
+      "deferred": "Ditunda",
+      "superseded": "Digantikan"
+    },
+    "scenario_freshness": {
+      "current": "Terkini",
+      "potentially_stale": "Mungkin kedaluwarsa",
+      "stale": "Kedaluwarsa"
+    },
+    "approval_state": {
+      "active": "Aktif",
+      "suspended": "Ditangguhkan",
+      "invalidated": "Tidak berlaku",
+      "superseded": "Digantikan",
+      "revoked": "Dicabut"
+    },
+    "run_state": {
+      "created": "Dibuat",
+      "queued": "Dalam antrean",
+      "running": "Berjalan",
+      "paused": "Dijeda",
+      "completed": "Selesai",
+      "failed": "Gagal",
+      "cancelled": "Dibatalkan",
+      "blocked": "Terblokir",
+      "abandoned": "Ditinggalkan"
+    },
+    "job_state": {
+      "queued": "Dalam antrean",
+      "running": "Berjalan",
+      "cancelling": "Sedang dibatalkan",
+      "completed": "Selesai",
+      "failed": "Gagal",
+      "cancelled": "Dibatalkan"
+    },
+    "case_outcome": {
+      "passed": "Lulus",
+      "failed": "Gagal",
+      "blocked": "Terblokir",
+      "inconclusive": "Tidak meyakinkan",
+      "not_run": "Tidak dijalankan",
+      "skipped": "Dilewati"
+    },
+    "failure_category": {
+      "assertion_failure": "Asersi gagal",
+      "navigation_error": "Kesalahan navigasi",
+      "timeout": "Waktu habis",
+      "blocked_request": "Permintaan diblokir",
+      "out_of_scope_blocked": "Diblokir: di luar cakupan",
+      "unsupported_step": "Langkah tidak didukung",
+      "test_data_error": "Kesalahan data uji",
+      "cleanup_failure": "Pembersihan gagal",
+      "runner_failure": "Kegagalan runner",
+      "environment_unavailable": "Lingkungan tidak tersedia",
+      "credential_failure": "Kegagalan kredensial"
+    },
+    "defect_state": {
+      "new": "Baru",
+      "triaged": "Sudah ditriase",
+      "confirmed": "Dikonfirmasi",
+      "rejected": "Ditolak",
+      "duplicate": "Duplikat",
+      "needs_info": "Perlu informasi",
+      "fixed": "Diperbaiki",
+      "ready_for_retest": "Siap diuji ulang",
+      "closed": "Ditutup",
+      "reopened": "Dibuka kembali"
+    },
+    "severity": {
+      "critical": "Kritis",
+      "major": "Mayor",
+      "minor": "Minor",
+      "trivial": "Sepele"
+    },
+    "priority": {
+      "high": "Tinggi",
+      "medium": "Sedang",
+      "low": "Rendah"
+    },
+    "entity_kind": {
+      "system": "Sistem",
+      "project": "Proyek",
+      "module": "Modul",
+      "file": "Berkas",
+      "function": "Fungsi",
+      "class": "Kelas",
+      "page": "Halaman",
+      "route": "Rute",
+      "form": "Formulir",
+      "field": "Kolom isian",
+      "api": "Endpoint API",
+      "schema": "Skema",
+      "table": "Tabel",
+      "column": "Kolom tabel",
+      "orm_model": "Model ORM",
+      "actor_role": "Peran aktor",
+      "permission": "Izin",
+      "workflow": "Alur kerja",
+      "business_rule": "Aturan bisnis",
+      "state_machine": "Mesin status",
+      "entity": "Entitas domain",
+      "integration": "Integrasi",
+      "job": "Pekerjaan latar belakang",
+      "queue_topic": "Topik antrean",
+      "config_key": "Kunci konfigurasi",
+      "deployment_unit": "Unit deployment",
+      "secret_ref": "Referensi rahasia",
+      "test": "Pengujian",
+      "requirement": "Kebutuhan"
+    },
+    "relationship_type": {
+      "CONTAINS": "berisi",
+      "IMPORTS": "mengimpor",
+      "CALLS": "memanggil",
+      "REFERENCES": "merujuk",
+      "EXPOSES": "mengekspos",
+      "CONSUMES": "mengonsumsi",
+      "READS_FROM": "membaca dari",
+      "WRITES_TO": "menulis ke",
+      "PUBLISHES": "menerbitkan",
+      "SUBSCRIBES_TO": "berlangganan ke",
+      "AUTHENTICATES_WITH": "mengautentikasi dengan",
+      "AUTHORIZES_WITH": "mengotorisasi dengan",
+      "VALIDATES": "memvalidasi",
+      "CONFIGURED_BY": "dikonfigurasi oleh",
+      "DEPLOYED_AS": "di-deploy sebagai",
+      "TESTS": "menguji",
+      "USES_SCHEMA": "menggunakan skema",
+      "DEPENDS_ON": "bergantung pada",
+      "TRIGGERS": "memicu",
+      "SENDS_TO": "mengirim ke",
+      "NAVIGATES_TO": "bernavigasi ke",
+      "SUBMITS_TO": "mengirimkan ke",
+      "TRANSITIONS_TO": "bertransisi ke",
+      "SATISFIES": "memenuhi"
+    },
+    "evidence_source_type": {
+      "source_code": "Kode sumber",
+      "configuration": "Konfigurasi",
+      "schema": "Skema",
+      "migration": "Migrasi",
+      "manifest": "Manifes",
+      "test_definition": "Definisi pengujian",
+      "documentation": "Dokumentasi",
+      "git_history": "Riwayat Git",
+      "runtime_observation": "Pengamatan saat berjalan",
+      "test_result": "Hasil pengujian",
+      "human_annotation": "Anotasi manusia",
+      "requirement_document": "Dokumen kebutuhan"
+    },
+    "runtime_subtype": {
+      "page": "Halaman",
+      "navigation": "Navigasi",
+      "form": "Formulir",
+      "validation_message": "Pesan validasi",
+      "state_message": "Pesan status",
+      "access_outcome": "Hasil akses"
+    },
+    "evidence_availability": {
+      "available": "Tersedia",
+      "partial": "Sebagian",
+      "unavailable": "Tidak tersedia"
+    },
+    "revision_correspondence": {
+      "user_confirmed": "Dikonfirmasi pengguna",
+      "observed": "Teramati",
+      "unconfirmed": "Belum dikonfirmasi",
+      "not_applicable": "Tidak berlaku"
+    },
+    "environment_classification": {
+      "development": "Pengembangan",
+      "staging": "Staging"
+    },
+    "automation_action": {
+      "navigate": "Navigasi",
+      "click": "Klik",
+      "fill": "Isi",
+      "select": "Pilih",
+      "check": "Centang",
+      "uncheck": "Hapus centang"
+    },
+    "assertion_type": {
+      "visible": "Terlihat",
+      "hidden": "Tersembunyi",
+      "text": "Memiliki teks",
+      "value": "Memiliki nilai",
+      "url": "URL sesuai",
+      "enabled": "Aktif",
+      "disabled": "Nonaktif"
+    },
+    "stop_reason_code": {
+      "dynamic_registration": "Registrasi dinamis",
+      "reflection_or_di_unresolved": "Refleksi atau injeksi dependensi tidak terselesaikan",
+      "external_service": "Layanan eksternal",
+      "missing_repository": "Repositori tidak tersedia",
+      "unsupported_construct": "Konstruksi tidak didukung",
+      "config_unavailable": "Konfigurasi tidak tersedia",
+      "budget_exhausted": "Anggaran habis",
+      "not_observable_at_runtime": "Tidak dapat diamati saat berjalan",
+      "submission_requires_approval": "Pengiriman memerlukan persetujuan",
+      "auth_required": "Memerlukan autentikasi",
+      "out_of_scope": "Di luar cakupan"
+    },
+    "test_technique": {
+      "equivalence_partitioning": "Partisi ekuivalensi",
+      "boundary_value_analysis": "Analisis nilai batas",
+      "decision_table": "Tabel keputusan",
+      "state_transition": "Transisi status",
+      "use_case": "Kasus penggunaan",
+      "negative": "Pengujian negatif",
+      "error_guessing": "Penebakan kesalahan",
+      "exploratory_charter": "Piagam eksploratif",
+      "role_matrix": "Matriks peran"
+    },
+    "execution_classification": {
+      "manual_only": "Hanya manual",
+      "automation_candidate": "Kandidat otomasi",
+      "automation_ready": "Siap diotomasi",
+      "both": "Manual dan otomatis"
+    }
+  }
+}
