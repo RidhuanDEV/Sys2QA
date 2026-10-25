@@ -1,0 +1,166 @@
+{
+  "workflows": [
+    {
+      "key": "registration",
+      "category": "business_process",
+      "entry_point": "page:web:/register",
+      "steps": [
+        "page:web:/register",
+        "form:web:/register#register",
+        "api:POST:/api/auth/register"
+      ],
+      "branches": [
+        {
+          "from": "form:web:/register#register",
+          "outcome": "validation_error"
+        }
+      ],
+      "stop_points": [
+        {
+          "after": "api:POST:/api/auth/register",
+          "reason_code": "external_service"
+        }
+      ],
+      "external_boundaries": [
+        "integration:email.provider"
+      ],
+      "area": "server/auth"
+    },
+    {
+      "key": "login",
+      "category": "auth",
+      "entry_point": "page:web:/login",
+      "steps": [
+        "page:web:/login",
+        "form:web:/login#login",
+        "api:POST:/api/auth/login"
+      ],
+      "branches": [
+        {
+          "from": "api:POST:/api/auth/login",
+          "outcome": "unauthorized"
+        }
+      ],
+      "stop_points": [],
+      "external_boundaries": [],
+      "area": "server/auth"
+    },
+    {
+      "key": "password_reset",
+      "category": "auth",
+      "entry_point": "page:web:/reset-password",
+      "steps": [
+        "page:web:/reset-password",
+        "form:web:/reset-password#reset-request",
+        "api:POST:/api/auth/password-reset/request",
+        "form:web:/reset-password#reset-confirm",
+        "api:POST:/api/auth/password-reset/confirm"
+      ],
+      "branches": [
+        {
+          "from": "api:POST:/api/auth/password-reset/confirm",
+          "outcome": "invalid_token"
+        },
+        {
+          "from": "api:POST:/api/auth/password-reset/confirm",
+          "outcome": "validation_error"
+        }
+      ],
+      "stop_points": [
+        {
+          "after": "api:POST:/api/auth/password-reset/request",
+          "reason_code": "external_service"
+        }
+      ],
+      "external_boundaries": [
+        "integration:email.provider"
+      ],
+      "area": "server/auth"
+    },
+    {
+      "key": "order_submission",
+      "category": "business_process",
+      "entry_point": "page:web:/orders/new",
+      "steps": [
+        "page:web:/orders/new",
+        "form:web:/orders/new#new-order",
+        "api:POST:/api/orders"
+      ],
+      "branches": [
+        {
+          "from": "form:web:/orders/new#new-order",
+          "outcome": "validation_error"
+        },
+        {
+          "from": "api:POST:/api/orders",
+          "outcome": "unauthorized"
+        }
+      ],
+      "stop_points": [],
+      "external_boundaries": [],
+      "area": "server/orders"
+    },
+    {
+      "key": "order_approval",
+      "category": "business_process",
+      "entry_point": "page:web:/orders/{id}",
+      "steps": [
+        "page:web:/orders/{id}",
+        "api:POST:/api/orders/{id}/decision",
+        "state_machine:order.status"
+      ],
+      "branches": [
+        {
+          "from": "api:POST:/api/orders/{id}/decision",
+          "outcome": "forbidden"
+        },
+        {
+          "from": "api:POST:/api/orders/{id}/decision",
+          "outcome": "conflict"
+        }
+      ],
+      "stop_points": [
+        {
+          "after": "api:POST:/api/orders/{id}/decision",
+          "reason_code": "external_service"
+        }
+      ],
+      "external_boundaries": [
+        "integration:email.provider"
+      ],
+      "area": "server/orders"
+    },
+    {
+      "key": "admin_user_list",
+      "category": "auth",
+      "entry_point": "page:web:/admin/users",
+      "steps": [
+        "page:web:/admin/users",
+        "api:GET:/api/admin/users"
+      ],
+      "branches": [
+        {
+          "from": "api:GET:/api/admin/users",
+          "outcome": "forbidden"
+        }
+      ],
+      "stop_points": [],
+      "external_boundaries": [],
+      "area": "server/admin"
+    },
+    {
+      "key": "nightly_cleanup",
+      "category": "scheduled_processing",
+      "entry_point": "job:cleanup.nightly",
+      "steps": [
+        "job:cleanup.nightly",
+        "entity:password_reset_token",
+        "entity:order"
+      ],
+      "branches": [],
+      "stop_points": [],
+      "external_boundaries": [],
+      "area": "server/jobs"
+    }
+  ]
+}

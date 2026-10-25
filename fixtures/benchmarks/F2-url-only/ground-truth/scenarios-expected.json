@@ -1,0 +1,41 @@
+{
+  "expected": [
+    {
+      "key": "contact-message-length",
+      "condition": "tc:contact.message_max_500",
+      "technique": "boundary_value_analysis"
+    },
+    {
+      "key": "register-nib-length",
+      "condition": "tc:register.nib_16_digits",
+      "technique": "boundary_value_analysis"
+    },
+    {
+      "key": "register-password-length",
+      "condition": "tc:register.password_min_8",
+      "technique": "boundary_value_analysis"
+    },
+    {
+      "key": "search-exploration",
+      "condition": "tc:search.results",
+      "technique": "exploratory_charter"
+    }
+  ],
+  "forbidden": [
+    {
+      "key": "implementation-conformance-without-source",
+      "description": "No source is available in Mode B.",
+      "objective": "implementation_conformance"
+    },
+    {
+      "key": "source-basis-without-source",
+      "description": "No source is available in Mode B.",
+      "basis": "source_supported"
+    },
+    {
+      "key": "requirement-conformance-without-requirements",
+      "description": "No requirement documents exist.",
+      "objective": "requirement_conformance"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "workflows": [
+    {
+      "key": "product_browsing",
+      "category": "user_interface",
+      "entry_point": "page:observed:/",
+      "steps": [
+        "page:observed:/",
+        "page:observed:/products",
+        "page:observed:/products/1"
+      ],
+      "branches": [],
+      "stop_points": [],
+      "external_boundaries": [],
+      "area": "runtime/public"
+    },
+    {
+      "key": "search",
+      "category": "user_interface",
+      "entry_point": "page:observed:/search",
+      "steps": [
+        "page:observed:/search",
+        "form:observed:/search#search"
+      ],
+      "branches": [],
+      "stop_points": [],
+      "external_boundaries": [],
+      "area": "runtime/public"
+    },
+    {
+      "key": "contact",
+      "category": "user_interface",
+      "entry_point": "page:observed:/contact",
+      "steps": [
+        "page:observed:/contact",
+        "form:observed:/contact#contact"
+      ],
+      "branches": [],
+      "stop_points": [
+        {
+          "after": "form:observed:/contact#contact",
+          "reason_code": "submission_requires_approval"
+        }
+      ],
+      "external_boundaries": [],
+      "area": "runtime/forms"
+    },
+    {
+      "key": "registration",
+      "category": "user_interface",
+      "entry_point": "page:observed:/register",
+      "steps": [
+        "page:observed:/register",
+        "form:observed:/register#register"
+      ],
+      "branches": [],
+      "stop_points": [
+        {
+          "after": "form:observed:/register#register",
+          "reason_code": "submission_requires_approval"
+        }
+      ],
+      "external_boundaries": [],
+      "area": "runtime/forms"
+    },
+    {
+      "key": "login",
+      "category": "auth",
+      "entry_point": "page:observed:/login",
+      "steps": [
+        "page:observed:/login",
+        "form:observed:/login#login"
+      ],
+      "branches": [],
+      "stop_points": [
+        {
+          "after": "form:observed:/login#login",
+          "reason_code": "auth_required"
+        }
+      ],
+      "external_boundaries": [],
+      "area": "runtime/auth"
+    },
+    {
+      "key": "account_area",
+      "category": "auth",
+      "entry_point": "page:observed:/account",
+      "steps": [
+        "page:observed:/account",
+        "page:observed:/login"
+      ],
+      "branches": [],
+      "stop_points": [
+        {
+          "after": "page:observed:/login",
+          "reason_code": "auth_required"
+        }
+      ],
+      "external_boundaries": [],
+      "area": "runtime/auth"
+    },
+    {
+      "key": "newsletter",
+      "category": "user_interface",
+      "entry_point": "page:observed:/newsletter",
+      "steps": [
+        "page:observed:/newsletter",
+        "form:observed:/newsletter#newsletter"
+      ],
+      "branches": [],
+      "stop_points": [
+        {
+          "after": "form:observed:/newsletter#newsletter",
+          "reason_code": "submission_requires_approval"
+        }
+      ],
+      "external_boundaries": [],
+      "area": "runtime/forms"
+    }
+  ]
+}

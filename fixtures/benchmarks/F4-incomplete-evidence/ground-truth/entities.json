@@ -1,0 +1,28 @@
+{
+  "entities": [
+    {
+      "id": "page:web:/cart",
+      "kind": "page"
+    },
+    {
+      "id": "form:web:/cart#checkout",
+      "kind": "form"
+    },
+    {
+      "id": "page:web:/loyalty",
+      "kind": "page"
+    },
+    {
+      "id": "integration:acme-shop-api",
+      "kind": "integration"
+    },
+    {
+      "id": "queue_topic:orders.placed",
+      "kind": "queue_topic"
+    },
+    {
+      "id": "config_key:loyaltyProgram",
+      "kind": "config_key"
+    }
+  ]
+}

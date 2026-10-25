@@ -1,0 +1,28 @@
+{
+  "gaps": [
+    {
+      "key": "behind-login",
+      "type": "unobservable",
+      "related": [
+        "page:observed:/account",
+        "form:observed:/login#login"
+      ]
+    },
+    {
+      "key": "form-effects-unknown",
+      "type": "unobservable",
+      "related": [
+        "form:observed:/contact#contact",
+        "form:observed:/newsletter#newsletter",
+        "form:observed:/register#register"
+      ]
+    },
+    {
+      "key": "destructive-form",
+      "type": "unobservable",
+      "related": [
+        "form:observed:/account/delete#delete-account"
+      ]
+    }
+  ]
+}

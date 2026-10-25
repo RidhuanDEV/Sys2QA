@@ -73,6 +73,8 @@ Four synthetic fixtures with human-reviewed ground truth live in `fixtures/bench
 
 Later (after Gate 5): licensed open-source projects added with reviewed ground truth (OD-20).
 
+F3 deviation (IMP-013): F3's runtime is a simulator (`F3-combined/runtime/server.mjs`) that renders F1's pages with the three discrepancies, because running F1 needs PostgreSQL and third-party packages. F3 adds `ground-truth/correlation.json` (expected links, discrepancies, unmatched items, revision correspondence).
+
 ### 4.1 Ground-truth format
 
 `fixtures/benchmarks/<F>/ground-truth/`:

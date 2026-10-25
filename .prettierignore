@@ -2,3 +2,5 @@ pnpm-lock.yaml
 LICENSE
 *.md
 packages/contract/src/generated/
+# Benchmark fixtures simulate other people's repositories and sites; they stay exactly as written.
+fixtures/benchmarks/

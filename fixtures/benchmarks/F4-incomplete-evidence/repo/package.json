@@ -1,0 +1,6 @@
+{
+  "name": "acme-shop-frontend",
+  "private": true,
+  "version": "0.9.0",
+  "dependencies": { "react": "^18.3.1", "react-dom": "^18.3.1", "react-router-dom": "^6.28.0" }
+}

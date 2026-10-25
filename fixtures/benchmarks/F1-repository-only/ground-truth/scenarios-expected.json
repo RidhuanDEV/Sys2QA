@@ -1,0 +1,46 @@
+{
+  "expected": [
+    {
+      "key": "nib-length",
+      "condition": "tc:registration.nib_13_digits",
+      "technique": "boundary_value_analysis"
+    },
+    {
+      "key": "password-length",
+      "condition": "tc:password.min_12_characters",
+      "technique": "boundary_value_analysis"
+    },
+    {
+      "key": "order-amount",
+      "condition": "tc:order.amount_1_to_10000",
+      "technique": "boundary_value_analysis"
+    },
+    {
+      "key": "order-status",
+      "condition": "tc:order.status_transitions",
+      "technique": "state_transition"
+    },
+    {
+      "key": "admin-access",
+      "condition": "tc:admin.user_list_access",
+      "technique": "role_matrix"
+    },
+    {
+      "key": "login-invalid",
+      "condition": "tc:login.invalid_credentials",
+      "technique": "negative"
+    }
+  ],
+  "forbidden": [
+    {
+      "key": "requirement-conformance-without-requirements",
+      "description": "F1 has no requirement documents, so no expected result may claim requirement conformance.",
+      "objective": "requirement_conformance"
+    },
+    {
+      "key": "observed-basis-without-runtime",
+      "description": "F1 is analyzed without running it; no expected result can be observed.",
+      "basis": "observed"
+    }
+  ]
+}

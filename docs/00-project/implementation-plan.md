@@ -80,7 +80,7 @@ Columns: **Reqs** = PRD requirement IDs the task implements (it must provide tag
 | IMP-010 | Secret store: `secretref:` IDs; OS credential store backend, encrypted-file fallback; per-job injection API | SEC-011, QAA-FR-005 | SP-2, IMP-007 | Secrets never written to state.db or logs (test) | done |
 | IMP-011 | LLM port: backends (hosted, local endpoint, none); schema-validated output; usage recording; record/replay for CI | OSS-009, SEC-018, NFR-011, QAA-FR-100 | IMP-004 | Deterministic-only mode works; replay harness in CI; disclosure shown in config | done |
 | IMP-012 | i18n and versioned glossary (`en`, `id`), locale resolution order, invariant checks | LOC-001, LOC-002, LOC-003, LOC-004, LOC-006, LOC-008, LOC-009 | IMP-001 | Translation invariant tests (IDs, numbers, negations) pass | done |
-| IMP-013 | Benchmark fixtures F1–F4 with reviewed ground truth (Test Strategy §4) | NFR-001 | IMP-001 | Second-person review recorded for every ground-truth file | todo |
+| IMP-013 | Benchmark fixtures F1–F4 with reviewed ground truth (Test Strategy §4) | NFR-001 | IMP-001 | Second-person review recorded for every ground-truth file | in_progress |
 | IMP-014 | Benchmark harness: metrics of Test Strategy §5, reports, trend storage | NFR-001, NFR-003 | IMP-004, IMP-013 | Harness runs on a stub producer and reports all metrics | in_progress |
 | IMP-015 | Security harness: secret-leak scanner over all outputs, injection corpus, SSRF/DNS fixture servers, malicious adapter, malicious packages | SEC-003, SEC-022, SAA-FR-019 | IMP-001 | Harness runs; known-bad stubs are detected | done |
 | IMP-016 | Application-services layer skeleton; CLI, local HTTP API (loopback, token, origin checks) and MCP shells; parity test harness; IPC to a running host | SYS-002, SYS-005, NFR-010 | IMP-004, IMP-006, IMP-008 | A sample command runs identically via CLI, API and MCP (PT); ST-12 passes | done |
@@ -230,7 +230,21 @@ Exposed as `system.metrics`, `system.health` and `system.set_setting` (audited),
 - true-gap ratio and misses inside reported unexplored areas;
 - over-claiming (relationships and claim text), evidence traceability, scenario coverage and forbidden expectations, page and form recall, and withheld-form errors.
 
-Gate rules are evaluated. A metric that cannot be measured yet is reported as such, never as zero. A stub producer with controlled defects has hand-computed expected values. Results go to `reports/benchmarks/<fixture>/<producer>.{json,md}`, with one `trend.jsonl` line per run. `pnpm bench` runs every fixture that has ground truth. Its dependency IMP-013 (fixtures and reviewed ground truth) is still open. Done when CI is green. |
+Gate rules are evaluated. A metric that cannot be measured yet is reported as such, never as zero. A stub producer with controlled defects has hand-computed expected values. Results go to `reports/benchmarks/<fixture>/<producer>.{json,md}`, with one `trend.jsonl` line per run. `pnpm bench` runs every fixture that has ground truth. `pnpm bench` measures all four fixtures. Done when CI is green. |
+| 2026-10-25 | IMP-013 | Fixtures in `fixtures/benchmarks/`, excluded from lint and formatting because they imitate third-party code:
+- **F1:** Express + React Router + SQL + Prisma app with 7 workflows, validation boundaries, a state machine, an admin role check, a cron job, dynamically registered report routes, an email integration, dead code, generated code, an install script, a planted fake AWS key and an injection comment.
+- **F2:** 16-page site served by the harness, with a login wall, read-only search, destructive form, calendar crawler trap, off-scope redirect, hidden injection text and a success message without persistence.
+- **F3:** F1's source plus a runtime simulator with the NIB 13 vs 16 discrepancy, a route disabled at runtime and a page without a source route, and `correlation.json`. Deviation: the runtime is simulated, because F1 needs PostgreSQL and third-party packages.
+- **F4:** frontend-only repository with a missing backend, a missing queue consumer and a runtime feature switch.
+
+Ground truth follows Test Strategy §4.1, with the rationale for every item in each README. `tests/benchmark/fixtures.test.ts` checks:
+- references and contract codes;
+- that every F1 API route, page route and form exists in the code;
+- that F2 serves every page and form;
+- that F3 contains the three discrepancies;
+- that a stub producer passes every gate.
+
+**Not done:** the second-person review that Test Strategy §4 requires; each README's review table is empty and only a person can fill it. |
 | 2026-10-22 | IMP-004 | `packages/contract/src/validation/`: error catalog for every code (en/id title and remediation, `toErrorObject`), staged `validatePackage` in PRD §13.10 order (stops after the first stage with errors), CR-001…CR-070 (`validateScenario`, `checkExecutionAllowed`, `checkDefectTransition`), secret detectors that never echo values, revision keys, oracle derivation. Schema-enforced rules carry their rule ID. Codes that need runtime state are assigned to their components in Contract Specification §9. Unreleased schema amendment: `gap.coverage_category` (for CR-030). **Done 2026-10-22:** CI run #3 (`8486270`) green on all 7 jobs. |
 | 2026-10-22 | IMP-005 | Two complete valid packages (`mode-a-saa`, `mode-b-qaa`) plus single-document examples now cover all 18 schemas. 43 generated invalid cases under `fixtures/contract/invalid/` (`pnpm fixtures`, checked in CI by `pnpm fixtures:check`). Conformance tests require every contract-detected code and every CR rule to have a case with exactly its expected code. The runner SAA and QAA CI use is `validatePackage` from `@sys2qa/contract` plus this suite; a CLI wrapper arrives with the CLI shell (IMP-016). 151 tests; `pnpm verify` green locally. **Done 2026-10-22:** CI run #3 (`8486270`) green on all 7 jobs. |
 

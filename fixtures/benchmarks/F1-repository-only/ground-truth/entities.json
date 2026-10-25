@@ -1,0 +1,144 @@
+{
+  "entities": [
+    {
+      "id": "page:web:/",
+      "kind": "page"
+    },
+    {
+      "id": "page:web:/register",
+      "kind": "page"
+    },
+    {
+      "id": "page:web:/login",
+      "kind": "page"
+    },
+    {
+      "id": "page:web:/reset-password",
+      "kind": "page"
+    },
+    {
+      "id": "page:web:/orders/new",
+      "kind": "page"
+    },
+    {
+      "id": "page:web:/orders/{id}",
+      "kind": "page"
+    },
+    {
+      "id": "page:web:/admin/users",
+      "kind": "page"
+    },
+    {
+      "id": "form:web:/register#register",
+      "kind": "form"
+    },
+    {
+      "id": "form:web:/login#login",
+      "kind": "form"
+    },
+    {
+      "id": "form:web:/reset-password#reset-request",
+      "kind": "form"
+    },
+    {
+      "id": "form:web:/reset-password#reset-confirm",
+      "kind": "form"
+    },
+    {
+      "id": "form:web:/orders/new#new-order",
+      "kind": "form"
+    },
+    {
+      "id": "api:POST:/api/auth/register",
+      "kind": "api"
+    },
+    {
+      "id": "api:POST:/api/auth/login",
+      "kind": "api"
+    },
+    {
+      "id": "api:POST:/api/auth/password-reset/request",
+      "kind": "api"
+    },
+    {
+      "id": "api:POST:/api/auth/password-reset/confirm",
+      "kind": "api"
+    },
+    {
+      "id": "api:POST:/api/orders",
+      "kind": "api"
+    },
+    {
+      "id": "api:GET:/api/orders/{id}",
+      "kind": "api"
+    },
+    {
+      "id": "api:POST:/api/orders/{id}/decision",
+      "kind": "api"
+    },
+    {
+      "id": "api:GET:/api/admin/users",
+      "kind": "api"
+    },
+    {
+      "id": "entity:user",
+      "kind": "entity"
+    },
+    {
+      "id": "entity:order",
+      "kind": "entity"
+    },
+    {
+      "id": "entity:password_reset_token",
+      "kind": "entity"
+    },
+    {
+      "id": "table:User",
+      "kind": "table"
+    },
+    {
+      "id": "table:Order",
+      "kind": "table"
+    },
+    {
+      "id": "table:PasswordResetToken",
+      "kind": "table"
+    },
+    {
+      "id": "business_rule:registration.nib_13_digits",
+      "kind": "business_rule"
+    },
+    {
+      "id": "business_rule:password.min_12_characters",
+      "kind": "business_rule"
+    },
+    {
+      "id": "business_rule:order.amount_1_to_10000",
+      "kind": "business_rule"
+    },
+    {
+      "id": "state_machine:order.status",
+      "kind": "state_machine"
+    },
+    {
+      "id": "actor_role:customer",
+      "kind": "actor_role"
+    },
+    {
+      "id": "actor_role:admin",
+      "kind": "actor_role"
+    },
+    {
+      "id": "integration:email.provider",
+      "kind": "integration"
+    },
+    {
+      "id": "job:cleanup.nightly",
+      "kind": "job"
+    },
+    {
+      "id": "module:server.plugins",
+      "kind": "module"
+    }
+  ]
+}

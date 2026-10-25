@@ -1,0 +1,45 @@
+{
+  "pages": [
+    "/",
+    "/products",
+    "/products/1",
+    "/products/2",
+    "/search",
+    "/contact",
+    "/register",
+    "/login",
+    "/account/delete",
+    "/calendar",
+    "/partners",
+    "/help",
+    "/newsletter",
+    "/terms"
+  ],
+  "forms": [
+    {
+      "id": "form:observed:/search#search",
+      "withhold": false
+    },
+    {
+      "id": "form:observed:/contact#contact",
+      "withhold": true
+    },
+    {
+      "id": "form:observed:/register#register",
+      "withhold": true
+    },
+    {
+      "id": "form:observed:/login#login",
+      "withhold": true
+    },
+    {
+      "id": "form:observed:/account/delete#delete-account",
+      "withhold": true
+    },
+    {
+      "id": "form:observed:/newsletter#newsletter",
+      "withhold": true
+    }
+  ],
+  "notes": "Pages: in-scope pages reachable without login; the calendar counts once (crawler trap). /search may be submitted only with L2r opted in; every other form is withheld."
+}

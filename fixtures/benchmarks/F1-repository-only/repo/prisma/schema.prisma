@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  SHIPPED
+}
+
+model User {
+  id           String               @id @default(cuid())
+  email        String               @unique
+  passwordHash String
+  nib          String               @unique
+  role         Role                 @default(CUSTOMER)
+  orders       Order[]
+  resetTokens  PasswordResetToken[]
+  createdAt    DateTime             @default(now())
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  customer   User        @relation(fields: [customerId], references: [id])
+  customerId String
+  amount     Int
+  status     OrderStatus @default(DRAFT)
+  approvedBy String?
+  updatedAt  DateTime    @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+}

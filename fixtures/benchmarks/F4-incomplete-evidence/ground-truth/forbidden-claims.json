@@ -1,0 +1,21 @@
+{
+  "claims": [
+    {
+      "key": "order-persisted",
+      "description": "Persistence happens in acme-shop-api, which is not available.",
+      "relationship": {
+        "type": "WRITES_TO"
+      }
+    },
+    {
+      "key": "fulfillment-described",
+      "description": "The consumer of orders.placed is in a missing repository.",
+      "claim_text": "(fulfil+ment|consumer)[^.]*(ships|dispatches|reserves|updates stock)"
+    },
+    {
+      "key": "loyalty-enabled",
+      "description": "Whether /loyalty exists depends on /config.json at run time.",
+      "claim_text": "loyalty (program|page)[^.]*(is|are) (enabled|available) (in|for) (all|every|production)"
+    }
+  ]
+}

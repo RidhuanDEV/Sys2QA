@@ -1,0 +1,18 @@
+{
+  "gaps": [
+    {
+      "key": "email-delivery",
+      "type": "external_boundary",
+      "related": [
+        "integration:email.provider"
+      ]
+    },
+    {
+      "key": "dynamic-report-routes",
+      "type": "unsupported",
+      "related": [
+        "module:server.plugins"
+      ]
+    }
+  ]
+}

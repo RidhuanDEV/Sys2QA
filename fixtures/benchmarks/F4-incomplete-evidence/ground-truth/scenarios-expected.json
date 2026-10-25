@@ -1,0 +1,21 @@
+{
+  "expected": [
+    {
+      "key": "coupon-length",
+      "condition": "tc:checkout.coupon_max_20",
+      "technique": "boundary_value_analysis"
+    }
+  ],
+  "forbidden": [
+    {
+      "key": "requirement-conformance",
+      "description": "No requirement documents.",
+      "objective": "requirement_conformance"
+    },
+    {
+      "key": "observed-basis",
+      "description": "Not run.",
+      "basis": "observed"
+    }
+  ]
+}

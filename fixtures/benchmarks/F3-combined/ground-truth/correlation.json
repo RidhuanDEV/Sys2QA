@@ -1,0 +1,57 @@
+{
+  "description": "Expected correlation between the F1 source model and the F3 runtime (QAA-FR-115, CON-026).",
+  "links": [
+    {
+      "observed": "page:observed:/register",
+      "source": "page:web:/register"
+    },
+    {
+      "observed": "page:observed:/login",
+      "source": "page:web:/login"
+    },
+    {
+      "observed": "page:observed:/reset-password",
+      "source": "page:web:/reset-password"
+    },
+    {
+      "observed": "page:observed:/orders/new",
+      "source": "page:web:/orders/new"
+    },
+    {
+      "observed": "form:observed:/register#register",
+      "source": "form:web:/register#register"
+    }
+  ],
+  "discrepancies": [
+    {
+      "key": "nib-length",
+      "type": "constraint_mismatch",
+      "observed": [
+        "field:observed:/register#nib"
+      ],
+      "source": [
+        "business_rule:registration.nib_13_digits"
+      ],
+      "note": "Browser allows 16 digits; source requires exactly 13."
+    },
+    {
+      "key": "admin-disabled",
+      "type": "route_unreachable",
+      "observed": [],
+      "source": [
+        "page:web:/admin/users",
+        "api:GET:/api/admin/users"
+      ],
+      "note": "Present in source, 404 at runtime."
+    }
+  ],
+  "unmatched": {
+    "observed": [
+      "page:observed:/promo"
+    ],
+    "source": [
+      "page:web:/admin/users"
+    ]
+  },
+  "revision_correspondence": "unconfirmed"
+}

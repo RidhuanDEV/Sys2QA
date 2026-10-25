@@ -1,0 +1,26 @@
+{
+  "gaps": [
+    {
+      "key": "backend-missing",
+      "type": "external_boundary",
+      "related": [
+        "integration:acme-shop-api"
+      ]
+    },
+    {
+      "key": "consumer-missing",
+      "type": "missing_evidence",
+      "related": [
+        "queue_topic:orders.placed"
+      ]
+    },
+    {
+      "key": "loyalty-config",
+      "type": "missing_evidence",
+      "related": [
+        "config_key:loyaltyProgram",
+        "page:web:/loyalty"
+      ]
+    }
+  ]
+}

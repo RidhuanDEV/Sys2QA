@@ -1,0 +1,100 @@
+{
+  "entities": [
+    {
+      "id": "page:observed:/",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/products",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/products/1",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/products/2",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/search",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/contact",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/register",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/login",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/account/delete",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/calendar",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/partners",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/help",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/newsletter",
+      "kind": "page"
+    },
+    {
+      "id": "page:observed:/terms",
+      "kind": "page"
+    },
+    {
+      "id": "form:observed:/search#search",
+      "kind": "form"
+    },
+    {
+      "id": "form:observed:/contact#contact",
+      "kind": "form"
+    },
+    {
+      "id": "form:observed:/register#register",
+      "kind": "form"
+    },
+    {
+      "id": "form:observed:/login#login",
+      "kind": "form"
+    },
+    {
+      "id": "form:observed:/account/delete#delete-account",
+      "kind": "form"
+    },
+    {
+      "id": "form:observed:/newsletter#newsletter",
+      "kind": "form"
+    },
+    {
+      "id": "field:observed:/register#nib",
+      "kind": "field"
+    },
+    {
+      "id": "field:observed:/register#password",
+      "kind": "field"
+    },
+    {
+      "id": "field:observed:/contact#message",
+      "kind": "field"
+    },
+    {
+      "id": "page:observed:/account",
+      "kind": "page"
+    }
+  ]
+}

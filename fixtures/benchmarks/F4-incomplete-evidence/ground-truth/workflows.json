@@ -1,0 +1,66 @@
+{
+  "workflows": [
+    {
+      "key": "checkout",
+      "category": "business_process",
+      "entry_point": "page:web:/cart",
+      "steps": [
+        "page:web:/cart",
+        "form:web:/cart#checkout",
+        "integration:acme-shop-api"
+      ],
+      "branches": [],
+      "stop_points": [
+        {
+          "after": "integration:acme-shop-api",
+          "reason_code": "missing_repository"
+        }
+      ],
+      "external_boundaries": [
+        "integration:acme-shop-api"
+      ],
+      "area": "frontend"
+    },
+    {
+      "key": "order_fulfillment",
+      "category": "async_processing",
+      "entry_point": "queue_topic:orders.placed",
+      "steps": [
+        "queue_topic:orders.placed"
+      ],
+      "branches": [],
+      "stop_points": [
+        {
+          "after": "queue_topic:orders.placed",
+          "reason_code": "missing_repository"
+        }
+      ],
+      "external_boundaries": [],
+      "area": "fulfillment (not provided)"
+    },
+    {
+      "key": "loyalty_join",
+      "category": "user_interface",
+      "entry_point": "page:web:/loyalty",
+      "steps": [
+        "page:web:/loyalty",
+        "integration:acme-shop-api"
+      ],
+      "branches": [],
+      "stop_points": [
+        {
+          "after": null,
+          "reason_code": "config_unavailable"
+        },
+        {
+          "after": "integration:acme-shop-api",
+          "reason_code": "missing_repository"
+        }
+      ],
+      "external_boundaries": [
+        "integration:acme-shop-api"
+      ],
+      "area": "frontend"
+    }
+  ]
+}
