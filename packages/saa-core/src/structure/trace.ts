@@ -11,6 +11,8 @@ interface Unit {
   outbound: Array<{ target: string; literal: boolean; base_host?: string; evidence: string }>;
   dynamic_imports: Array<{ line: number; evidence: string }>;
   topics?: Array<{ name: string; role: "publish" | "subscribe"; evidence: string }>;
+  responses?: Array<{ status: number; condition?: string; message?: string; evidence: string }>;
+  validates?: Array<{ schema: string; field?: string; evidence: string }>;
 }
 interface ModuleFacts {
   id: string;
@@ -31,6 +33,17 @@ export interface TraceLinks {
   relationships: Relationship[];
   gaps: Gap[];
   component_traces: ComponentTrace[];
+  /** What each trace's code does beyond relationships, for rules and branches (IMP-112), by entry point. */
+  details: Map<string, TraceDetails>;
+}
+
+export interface TraceDetails {
+  /** Error responses on the traced path; `via` is the node whose code sends them (the entry or a function). */
+  responses: Array<{ status: number; condition?: string; message?: string; evidence: string; via: string }>;
+  /** Schemas the traced code validates input with, resolved to the declaring module. */
+  validates: Array<{ module: string; schema: string; field?: string; evidence: string }>;
+  /** Middleware of an API endpoint, resolved to its function where analyzed, with the error statuses it sends. */
+  middleware: Array<{ name: string; args: string[]; function_id?: string; statuses: number[] }>;
 }
 
 export interface TraceOptions {
@@ -74,7 +87,7 @@ export function traceComponents(
   options: TraceOptions = {},
 ): TraceLinks {
   const maxDepth = options.maxDepth ?? 12;
-  const out: TraceLinks = { entities: [], relationships: [], gaps: [], component_traces: [] };
+  const out: TraceLinks = { entities: [], relationships: [], gaps: [], component_traces: [], details: new Map() };
   const modules = new Map<string, ModuleFacts>();
   for (const e of facts.entities)
     if (e.kind === "module" && !(e as { external?: boolean }).external) modules.set(e.id, e as unknown as ModuleFacts);
@@ -125,6 +138,20 @@ export function traceComponents(
     return undefined;
   };
 
+  /** The module and name a local identifier in `moduleId` refers to: declared there, or imported from an analyzed module. */
+  const resolveName = (moduleId: string, name: string): { module: string; name: string } | undefined => {
+    const module = modules.get(moduleId);
+    if (!module) return undefined;
+    for (const record of module.imports ?? []) {
+      const binding = record.bindings?.find((b) => b.local === name);
+      if (binding)
+        return record.target && modules.has(record.target)
+          ? { module: record.target, name: binding.imported }
+          : undefined;
+    }
+    return { module: moduleId, name };
+  };
+
   const integrationFor = (module: ModuleFacts, target: { target: string; literal: boolean; base_host?: string }) => {
     const host = target.literal
       ? /^[a-z][a-z0-9+.-]*:\/\/([^/:?#]+)/i.exec(target.target)?.[1]?.toLowerCase()
@@ -146,6 +173,8 @@ export function traceComponents(
     side: "client" | "server" = "server",
     initialStops: ComponentTrace["stopped_at"] = [],
   ): ComponentTrace => {
+    const details: TraceDetails = { responses: [], validates: [], middleware: [] };
+    out.details.set(entryId, details);
     const ids = new Set<string>(extra);
     const stops = new Map<string, ComponentTrace["stopped_at"][number]>(
       initialStops.map((s) => [`init\0${s.entity_id}\0${s.reason_code}`, s]),
@@ -160,6 +189,17 @@ export function traceComponents(
       const module = modules.get(moduleId);
       const unit = module?.units?.find((u) => u.key === unitKey);
       if (!module || !unit) continue;
+      for (const r of unit.responses ?? []) details.responses.push({ ...r, via: node });
+      for (const v of unit.validates ?? []) {
+        const declared = resolveName(moduleId, v.schema);
+        if (declared)
+          details.validates.push({
+            module: declared.module,
+            schema: declared.name,
+            ...(v.field ? { field: v.field } : {}),
+            evidence: v.evidence,
+          });
+      }
       for (const d of unit.data) {
         const entity =
           entityByModel.get(d.model.toLowerCase()) ?? entityByModel.get(snakeCase(d.model).replace(/_/g, ""));
@@ -313,8 +353,31 @@ export function traceComponents(
 
   // API endpoints: from the handler.
   for (const api of derived.entities.filter((e) => e.kind === "api")) {
-    const a = api as unknown as { id: string; module_id?: string; handler?: { name: string } | { unit: string } };
+    const a = api as unknown as {
+      id: string;
+      module_id?: string;
+      handler?: { name: string } | { unit: string };
+      middleware?: Array<{ name: string; args: string[] }>;
+    };
     const start: Array<{ node: string; module: string; unit: string }> = [];
+    // Middleware runs before the handler: its code is part of the endpoint's trace.
+    const middleware: TraceDetails["middleware"] = [];
+    for (const m of a.middleware ?? []) {
+      const target = a.module_id ? resolveCall(a.module_id, m.name) : undefined;
+      const fn =
+        target && typeof target === "object" ? functionId.get(`${target.module}\0${target.unit.slice(3)}`) : undefined;
+      const unit =
+        target && typeof target === "object"
+          ? modules.get(target.module)?.units?.find((u) => u.key === target.unit)
+          : undefined;
+      if (target && typeof target === "object") start.push({ node: a.id, module: target.module, unit: target.unit });
+      middleware.push({
+        name: m.name,
+        args: m.args,
+        ...(fn ? { function_id: fn } : {}),
+        statuses: [...new Set((unit?.responses ?? []).map((r) => r.status))].sort(),
+      });
+    }
     if (a.module_id && a.handler) {
       if ("unit" in a.handler) start.push({ node: a.id, module: a.module_id, unit: a.handler.unit });
       else {
@@ -323,6 +386,7 @@ export function traceComponents(
       }
     }
     out.component_traces.push(trace(a.id, start));
+    out.details.get(a.id)!.middleware = middleware;
   }
   for (const job of jobs)
     out.component_traces.push(trace(job.id, [{ node: job.id, module: job.module, unit: job.unit }]));

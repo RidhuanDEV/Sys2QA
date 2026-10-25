@@ -258,6 +258,7 @@ describe("SAA producer on the repository fixtures (IMP-111) [@req SAA-FR-040]", 
       const f1 = await measure("F1-repository-only");
       expect(f1.discovery).toMatchObject({ expected: 7, matched: 7, recall: 1 });
       expect(f1.reconstruction.stop_point_accuracy).toBe(1);
+      expect(f1.reconstruction.branch_recall).toBe(1);
       expect(f1.reconstruction.external_boundary_accuracy).toBe(1);
       expect(f1.over_claiming.count).toBe(0);
       expect(f1.gates.every((g) => g.passed)).toBe(true);

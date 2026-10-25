@@ -6,6 +6,7 @@ import type { CoverageItem, Entity, Evidence, Relationship } from "@sys2qa/contr
 import type { AnalyzeResult } from "../../protocol.js";
 import { boundaryPathOf } from "../shared.js";
 import { frameworkFacts } from "./frameworks.js";
+import { ruleFacts } from "./rules.js";
 import { traceFacts } from "./trace.js";
 
 export { boundaryPathOf };
@@ -297,6 +298,7 @@ export function extractFiles(files: readonly FileInput[], context: ExtractContex
       imports,
       ...frameworkFacts(source, (node) => evidence(rangeOf(node), node.getText(source)), rangeOf),
       ...traceFacts(source, (node) => evidence(rangeOf(node), node.getText(source)), rangeOf),
+      ...ruleFacts(source, (node) => evidence(rangeOf(node), node.getText(source)), rangeOf),
     } as Entity);
 
     const errors = diagnostics.get(file.path) ?? [];

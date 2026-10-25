@@ -14,6 +14,7 @@ import { linkConfig } from "./config.js";
 import { linkDataModel } from "./datamodel.js";
 import { linkFrameworks } from "./frameworks.js";
 import { linkStructure, mergeFacts, type DependencyGraph, type StructuralFacts } from "./graph.js";
+import { linkRules } from "./rules.js";
 import { traceComponents } from "./trace.js";
 import { composeWorkflows, type CatalogOptions, type WorkflowCatalog } from "./workflows.js";
 
@@ -150,12 +151,21 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     entities: [...frameworks.entities, ...data.entities],
     relationships: frameworks.relationships,
   });
+  const rules = linkRules(
+    facts,
+    {
+      entities: [...frameworks.entities, ...data.entities, ...traces.entities],
+      relationships: [...frameworks.relationships, ...traces.relationships],
+    },
+    traces.details,
+  );
   const entities = [
     ...facts.entities,
     ...frameworks.entities,
     ...data.entities,
     ...config.entities,
     ...traces.entities,
+    ...rules.entities,
   ];
   const relationships = [
     ...facts.relationships,
@@ -164,8 +174,9 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     ...data.relationships,
     ...config.relationships,
     ...traces.relationships,
+    ...rules.relationships,
   ];
-  const gaps = [...frameworks.gaps, ...traces.gaps];
+  const gaps = [...frameworks.gaps, ...traces.gaps, ...rules.gaps];
   const catalog = composeWorkflows(
     { entities, relationships, component_traces: traces.component_traces, gaps, evidence: facts.evidence },
     options.catalog,

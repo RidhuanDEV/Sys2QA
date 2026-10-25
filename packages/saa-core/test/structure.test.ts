@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateJsonSchema } from "@sys2qa/contract";
+import { validateJsonSchema, type Entity } from "@sys2qa/contract";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bundleAdapter } from "../../../scripts/adapter-bundle.mjs";
 import {
@@ -12,6 +12,9 @@ import {
   findCycles,
   composeWorkflows,
   deepenWorkflow,
+  linkRules,
+  outcomeOf,
+  rulesOfField,
   normalizeRoutePath,
   RootSandbox,
   scheduleLabel,
@@ -531,6 +534,186 @@ describe("workflow catalog [@req SAA-FR-040] [@req SAA-FR-046]", () => {
     expect(deeper.not_deepened).not.toContain(register.id);
     for (const w of catalog.workflows) expect(validateJsonSchema(WORKFLOW, w).errors, w.id).toEqual([]);
   }, 60_000);
+});
+
+describe("rules, roles, state machines and branches [@req SAA-FR-030] [@req SAA-FR-032] [@req SAA-FR-033] [@req SAA-FR-034]", () => {
+  it("matches F1's rule, role and state ground truth", async () => {
+    const truth = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "entities.json"), "utf8")) as {
+      entities: Array<{ id: string; kind: string }>;
+    };
+    const result = await analyze(F1);
+    const byId = new Map(result.entities.map((e) => [e.id, e as unknown as Record<string, unknown>]));
+    for (const expected of truth.entities.filter((e) =>
+      ["business_rule", "actor_role", "state_machine"].includes(e.kind),
+    ))
+      expect(byId.get(expected.id)?.kind, expected.id).toBe(expected.kind);
+    for (const e of result.entities) expect(validateJsonSchema(ENTITY, e).errors, e.id).toEqual([]);
+    for (const r of result.relationships) expect(validateJsonSchema(RELATIONSHIP, r).errors, r.id).toEqual([]);
+
+    // Business rules: technical rule from code, no invented intent, inputs from the forms, the violation answer.
+    expect(byId.get("business_rule:registration.nib_13_digits")).toMatchObject({
+      statement: "nib must be exactly 13 digits.",
+      business_intent: null,
+      inputs: ["field:web:/register#register.nib"],
+      expected_behavior: { on_violation: "HTTP 422" },
+      boundaries: [{ field: "nib", min_length: 13, max_length: 13 }],
+    });
+    // The shared password rule applies to registration and to the reset confirmation.
+    const validates = (rule: string) =>
+      result.relationships
+        .filter((r) => r.type === "VALIDATES" && r.from === rule)
+        .map((r) => r.to)
+        .sort();
+    expect(validates("business_rule:registration.password_min_12_characters")).toEqual([
+      "api:POST:/api/auth/password-reset/confirm",
+      "api:POST:/api/auth/register",
+    ]);
+    // The amount rule is enforced twice: by the schema and by the database CHECK.
+    const amount = byId.get("business_rule:order.amount_1_to_10000")!;
+    expect(amount.technical_rule).toMatch(/database CHECK \("amount" BETWEEN 1 AND 10000\)/);
+    expect((amount.evidence_ids as string[]).length).toBeGreaterThanOrEqual(3);
+
+    // Roles and checks.
+    const authz = result.relationships.filter((r) => r.type === "AUTHORIZES_WITH").map((r) => `${r.from} ${r.to}`);
+    expect(authz.sort()).toEqual([
+      "api:GET:/api/admin/users actor_role:admin",
+      "api:POST:/api/orders/{id}/decision actor_role:admin",
+    ]);
+    expect(result.relationships).toContainEqual(
+      expect.objectContaining({
+        type: "AUTHENTICATES_WITH",
+        from: "api:POST:/api/orders",
+        to: "function:server.auth.requireSession",
+      }),
+    );
+
+    // The order state machine, its guard and known invalid transitions.
+    const machine = byId.get("state_machine:order.status")!;
+    expect(machine).toMatchObject({
+      subject: "entity:order",
+      states: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "SHIPPED"],
+    });
+    expect(
+      (machine.transitions as Array<{ from: string; to: string; guard: string }>).map((t) => `${t.from}>${t.to}`),
+    ).toEqual(["DRAFT>SUBMITTED", "SUBMITTED>APPROVED", "SUBMITTED>REJECTED", "APPROVED>SHIPPED"]);
+    expect(machine.invalid_transitions_known).toContainEqual(
+      expect.objectContaining({ from: "REJECTED", to: "APPROVED" }),
+    );
+    expect(result.gaps.some((g) => g.id.startsWith("gap:state-machine:") || g.id === "gap:authorization")).toBe(false);
+  }, 60_000);
+
+  it("gives every F1 workflow the ground truth's branches and steps, and labels completion", async () => {
+    const truth = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "workflows.json"), "utf8")) as {
+      workflows: Array<{
+        key: string;
+        entry_point: string;
+        steps: string[];
+        branches: Array<{ from: string; outcome: string }>;
+      }>;
+    };
+    const { catalog } = await analyze(F1);
+    const byEntry = new Map(catalog.workflows.map((w) => [w.entry_point_ids[0], w]));
+    for (const expected of truth.workflows) {
+      const w = byEntry.get(expected.entry_point)!;
+      const entityOf = new Map(w.steps.map((s) => [s.id, s.entity_id]));
+      expect(
+        w.steps.map((s) => s.entity_id),
+        expected.key,
+      ).toEqual(expect.arrayContaining(expected.steps));
+      for (const b of expected.branches)
+        expect(
+          w.branches.some((x) => entityOf.get(x.from_step) === b.from && x.outcome === b.outcome),
+          `${expected.key}: ${b.from} → ${b.outcome}`,
+        ).toBe(true);
+      expect(w.completion, expected.key).toBe("complete_within_static_scope");
+    }
+    const register = byEntry.get("page:web:/register")!;
+    expect(register.steps[1]!.validations).toEqual([
+      "business_rule:registration.email_email_format",
+      "business_rule:registration.nib_13_digits",
+      "business_rule:registration.password_min_12_characters",
+    ]);
+  }, 60_000);
+
+  it("records gaps where checks or state models are missing", () => {
+    const api = {
+      id: "api:POST:/x",
+      kind: "api",
+      name: "POST /x",
+      project_boundary: "project:.",
+      status: "source_verified",
+      origin: "source",
+      evidence_ids: ["evidence:a"],
+    } as Entity;
+    const table = {
+      id: "table:Ticket",
+      kind: "table",
+      name: "Ticket",
+      status: "source_verified",
+      origin: "source",
+      evidence_ids: ["evidence:b"],
+    } as Entity;
+    const column = {
+      id: "column:Ticket.status",
+      kind: "column",
+      name: "status",
+      project_boundary: "project:.",
+      table_id: "table:Ticket",
+      status: "source_verified",
+      origin: "source",
+      evidence_ids: ["evidence:c"],
+    } as unknown as Entity;
+    const links = linkRules(
+      { entities: [], relationships: [], evidence: [], coverage: [] },
+      { entities: [api, table, column], relationships: [] },
+      new Map([["api:POST:/x", { responses: [], validates: [], middleware: [] }]]),
+    );
+    expect(links.gaps.map((g) => [g.id, g.type])).toEqual([
+      ["gap:authorization", "unsupported"],
+      ["gap:state-machine:ticket", "missing_evidence"],
+    ]);
+  });
+
+  it("derives rule keys and outcome codes deterministically", () => {
+    const field = (name: string, base: string, checks: Array<{ kind: string; value?: number | string }>) => ({
+      name,
+      base,
+      checks,
+      optional: false,
+      text: "z…",
+      evidence: "evidence:x",
+    });
+    expect(rulesOfField(field("nib", "string", [{ kind: "regex", value: "/^\\d{16}$/" }])).map((r) => r.key)).toEqual([
+      "nib_16_digits",
+    ]);
+    expect(rulesOfField(field("code", "string", [{ kind: "regex", value: "/^[A-Z]+$/" }])).map((r) => r.key)).toEqual([
+      "code_pattern",
+    ]);
+    expect(
+      rulesOfField(
+        field("name", "string", [
+          { kind: "min", value: 2 },
+          { kind: "max", value: 50 },
+        ]),
+      ).map((r) => r.key),
+    ).toEqual(["name_2_to_50_characters"]);
+    expect(rulesOfField(field("qty", "number", [{ kind: "int" }, { kind: "positive" }])).map((r) => r.key)).toEqual([
+      "qty_min_1",
+    ]);
+    expect(
+      rulesOfField(field("mail", "string", [{ kind: "email" }, { kind: "min", value: 1 }])).map((r) => r.key),
+    ).toEqual(["mail_email_format", "mail_required"]);
+    expect([400, 401, 403, 404, 409, 422, 503].map((s) => outcomeOf(s))).toEqual([
+      "bad_request",
+      "unauthorized",
+      "forbidden",
+      "not_found",
+      "conflict",
+      "validation_error",
+      "server_error",
+    ]);
+    expect(outcomeOf(400, "invalid or expired token")).toBe("invalid_token");
+  });
 });
 
 describe("import cycles [@req SAA-FR-006]", () => {

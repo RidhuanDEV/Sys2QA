@@ -7,7 +7,7 @@
     },
     {
       "key": "password-length",
-      "condition": "tc:password.min_12_characters",
+      "condition": "tc:registration.password_min_12_characters",
       "technique": "boundary_value_analysis"
     },
     {

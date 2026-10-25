@@ -232,3 +232,82 @@ describe("js-ts discovery facts [@req SAA-FR-040]", () => {
     ]);
   });
 });
+
+describe("js-ts rule facts [@req SAA-FR-032] [@req SAA-FR-033] [@req SAA-FR-034]", () => {
+  const text = [
+    'import { z } from "zod";',
+    "const MIN = 12;",
+    "const LOOP_A = LOOP_B;",
+    "const LOOP_B = LOOP_A;",
+    "export const loopSchema = z.object({ code: z.string().max(LOOP_A) });",
+    "export const signupSchema = z.object({",
+    '  nib: z.string().regex(/^[0-9]{13}$/, "NIB must be exactly 13 digits"),',
+    "  password: z.string().min(MIN),",
+    "  age: z.number().int().min(18).max(120).optional(),",
+    "}).strict();",
+    'const TRANSITIONS: Record<TicketState, TicketState[]> = { OPEN: ["CLOSED"], CLOSED: [] };',
+    "export function canMove(a: TicketState, b: TicketState) { return TRANSITIONS[a].includes(b); }",
+    "export function handler(req: any, res: any) {",
+    "  const parsed = signupSchema.safeParse(req.body);",
+    '  if (!parsed.success) return res.status(422).json({ error: "invalid" });',
+    "  signupSchema.shape.password.parse(req.body.password);",
+    '  return found ? res.json({}) : res.status(404).json({ message: "no such ticket" });',
+    "}",
+  ].join("\n");
+  const module = extractFiles([{ path: "src/rules.ts", sha256: SHA, text }], context(["src/rules.ts"])).entities.find(
+    (e) => e.id === "module:rules",
+  ) as unknown as {
+    validation_schemas: Array<{
+      name: string;
+      fields: Array<{ name: string; base: string; checks: unknown[]; optional: boolean }>;
+    }>;
+    transition_tables: Array<{
+      name: string;
+      type: string;
+      states: string[];
+      transitions: unknown[];
+      guards: string[];
+    }>;
+    units: Array<{ key: string; responses?: unknown[]; validates?: unknown[] }>;
+  };
+
+  it("records zod schema fields with literal and constant bounds", () => {
+    const schema = module.validation_schemas.find((x) => x.name === "signupSchema");
+    expect(schema!.name).toBe("signupSchema");
+    expect(schema!.fields.map((f) => [f.name, f.base, f.checks, f.optional])).toEqual([
+      ["nib", "string", [{ kind: "regex", value: "/^[0-9]{13}$/", message: "NIB must be exactly 13 digits" }], false],
+      ["password", "string", [{ kind: "min", value: 12 }], false],
+      ["age", "number", [{ kind: "int" }, { kind: "min", value: 18 }, { kind: "max", value: 120 }], true],
+    ]);
+  });
+
+  it("gives up on constant cycles instead of looping", () => {
+    expect(module.validation_schemas.find((x) => x.name === "loopSchema")!.fields[0]!.checks).toEqual([
+      { kind: "max" },
+    ]);
+  });
+
+  it("records closed transition tables with their key type and guards", () => {
+    expect(module.transition_tables).toEqual([
+      expect.objectContaining({
+        name: "TRANSITIONS",
+        type: "TicketState",
+        states: ["OPEN", "CLOSED"],
+        transitions: [{ from: "OPEN", to: "CLOSED" }],
+        guards: ["canMove"],
+      }),
+    ]);
+  });
+
+  it("records error responses with their condition and the schemas a unit validates with", () => {
+    const handler = module.units.find((u) => u.key === "fn:handler")!;
+    expect(handler.responses).toEqual([
+      expect.objectContaining({ status: 422, condition: "!parsed.success", message: "invalid" }),
+      expect.objectContaining({ status: 404, condition: "not (found)", message: "no such ticket" }),
+    ]);
+    expect(handler.validates).toEqual([
+      expect.objectContaining({ schema: "signupSchema" }),
+      expect.objectContaining({ schema: "signupSchema", field: "password" }),
+    ]);
+  });
+});

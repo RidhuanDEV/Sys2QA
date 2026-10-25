@@ -61,9 +61,9 @@ interface Draft {
  * every scheduled job and every endpoint no page reaches. A topic published here with no consumer in scope is listed
  * as `known_not_traceable`. Steps follow the user's path (page, form, endpoint, backend); stops come from the traces
  * and make a workflow `partially_reconstructed`. Ranking follows the value heuristics of PRD §11.1 (data mutation,
- * exposed interfaces, external dependencies, authentication, unresolved links); ties are broken by ID. Branches,
- * validations and the completion label `complete_within_static_scope` need rules and error flows (IMP-112), so every
- * workflow is `partial` until then.
+ * exposed interfaces, external dependencies, authentication, unresolved links); ties are broken by ID. A deepened
+ * workflow carries each step's reads, writes, side effects and validating rules, the state machine an endpoint guards
+ * transitions with, and branches from form constraints and error responses (IMP-112).
  */
 export function composeWorkflows(input: CatalogInput, options: CatalogOptions = {}): WorkflowCatalog {
   const entities = new Map(input.entities.map((e) => [e.id, e]));
@@ -90,6 +90,24 @@ export function composeWorkflows(input: CatalogInput, options: CatalogOptions = 
       return { ...(after ? { after } : {}), reason: s.reason_code, ...(s.gap_id ? { gap: s.gap_id } : {}) };
     });
 
+  /** An endpoint step, followed by the state machine its code guards transitions with, if any. */
+  const pushEndpoint = (steps: Draft["steps"], api: string, action: string) => {
+    steps.push({ entity: api, action, trace: api });
+    const machines = traceRelationships(api)
+      .filter((r) => r.type === "CALLS")
+      .flatMap((r) => out(r.to, "REFERENCES").filter((x) => x.to.startsWith("state_machine:")))
+      .map((r) => r.to);
+    for (const machine of [...new Set(machines)].sort())
+      if (!steps.some((s) => s.entity === machine)) steps.push({ entity: machine, action: "transition" });
+  };
+  /** Rules that validate an endpoint (`VALIDATES` rule → endpoint). */
+  const rulesOf = (api: string) =>
+    input.relationships.filter((r) => r.type === "VALIDATES" && r.to === api).map((r) => r.from);
+  const fieldsOf = (form: string) =>
+    out(form, "CONTAINS")
+      .map((r) => entities.get(r.to))
+      .filter((e): e is Entity => e?.kind === "field");
+
   const drafts: Draft[] = [];
   const reachedApis = new Set<string>();
 
@@ -104,13 +122,13 @@ export function composeWorkflows(input: CatalogInput, options: CatalogOptions = 
     for (const form of forms) {
       steps.push({ entity: form.id, action: "submit" });
       for (const r of out(form.id, "SUBMITS_TO")) {
-        steps.push({ entity: r.to, action: "request", trace: r.to });
+        pushEndpoint(steps, r.to, "request");
         apis.push(r.to);
       }
     }
     for (const r of out(page.id, "CONSUMES").sort((a, b) => a.to.localeCompare(b.to)))
       if (!apis.includes(r.to)) {
-        steps.push({ entity: r.to, action: "request", trace: r.to });
+        pushEndpoint(steps, r.to, "request");
         apis.push(r.to);
       }
     const backends = [
@@ -176,7 +194,11 @@ export function composeWorkflows(input: CatalogInput, options: CatalogOptions = 
       category: AUTH.test(api.id.slice(4)) ? "auth" : "api",
       boundary: api.project_boundary ?? "project:.",
       area: areaOf(moduleOf(api.id)?.module_id),
-      steps: [{ entity: api.id, action: "handle", trace: api.id }],
+      steps: (() => {
+        const steps: Draft["steps"] = [];
+        pushEndpoint(steps, api.id, "handle");
+        return steps;
+      })(),
       hops: [],
       traces: traces.has(api.id) ? [traces.get(api.id)!.id] : [],
       status: "reconstructed",
@@ -245,9 +267,60 @@ export function composeWorkflows(input: CatalogInput, options: CatalogOptions = 
         if (reads.length > 0) step.reads = reads;
         if (writes.length > 0) step.writes = writes;
         if (effects.length > 0) step.side_effects = effects;
+        const rules = rulesOf(s.entity);
+        if (rules.length > 0) step.validations = rules.sort();
+      }
+      if (deep && s.entity.startsWith("form:")) {
+        // A form's rules: those validating its endpoint whose inputs include one of its fields.
+        const fields = new Set(fieldsOf(s.entity).map((f) => f.id));
+        const endpoint = out(s.entity, "SUBMITS_TO")[0]?.to;
+        const rules = (endpoint ? rulesOf(endpoint) : []).filter((r) =>
+          ((entities.get(r) as { inputs?: string[] } | undefined)?.inputs ?? []).some((i) => fields.has(i)),
+        );
+        if (rules.length > 0) step.validations = rules.sort();
       }
       return step;
     });
+    // Branches (SAA-FR-034): a form whose fields carry constraints can be refused in the browser; an endpoint's error
+    // responses come from its handler and middleware. An endpoint whose handler was not found has unknown branches.
+    const branches: Workflow["branches"] = [];
+    if (deep)
+      for (const step of steps) {
+        const entity = entities.get(step.entity_id) as
+          (Entity & { handler?: unknown; error_responses?: Array<{ outcome: string; condition: string }> }) | undefined;
+        if (entity?.kind === "form") {
+          const constrained = fieldsOf(entity.id).filter(
+            (f) =>
+              Object.keys((f as { constraints?: object }).constraints ?? {}).some((k) => k !== "input_type") ||
+              ["email", "url", "number"].includes(
+                String((f as { constraints?: { input_type?: string } }).constraints?.input_type),
+              ),
+          );
+          if (constrained.length > 0)
+            branches.push({
+              from_step: step.id,
+              condition: `a value violates the constraints of ${constrained.map((f) => f.name).join(", ")}`,
+              outcome: "validation_error",
+              status: "source_verified",
+            });
+        }
+        if (entity?.kind === "api") {
+          for (const r of entity.error_responses ?? [])
+            branches.push({
+              from_step: step.id,
+              condition: r.condition,
+              outcome: r.outcome,
+              status: "source_verified",
+            });
+          if (!entity.handler)
+            branches.push({
+              from_step: step.id,
+              condition: "the endpoint's handler was not found, so its error handling is not known",
+              outcome: "unknown",
+              status: "unresolved",
+            });
+        }
+      }
     const stepId = (entity: string | undefined) => steps.find((s) => s.entity_id === entity)?.id;
     const hops: Hop[] = [];
     const addHop = (h: Draft["hops"][number]) => {
@@ -288,15 +361,36 @@ export function composeWorkflows(input: CatalogInput, options: CatalogOptions = 
       entry_point_ids: [d.entry],
       component_trace_ids: d.traces,
       steps,
-      branches: [],
+      branches,
       unresolved_hops: hops,
-      completion: traceable ? "partial" : "unresolved",
+      completion: !traceable
+        ? "unresolved"
+        : completeWithinStaticScope(deep, steps)
+          ? "complete_within_static_scope"
+          : "partial",
       deepened: deep,
       rank: i + 1,
       status: traceable ? "source_verified" : "unresolved",
       evidence_ids: evidence,
     });
   });
+
+  /**
+   * PRD §11.1: complete within the static scope when the workflow was deepened, its server side was analyzed (an
+   * endpoint or a job is a step) and every endpoint's handler was found, so reads, writes, side effects, validations,
+   * authorization and error branches are addressed. External boundaries are labeled by the hops.
+   */
+  function completeWithinStaticScope(deep: boolean, steps: Step[]): boolean {
+    const server = steps.filter((s) => /^(api|job):/.test(s.entity_id));
+    return (
+      deep &&
+      server.length > 0 &&
+      server.every(
+        (s) =>
+          s.entity_id.startsWith("job:") || (entities.get(s.entity_id) as { handler?: unknown }).handler !== undefined,
+      )
+    );
+  }
 
   // Groups: boundary, then area, then category, in order of their best-ranked workflow.
   const groups = new Map<string, CatalogGroup>();

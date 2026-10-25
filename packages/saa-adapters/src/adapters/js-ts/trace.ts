@@ -20,6 +20,43 @@ export interface Unit {
   dynamic_imports: Array<{ line: number; evidence: string }>;
   /** Message topics named by a literal `topic` property: in a `subscribe`/`consume` call, else published. */
   topics?: Array<{ name: string; role: "publish" | "subscribe"; line: number; evidence: string }>;
+  /** Error responses (`res.status(4xx|5xx)`, `res.sendStatus(…)`) with the condition that leads to them. */
+  responses?: Array<{ status: number; condition?: string; message?: string; line: number; evidence: string }>;
+  /** Schemas the unit validates input with (`schema.parse(…)`, `schema.shape.field.safeParse(…)`). */
+  validates?: Array<{ schema: string; field?: string; line: number; evidence: string }>;
+}
+
+const PARSE = new Set(["parse", "safeParse", "parseAsync", "safeParseAsync"]);
+
+/** The condition under which `node` runs inside `body`: the nearest `if` or `?:`, negated in the else branch. */
+function conditionOf(node: ts.Node, body: ts.Node, source: ts.SourceFile): string | undefined {
+  let child = node;
+  for (let parent = node.parent; parent && child !== body; child = parent, parent = parent.parent) {
+    if (ts.isIfStatement(parent) && child !== parent.expression) {
+      const text = parent.expression.getText(source).slice(0, 160);
+      return child === parent.thenStatement ? text : `not (${text})`;
+    }
+    if (ts.isConditionalExpression(parent) && child !== parent.condition) {
+      const text = parent.condition.getText(source).slice(0, 160);
+      return child === parent.whenTrue ? text : `not (${text})`;
+    }
+  }
+  return undefined;
+}
+
+/** The literal `error` or `message` of the response body that follows `res.status(n)`. */
+function responseMessage(call: ts.CallExpression, source: ts.SourceFile): string | undefined {
+  const access = call.parent;
+  const next = access && ts.isPropertyAccessExpression(access) ? access.parent : undefined;
+  const body = next && ts.isCallExpression(next) ? next.arguments[0] : undefined;
+  if (!body || !ts.isObjectLiteralExpression(body)) return undefined;
+  for (const p of body.properties)
+    if (ts.isPropertyAssignment(p) && /^(error|message)$/.test(p.name.getText(source))) {
+      const v = p.initializer;
+      if (ts.isStringLiteral(v) || ts.isNoSubstitutionTemplateLiteral(v)) return v.text.slice(0, 160);
+      if (ts.isTemplateExpression(v)) return v.getText(source).slice(1, 161);
+    }
+  return undefined;
 }
 
 type Evidence = (node: ts.Node) => string;
@@ -146,6 +183,48 @@ export function traceFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: R
         }
       }
       if (
+        ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        (node.expression.name.text === "status" || node.expression.name.text === "sendStatus") &&
+        node.arguments[0] &&
+        ts.isNumericLiteral(node.arguments[0]) &&
+        Number(node.arguments[0].text) >= 400
+      ) {
+        const condition = conditionOf(node, body, source);
+        const message = node.expression.name.text === "status" ? responseMessage(node, source) : undefined;
+        (unit.responses ??= []).push({
+          status: Number(node.arguments[0].text),
+          ...(condition ? { condition } : {}),
+          ...(message ? { message } : {}),
+          line: rangeOf(node).start_line,
+          evidence: evidence(node),
+        });
+      }
+      if (
+        ts.isCallExpression(node) &&
+        ts.isPropertyAccessExpression(node.expression) &&
+        PARSE.has(node.expression.name.text)
+      ) {
+        // schema.parse(…) or schema.shape.field.parse(…)
+        let target: ts.Expression = node.expression.expression;
+        let field: string | undefined;
+        if (
+          ts.isPropertyAccessExpression(target) &&
+          ts.isPropertyAccessExpression(target.expression) &&
+          target.expression.name.text === "shape"
+        ) {
+          field = target.name.text;
+          target = target.expression.expression;
+        }
+        if (ts.isIdentifier(target))
+          (unit.validates ??= []).push({
+            schema: target.text,
+            ...(field ? { field } : {}),
+            line: rangeOf(node).start_line,
+            evidence: evidence(node),
+          });
+      }
+      if (
         ts.isPropertyAssignment(node) &&
         node.name.getText(source) === "topic" &&
         (ts.isStringLiteral(node.initializer) || ts.isNoSubstitutionTemplateLiteral(node.initializer))
@@ -227,8 +306,14 @@ export function traceFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: R
   const facts: TraceFacts = {};
   const useful = units.filter(
     (u) =>
-      u.calls.length + u.data.length + u.outbound.length + u.dynamic_imports.length + (u.topics?.length ?? 0) > 0 ||
-      u.key.startsWith("at:"),
+      u.calls.length +
+        u.data.length +
+        u.outbound.length +
+        u.dynamic_imports.length +
+        (u.topics?.length ?? 0) +
+        (u.responses?.length ?? 0) +
+        (u.validates?.length ?? 0) >
+        0 || u.key.startsWith("at:"),
   );
   if (useful.length > 0) facts.units = useful;
   if (jobs.length > 0) facts.jobs = jobs;

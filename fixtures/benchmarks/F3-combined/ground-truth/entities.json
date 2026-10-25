@@ -109,7 +109,7 @@
       "kind": "business_rule"
     },
     {
-      "id": "business_rule:password.min_12_characters",
+      "id": "business_rule:registration.password_min_12_characters",
       "kind": "business_rule"
     },
     {
