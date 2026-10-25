@@ -13,6 +13,13 @@
       "related": [
         "module:server.plugins"
       ]
+    },
+    {
+      "key": "docs-password-length",
+      "type": "contradiction",
+      "related": [
+        "business_rule:registration.password_min_12_characters"
+      ]
     }
   ]
 }

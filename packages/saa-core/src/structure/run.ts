@@ -9,8 +9,9 @@ import type { InventoryEntry } from "../intake/inventory.js";
 import type { RootSandbox } from "../intake/sandbox.js";
 import { redactOutput } from "../intake/secrets.js";
 import type { ProjectBoundary } from "../stack/stack.js";
-import type { ComponentTrace, Gap } from "@sys2qa/contract";
+import type { Claim, ComponentTrace, Gap } from "@sys2qa/contract";
 import { linkConfig } from "./config.js";
+import { assignStatuses, crossValidate, materialClaims } from "./crossvalidate.js";
 import { linkDataModel } from "./datamodel.js";
 import { linkFrameworks } from "./frameworks.js";
 import { linkStructure, mergeFacts, type DependencyGraph, type StructuralFacts } from "./graph.js";
@@ -33,6 +34,8 @@ export interface StructureOptions {
   signal?: AbortSignal;
   /** Workflow catalog budget and deepen requests (SAA-FR-046). */
   catalog?: CatalogOptions;
+  /** The analyzed revision (commit), recorded on claims; without it no claims are made. */
+  revision?: string;
 }
 
 export interface StructureResult extends StructuralFacts {
@@ -41,6 +44,10 @@ export interface StructureResult extends StructuralFacts {
   gaps: Gap[];
   /** One trace per entry point (API endpoint, page, scheduled job) with where and why it stopped (SAA-FR-041). */
   component_traces: ComponentTrace[];
+  /** Material claims at the analyzed revision (SAA-FR-010); empty without `revision`. */
+  claims: Claim[];
+  /** Entities and relationships downgraded to `inferred` because their evidence cannot verify them (CR-001). */
+  downgraded: number;
   /** Workflows composed from the traces, ranked and grouped (SAA-FR-040, SAA-FR-046). */
   catalog: WorkflowCatalog;
   adapters: InitializeResult[];
@@ -159,6 +166,7 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     },
     traces.details,
   );
+  const cross = crossValidate(facts, rules.entities);
   const entities = [
     ...facts.entities,
     ...frameworks.entities,
@@ -175,8 +183,11 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     ...config.relationships,
     ...traces.relationships,
     ...rules.relationships,
+    ...cross.relationships,
   ];
-  const gaps = [...frameworks.gaps, ...traces.gaps, ...rules.gaps];
+  const gaps = [...frameworks.gaps, ...traces.gaps, ...rules.gaps, ...cross.gaps];
+  const downgraded = assignStatuses([...entities, ...relationships], facts.evidence);
+  const claims = options.revision ? materialClaims(entities, relationships, options.revision) : [];
   const catalog = composeWorkflows(
     { entities, relationships, component_traces: traces.component_traces, gaps, evidence: facts.evidence },
     options.catalog,
@@ -188,6 +199,8 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     coverage: [...facts.coverage, ...frameworks.coverage, ...data.coverage, ...config.coverage],
     gaps,
     component_traces: traces.component_traces,
+    claims,
+    downgraded,
     catalog,
     graph: linked.graph,
     adapters: infos,

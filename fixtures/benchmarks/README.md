@@ -2,7 +2,7 @@
 
 | Fixture | Content | Started by the harness |
 |---|---|---|
-| `F1-repository-only/` | Undocumented Express + React Router + SQL + Prisma app (`repo/`), 7 workflows | — |
+| `F1-repository-only/` | Express + React Router + SQL + Prisma app with only an outdated README (`repo/`), 7 workflows | — |
 | `F2-url-only/` | 16-page development site with traps (`site/server.mjs`) | `startF2Site()` |
 | `F3-combined/` | F1 source + a runtime with three deliberate discrepancies (`runtime/server.mjs`) | `startF3Runtime()` |
 | `F4-incomplete-evidence/` | Frontend-only repository with a missing backend, a missing queue consumer and a runtime feature switch (`repo/`) | — |

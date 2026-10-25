@@ -12,7 +12,7 @@ import {
 } from "../../../packages/saa-core/src/index.js";
 import type { ProducerOutput } from "./producer-output.js";
 
-const ADAPTERS = ["js-ts", "sql", "config"] as const;
+const ADAPTERS = ["js-ts", "sql", "config", "docs"] as const;
 /** Benchmarks compare models of one fixture with each other, so both documents carry the same placeholder revision. */
 const REVISION = { kind: "git_commit", value: "0".repeat(40), worktree_dirty: false };
 
@@ -32,8 +32,8 @@ export async function bundleSaaAdapters(dir: string): Promise<Array<{ id: string
 }
 
 /**
- * The SAA producer as far as Gate 1 has built it (IMP-111): inventory, stack, structural analysis, traces and the
- * workflow catalog of a repository fixture. It emits no claims yet, so evidence traceability is not measured.
+ * The SAA producer as far as Gate 1 has built it (IMP-113): inventory, stack, structural analysis, traces, the
+ * workflow catalog, rules, cross-validation and material claims of a repository fixture.
  */
 export async function saaProducer(
   repository: string,
@@ -52,6 +52,7 @@ export async function saaProducer(
     adapters: work.adapters,
     scratch: work.scratch,
     runId: "run:01BENCHMARKSAA",
+    revision: REVISION.value,
   });
   return {
     systemModel: {
@@ -74,7 +75,7 @@ export async function saaProducer(
         branches: w.branches,
         unresolved_hops: w.unresolved_hops,
       })),
-      claims: [],
+      claims: result.claims,
       gaps: result.gaps,
       coverage: result.coverage,
     },

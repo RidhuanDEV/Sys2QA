@@ -12,6 +12,10 @@
     {
       "id": "config",
       "source": "src/adapters/config/main.ts"
+    },
+    {
+      "id": "docs",
+      "source": "src/adapters/docs/main.ts"
     }
   ]
 }

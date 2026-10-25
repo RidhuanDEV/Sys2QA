@@ -1,6 +1,6 @@
 # F1 — Repository only: ground truth
 
-Fixture: `../repo/`, an undocumented TypeScript web app (Express API, React Router frontend, SQL migrations, Prisma). Used alone in Mode A, and as the source half of F3. Format: Test Strategy §4.1. Entities are referred to by semantic ID (`<kind>:<boundary>:<key>`, Data Model §3); branch outcomes use the codes `validation_error`, `unauthorized`, `forbidden`, `not_found`, `conflict` and `invalid_token`.
+Fixture: `../repo/`, a TypeScript web app documented only by an outdated README (Express API, React Router frontend, SQL migrations, Prisma). Used alone in Mode A, and as the source half of F3. Format: Test Strategy §4.1. Entities are referred to by semantic ID (`<kind>:<boundary>:<key>`, Data Model §3); branch outcomes use the codes `validation_error`, `unauthorized`, `forbidden`, `not_found`, `conflict` and `invalid_token`.
 
 ## Workflows (`workflows.json`)
 
@@ -18,6 +18,7 @@ Fixture: `../repo/`, an undocumented TypeScript web app (Express API, React Rout
 
 - `email-delivery`: what happens after the HTTP call to the mail provider is outside the repository.
 - `dynamic-report-routes`: `/api/reports/<name>` routes are registered from `REPORT_PLUGINS` at start-up, and the plugin modules are not in the repository. A correct analysis reports this instead of inventing routes.
+- `docs-password-length`: the README (written for the first release) says passwords need at least 8 characters; `validation.ts` enforces 12. The README's NIB length and order amount range agree with the code. A correct analysis records the contradiction and asks which is intended, and keeps the code as the evidence of behavior.
 
 ## Rules, roles and states (`entities.json`)
 

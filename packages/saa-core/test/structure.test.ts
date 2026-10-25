@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateJsonSchema, type Entity } from "@sys2qa/contract";
+import { validateJsonSchema, type Entity, type Evidence } from "@sys2qa/contract";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bundleAdapter } from "../../../scripts/adapter-bundle.mjs";
 import {
@@ -10,6 +10,7 @@ import {
   budgetFor,
   detectStack,
   findCycles,
+  assignStatuses,
   composeWorkflows,
   deepenWorkflow,
   linkRules,
@@ -35,6 +36,7 @@ let base: string;
 let entry: string;
 let sqlEntry: string;
 let configEntry: string;
+let docsEntry: string;
 beforeAll(async () => {
   base = mkdtempSync(join(tmpdir(), "sys2qa-structure-"));
   entry = await bundleAdapter({
@@ -48,6 +50,10 @@ beforeAll(async () => {
   configEntry = await bundleAdapter({
     entry: fileURLToPath(new URL("../../saa-adapters/src/adapters/config/main.ts", import.meta.url)),
     outfile: join(base, "bundle", "config.mjs"),
+  });
+  docsEntry = await bundleAdapter({
+    entry: fileURLToPath(new URL("../../saa-adapters/src/adapters/docs/main.ts", import.meta.url)),
+    outfile: join(base, "bundle", "docs.mjs"),
   });
 }, 60_000);
 afterAll(() => rmSync(base, { recursive: true, force: true }));
@@ -67,9 +73,11 @@ async function analyze(root: string) {
       { id: "js-ts", entry },
       { id: "sql", entry: sqlEntry },
       { id: "config", entry: configEntry },
+      { id: "docs", entry: docsEntry },
     ],
     scratch: join(base, "scratch"),
     runId: "run:01JSTRUCTURE",
+    revision: "0".repeat(40),
     batchSize: 5,
   });
 }
@@ -83,7 +91,7 @@ describe("structural extraction through the js-ts adapter [@req SAA-FR-005] [@re
     const ids = new Set(result.entities.map((e) => e.id));
     for (const expected of truth.entities.filter((e) => e.kind === "module"))
       expect(ids, expected.id).toContain(expected.id);
-    expect(result.adapters.map((a) => a.adapter_id)).toEqual(["js-ts", "sql", "config"]);
+    expect(result.adapters.map((a) => a.adapter_id)).toEqual(["js-ts", "sql", "config", "docs"]);
     expect(result.failed_batches).toEqual([]);
     // Every fact is contract-valid.
     for (const e of result.entities) expect(validateJsonSchema(ENTITY, e).errors, e.id).toEqual([]);
@@ -713,6 +721,115 @@ describe("rules, roles, state machines and branches [@req SAA-FR-030] [@req SAA-
       "server_error",
     ]);
     expect(outcomeOf(400, "invalid or expired token")).toBe("invalid_token");
+  });
+});
+
+describe("cross-validation, provenance and status [@req SAA-FR-010] [@req SAA-FR-011] [@req SAA-FR-043]", () => {
+  it("records F1's README/code contradiction and keeps the code as the evidence of behavior", async () => {
+    const truth = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "gaps.json"), "utf8")) as {
+      gaps: Array<{ key: string; type: string; related: string[] }>;
+    };
+    const expected = truth.gaps.find((g) => g.key === "docs-password-length")!;
+    const result = await analyze(F1);
+    const contradictions = result.gaps.filter((g) => g.type === "contradiction");
+    expect(contradictions).toHaveLength(1);
+    expect(contradictions[0]).toMatchObject({
+      type: expected.type,
+      requires_human_clarification: true,
+      related_entity_ids: [...expected.related, "file:README.md"],
+    });
+    expect(contradictions[0]!.description).toMatch(
+      /at least 8 characters.*at least 12 characters.*Which one is intended\?/,
+    );
+    const evidence = new Map(result.evidence.map((e) => [e.id, e.source_type]));
+    expect(contradictions[0]!.evidence_ids!.map((id) => evidence.get(id))).toEqual(["documentation", "source_code"]);
+    const rule = result.entities.find((e) => e.id === expected.related[0]) as Entity & { contradiction_ids?: string[] };
+    expect(rule).toMatchObject({ status: "source_verified", contradiction_ids: [contradictions[0]!.id] });
+    // Agreeing statements add documentation evidence; they never change what the code says.
+    const types = (id: string) => result.entities.find((e) => e.id === id)!.evidence_ids.map((x) => evidence.get(x));
+    expect(types("business_rule:registration.nib_13_digits")).toContain("documentation");
+    expect(types("business_rule:order.amount_1_to_10000")).toContain("documentation");
+    // Test definitions exercise rules, as inferred: no test result was examined.
+    expect(
+      result.relationships.find((r) => r.type === "TESTS" && r.to === "business_rule:registration.nib_13_digits"),
+    ).toMatchObject({ from: "module:test.validation.test", status: "inferred" });
+  }, 60_000);
+
+  it("verifies nothing beyond its evidence and makes claims at the analyzed revision", async () => {
+    const result = await analyze(F1);
+    const evidence = new Map(result.evidence.map((e) => [e.id, e.source_type]));
+    const VERIFYING = new Set(["source_code", "configuration", "schema", "migration", "manifest"]);
+    // CR-001: every source_verified record cites verifying evidence that exists; the rest say why they are inferred.
+    for (const record of [...result.entities, ...result.relationships]) {
+      if (record.status === "source_verified")
+        expect(
+          record.evidence_ids.some((id) => VERIFYING.has(evidence.get(id) ?? "")),
+          record.id,
+        ).toBe(true);
+      if (record.status === "inferred") expect(record.confidence_rationale, record.id).toBeTruthy();
+    }
+    expect(result.entities.find((e) => e.id === "module:test.validation.test")).toMatchObject({ status: "inferred" });
+    expect(result.entities.find((e) => e.id === "file:README.md")).toMatchObject({ status: "inferred" });
+    // Claims: schema-valid, resolvable evidence, the revision, and no forbidden wording.
+    const forbidden = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "forbidden-claims.json"), "utf8")) as {
+      claims: Array<{ claim_text?: string }>;
+    };
+    const CLAIM = { $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/claim" };
+    expect(result.claims.length).toBeGreaterThan(0);
+    for (const claim of result.claims) {
+      expect(validateJsonSchema(CLAIM, claim).errors, claim.id).toEqual([]);
+      expect(claim.last_validated_revision).toBe("0".repeat(40));
+      expect(
+        claim.evidence_ids.every((id) => evidence.has(id)),
+        claim.id,
+      ).toBe(true);
+      const text = (claim.text as { value: string }).value;
+      for (const f of forbidden.claims.filter((x) => x.claim_text))
+        expect(new RegExp(f.claim_text!, "i").test(text), `${claim.id}: ${text}`).toBe(false);
+    }
+    const password = result.claims.find(
+      (c) => c.subject_entity_id === "business_rule:registration.password_min_12_characters",
+    )!;
+    expect(password.gap_ids).toEqual(["gap:contradiction:registration.password_min_12_characters"]);
+  }, 60_000);
+
+  it("downgrades records whose evidence cannot verify them", () => {
+    const records = [
+      {
+        id: "module:a",
+        kind: "module",
+        name: "a",
+        status: "source_verified",
+        origin: "source",
+        evidence_ids: ["evidence:doc"],
+      },
+      {
+        id: "module:b",
+        kind: "module",
+        name: "b",
+        status: "source_verified",
+        origin: "source",
+        evidence_ids: ["evidence:code"],
+      },
+      {
+        id: "module:c",
+        kind: "module",
+        name: "c",
+        status: "source_verified",
+        origin: "source",
+        evidence_ids: ["evidence:gone"],
+      },
+    ] as Entity[];
+    const evidence = [
+      { id: "evidence:doc", source_type: "documentation" },
+      { id: "evidence:code", source_type: "source_code" },
+    ] as Evidence[];
+    expect(assignStatuses(records, evidence)).toBe(2);
+    expect(records.map((r) => [r.status, r.confidence_rationale])).toEqual([
+      ["inferred", "supported only by documentation evidence, which cannot verify on its own (CR-001)"],
+      ["source_verified", undefined],
+      ["inferred", "no evidence record supports it directly"],
+    ]);
   });
 });
 

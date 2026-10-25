@@ -244,6 +244,7 @@ export function linkRules(
             module_id: m.id,
             statement: draft.statement,
             technical_rule: `${schema.library} schema ${schema.name}.${field.name}: ${draft.technical}`,
+            source_schema: schema.name,
             business_intent: null,
             inputs: [],
             boundaries: draft.boundaries,

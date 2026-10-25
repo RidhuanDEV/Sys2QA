@@ -78,7 +78,7 @@ packages/
   system-model/   in-memory model ops: graph queries, diff, ID derivation (uses contract)
   saa-core/       intake, revision identity, boundaries, entry points, tracer, workflow composer,
                   rules/roles/states, cross-validation, completeness, docs renderer, package exporter
-  saa-adapters/   adapter host + protocol (ADR-009); adapters: js-ts, sql, config-deploy
+  saa-adapters/   adapter host + protocol (ADR-009); adapters: js-ts, sql, config-deploy, docs
   qaa-core/       import/readiness, planning, techniques, scenario generation/critic, review/approval,
                   staleness, coverage, manual runs, defects, reporting, correlation
   runtime-observer/ scope-enforcing proxy, worker launcher (native L2, container L3), discovery crawler,
@@ -167,7 +167,7 @@ Enforcement (IMP-002): `scripts/dependency-rules.mjs`, run by `pnpm deps:check` 
 ```text
 CLI/UI ─ start(repo path) ─► app-services ─► platform: declaration + scope (L0–L1)
    └► job: saa.analyze
-        source intake ─► adapter workers (js-ts, sql, config) ─► facts+evidence (validated)
+        source intake ─► adapter workers (js-ts, sql, config, docs) ─► facts+evidence (validated)
         ─► tracer/composer ─► rules/roles/states ─► cross-validation ─► completeness
         ─► SKB (JSON partitions) + index (SQLite) ─► docs (en/id) ─► package export (validated)
    └► job: qaa.import(package) ─► readiness per activity ─► plan ─► scenarios ─► review
