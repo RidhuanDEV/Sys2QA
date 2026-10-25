@@ -12,9 +12,15 @@ export async function bundleAdapter({ entry, outfile }) {
     format: "esm",
     target: "node22",
     conditions: ["source"],
-    // CommonJS dependencies inside an ES module bundle need a real `require`.
+    // CommonJS dependencies inside an ES module bundle need `require`, `__filename` and `__dirname`.
     banner: {
-      js: 'import { createRequire as __adapterRequire } from "node:module"; const require = __adapterRequire(import.meta.url);',
+      js: [
+        'import { createRequire as __adapterRequire } from "node:module";',
+        'import { fileURLToPath as __adapterPath } from "node:url";',
+        "const require = __adapterRequire(import.meta.url);",
+        "const __filename = __adapterPath(import.meta.url);",
+        'const __dirname = __adapterPath(new URL(".", import.meta.url));',
+      ].join(" "),
     },
     logLevel: "silent",
     legalComments: "none",

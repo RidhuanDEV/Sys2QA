@@ -13,6 +13,7 @@
     }
   },
   "dependencies": {
-    "@sys2qa/contract": "workspace:*"
+    "@sys2qa/contract": "workspace:*",
+    "typescript": "~6.0.3"
   }
 }

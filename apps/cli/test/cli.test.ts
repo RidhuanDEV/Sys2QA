@@ -108,7 +108,8 @@ describe("observability commands [@req QAA-FR-103] [@req OBS-001] [@req OBS-004]
 describe("adapters [@req SAA-FR-047]", () => {
   it("prints the support matrix of the installed adapters", async () => {
     expect(await main(["adapters", "--home", home], io())).toBe(EXIT_CODES.ok);
-    expect(out).toBe("No analyzer adapters are installed.\n");
+    // js-ts is registered: its matrix when bundled, otherwise a line naming the missing bundle.
+    expect(out).toMatch(/^js-ts (0\.\d+\.\d+ \(protocol 1\.\d+\.\d+\)|: unavailable \(ADAPTER_NOT_BUILT)/m);
   });
 });
 
