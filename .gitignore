@@ -7,3 +7,5 @@ reports/
 .env
 .env.*
 !.env.example
+# Fake secrets planted for ST-04 (fixtures/security/planted-secrets.json); never real credentials.
+!fixtures/security/repos/*/.env.fixture

@@ -87,7 +87,21 @@ describe("ST-02 no execution [@req SEC-002] [@req SAA-FR-004]", () => {
   it("reads Git metadata without running the fsmonitor, filter drivers or hooks a repository configures", async () => {
     const original = childProcess.execFileSync;
     const git = (...args: string[]) =>
-      original("git", ["-c", "user.name=F", "-c", "user.email=f@example.com", ...args], { cwd: repo });
+      original(
+        "git",
+        [
+          "-c",
+          "user.name=F",
+          "-c",
+          "user.email=f@example.com",
+          "-c",
+          "maintenance.auto=false",
+          "-c",
+          "gc.auto=0",
+          ...args,
+        ],
+        { cwd: repo },
+      );
     git("init", "-q", "-b", "main");
     git("add", "-A");
     git("commit", "-q", "--no-gpg-sign", "-m", "fixture");

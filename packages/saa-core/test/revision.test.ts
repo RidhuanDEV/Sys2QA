@@ -16,11 +16,24 @@ import {
 let base: string;
 let repo: string;
 
-/** Git with a fixed identity and no user, system or line-ending configuration, so every platform behaves alike. */
+/** Git with a fixed identity, no user, system or line-ending configuration and no background maintenance. */
 function gitCli(...args: string[]): string {
   return execFileSync(
     "git",
-    ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "-c", "core.autocrlf=false", ...args],
+    [
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.com",
+      "-c",
+      "core.autocrlf=false",
+      // Git 2.5x runs maintenance in the background after a commit, which would write to .git during a test.
+      "-c",
+      "maintenance.auto=false",
+      "-c",
+      "gc.auto=0",
+      ...args,
+    ],
     {
       cwd: repo,
       env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(base, "empty-gitconfig") },

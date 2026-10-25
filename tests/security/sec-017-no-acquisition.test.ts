@@ -53,7 +53,21 @@ describe("no repository acquisition [@req SEC-017]", () => {
     const trap = await connectionTrap();
     try {
       const git = (...args: string[]) =>
-        execFileSync("git", ["-c", "user.name=F", "-c", "user.email=f@example.com", ...args], { cwd: repo });
+        execFileSync(
+          "git",
+          [
+            "-c",
+            "user.name=F",
+            "-c",
+            "user.email=f@example.com",
+            "-c",
+            "maintenance.auto=false",
+            "-c",
+            "gc.auto=0",
+            ...args,
+          ],
+          { cwd: repo },
+        );
       git("init", "-q", "-b", "main");
       writeFileSync(join(repo, "a.ts"), "export {};\n");
       git("add", "-A");
