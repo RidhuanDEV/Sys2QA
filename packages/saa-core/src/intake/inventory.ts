@@ -5,6 +5,7 @@ import type { AnalysisBudget } from "./budgets.js";
 import { classifyFile, DEFAULT_EXCLUDED_DIRECTORIES, type FileCategory } from "./classify.js";
 import { evaluate, ruleSet, type RuleSet } from "./ignore-rules.js";
 import { RootSandbox, SandboxError } from "./sandbox.js";
+import { sensitiveFileKind, type SensitiveFileKind } from "./secrets.js";
 
 /** Why an entry is not analyzed. Stable codes; text comes from the glossary. */
 export type InventoryReason =
@@ -41,6 +42,8 @@ export interface InventoryEntry {
   category: FileCategory;
   language?: string;
   manifest?: true;
+  /** Set for files whose content is withheld from analysis (IMP-103). */
+  sensitive?: SensitiveFileKind;
   /** Bytes, for included and too-large files. */
   size?: number;
 }
@@ -250,7 +253,12 @@ export async function scanInventory(
 
       const git = evaluate(rules, path);
       const classification = classifyFile(path);
-      const file: InventoryEntry = { ...entry(dir, path, "file", "included"), ...classification };
+      const sensitive = sensitiveFileKind(path);
+      const file: InventoryEntry = {
+        ...entry(dir, path, "file", "included"),
+        ...classification,
+        ...(sensitive === undefined ? {} : { sensitive }),
+      };
       if (git.ignored) {
         await emit(withRule({ ...file, status: "excluded", reason: "ignored_by_gitignore" }, git.pattern));
         continue;
