@@ -269,6 +269,8 @@ describe("SAA producer on the repository fixtures (IMP-111) [@req SAA-FR-040]", 
       expect(f4.discovery).toMatchObject({ expected: 3, matched: 2 });
       expect(f4.reconstruction.stop_point_accuracy).toBe(1);
       expect(f4.uncertainty.true_gap_ratio).toBe(1);
+      // The missed fulfillment workflow is one the producer itself listed as known but not traceable (IMP-114).
+      expect(f4.uncertainty.misses_in_unexplored_areas).toBe(1);
       expect(f4.over_claiming.count).toBe(0);
       expect(f4.gates.every((g) => g.passed)).toBe(true);
     } finally {

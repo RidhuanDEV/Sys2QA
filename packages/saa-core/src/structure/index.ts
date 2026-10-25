@@ -1,3 +1,4 @@
+export * from "./completeness.js";
 export * from "./config.js";
 export * from "./crossvalidate.js";
 export * from "./datamodel.js";

@@ -11,6 +11,7 @@ import {
   detectStack,
   findCycles,
   assignStatuses,
+  completenessReport,
   composeWorkflows,
   deepenWorkflow,
   linkRules,
@@ -831,6 +832,66 @@ describe("cross-validation, provenance and status [@req SAA-FR-010] [@req SAA-FR
       ["inferred", "no evidence record supports it directly"],
     ]);
   });
+});
+
+describe("completeness report [@req SAA-FR-045]", () => {
+  const REPORT = { $ref: "https://sys2qa.dev/schemas/completeness-report/1.0.json" };
+  async function report(root: string) {
+    const sandbox = await RootSandbox.open([root]);
+    const inventory: InventoryEntry[] = [];
+    await scanInventory(sandbox, { budget: budgetFor("standard") }, (e) => {
+      inventory.push(e);
+    });
+    const stack = await detectStack(
+      sandbox,
+      inventory.filter((e) => e.status === "included"),
+    );
+    const structure = await analyze(root);
+    return completenessReport({
+      runId: "run:01JREPORT",
+      roots: ["repo"],
+      inventory,
+      boundaries: stack.boundaries,
+      structure,
+    });
+  }
+
+  it("states F4's scope, what stays unresolved and which evidence would help", async () => {
+    const r = await report(F4);
+    expect(validateJsonSchema(REPORT, r).errors).toEqual([]);
+    expect(r).toMatchObject({
+      producer: "SAA",
+      count_scope: "within_examined_scope",
+      examined: { roots: ["repo"], boundaries: ["project:."] },
+      entry_points_found: 2,
+      workflows_by_status: { partially_reconstructed: 2, known_not_traceable: 1 },
+      unavailable_adapters: [],
+    });
+    expect(r.unresolved_workflow_ids.sort()).toEqual([
+      "workflow:page:app:/cart",
+      "workflow:page:app:/loyalty",
+      "workflow:queue_topic:orders.placed",
+    ]);
+    expect(r.unexplored.map((u) => u.area)).toEqual(
+      expect.arrayContaining([
+        "queue_topic:orders.placed",
+        "integration:api.shop.internal.example",
+        "config_key:loyaltyProgram",
+      ]),
+    );
+    expect(r.improvement_suggestions.map((x) => x.evidence_kind).sort()).toEqual(["environment", "source", "source"]);
+    expect(r.improvement_suggestions.find((x) => x.description.includes("orders.placed"))?.would_improve).toContain(
+      "workflow:queue_topic:orders.placed",
+    );
+  }, 60_000);
+
+  it("lists F1's excluded areas and the evidence that would close its gaps", async () => {
+    const r = await report(F1);
+    expect(validateJsonSchema(REPORT, r).errors).toEqual([]);
+    expect(r.excluded).toContainEqual({ area: "src/generated/", reason: "excluded: generated" });
+    expect(r.workflows_by_status).toEqual({ partially_reconstructed: 3, reconstructed: 5 });
+    expect(r.improvement_suggestions.map((x) => x.evidence_kind).sort()).toEqual(["requirement", "runtime", "runtime"]);
+  }, 60_000);
 });
 
 describe("import cycles [@req SAA-FR-006]", () => {

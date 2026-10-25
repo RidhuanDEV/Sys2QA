@@ -126,8 +126,21 @@ export function computeMetrics(truth: GroundTruth, output: ProducerOutput): Benc
     truth.gaps.some((t) => t.type === g.type && t.related.some((r) => (g.related_entity_ids ?? []).includes(r))),
   );
   const missed = truth.workflows.filter((w) => !pairs.some(([e]) => e.key === w.key));
-  const unexplored = new Set(model.coverage.filter((c) => UNEXPLORED.has(c.status)).map((c) => c.area));
-  const honestMisses = missed.filter((w) => unexplored.has(w.area));
+  // A miss is honest when the producer said it did not explore there: an unexplored or excluded area (coverage or
+  // completeness report), an unexplored entry point, or a workflow it listed as known but not traceable or excluded.
+  const unexplored = new Set([
+    ...model.coverage.filter((c) => UNEXPLORED.has(c.status)).map((c) => c.area),
+    ...(output.completeness?.unexplored ?? []).map((u) => u.area),
+    ...(output.completeness?.excluded ?? []).map((u) => u.area),
+  ]);
+  const untraceable = new Set(
+    model.workflows
+      .filter((w) => w.discovery_status === "known_not_traceable" || w.discovery_status === "excluded")
+      .flatMap((w) => w.entry_point_ids),
+  );
+  const honestMisses = missed.filter(
+    (w) => unexplored.has(w.area) || unexplored.has(w.entry_point) || untraceable.has(w.entry_point),
+  );
 
   // Over-claiming.
   const overClaims = truth.forbidden_claims

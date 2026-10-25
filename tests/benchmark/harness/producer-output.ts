@@ -32,6 +32,8 @@ export interface ProducerOutput {
     coverage: Array<{ area: string; status: string }>;
   };
   evidenceIndex: { revision: unknown; evidence: Array<{ id: string }> };
+  /** The completeness report: what the producer says it did not explore (SAA-FR-045, QAA-FR-114). */
+  completeness?: { unexplored: Array<{ area: string }>; excluded: Array<{ area: string }> };
   /** Scenario documents (Gate 2 onwards). */
   scenarios?: Array<{
     test_condition?: string;

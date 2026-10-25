@@ -5,6 +5,7 @@ import { bundleAdapter } from "../../../scripts/adapter-bundle.mjs";
 import {
   analyzeStructure,
   budgetFor,
+  completenessReport,
   detectStack,
   RootSandbox,
   scanInventory,
@@ -32,18 +33,19 @@ export async function bundleSaaAdapters(dir: string): Promise<Array<{ id: string
 }
 
 /**
- * The SAA producer as far as Gate 1 has built it (IMP-113): inventory, stack, structural analysis, traces, the
- * workflow catalog, rules, cross-validation and material claims of a repository fixture.
+ * The SAA producer as far as Gate 1 has built it (IMP-114): inventory, stack, structural analysis, traces, the
+ * workflow catalog, rules, cross-validation, material claims and the completeness report of a repository fixture.
  */
 export async function saaProducer(
   repository: string,
   work: { adapters: Array<{ id: string; entry: string }>; scratch: string },
 ): Promise<ProducerOutput> {
   const sandbox = await RootSandbox.open([repository]);
-  const included: InventoryEntry[] = [];
+  const inventory: InventoryEntry[] = [];
   await scanInventory(sandbox, { budget: budgetFor("standard") }, (e) => {
-    if (e.status === "included") included.push(e);
+    inventory.push(e);
   });
+  const included = inventory.filter((e) => e.status === "included");
   const stack = await detectStack(sandbox, included);
   const result = await analyzeStructure({
     sandbox,
@@ -53,6 +55,13 @@ export async function saaProducer(
     scratch: work.scratch,
     runId: "run:01BENCHMARKSAA",
     revision: REVISION.value,
+  });
+  const completeness = completenessReport({
+    runId: "run:01BENCHMARKSAA",
+    roots: ["repo"],
+    inventory,
+    boundaries: stack.boundaries,
+    structure: result,
   });
   return {
     systemModel: {
@@ -80,5 +89,6 @@ export async function saaProducer(
       coverage: result.coverage,
     },
     evidenceIndex: { revision: REVISION, evidence: result.evidence },
+    completeness,
   };
 }
