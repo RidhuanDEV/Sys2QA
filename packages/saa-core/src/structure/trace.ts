@@ -8,8 +8,9 @@ interface Unit {
   key: string;
   calls: Array<{ name: string; evidence: string }>;
   data: Array<{ model: string; access: "read" | "write"; evidence: string }>;
-  outbound: Array<{ target: string; literal: boolean; evidence: string }>;
+  outbound: Array<{ target: string; literal: boolean; base_host?: string; evidence: string }>;
   dynamic_imports: Array<{ line: number; evidence: string }>;
+  topics?: Array<{ name: string; role: "publish" | "subscribe"; evidence: string }>;
 }
 interface ModuleFacts {
   id: string;
@@ -124,19 +125,31 @@ export function traceComponents(
     return undefined;
   };
 
-  const integrationFor = (module: ModuleFacts, target: { target: string; literal: boolean }) => {
-    const host = target.literal ? /^[a-z][a-z0-9+.-]*:\/\/([^/:?#]+)/i.exec(target.target)?.[1] : undefined;
+  const integrationFor = (module: ModuleFacts, target: { target: string; literal: boolean; base_host?: string }) => {
+    const host = target.literal
+      ? /^[a-z][a-z0-9+.-]*:\/\/([^/:?#]+)/i.exec(target.target)?.[1]?.toLowerCase()
+      : target.base_host;
     const key = host ?? `${local(module.id).split(".").pop()}.provider`;
     return { id: `integration:${key}`, host };
   };
 
+  const topics = new Map<string, { id: string; publishers: number; subscribers: number; evidence: string[] }>();
+  /**
+   * `client` traces start in browser code. A request from there to a computed base URL goes to the application's own
+   * backend, which is not in the analyzed scope (`missing_repository`); any other request leaves for an external
+   * service (`external_service`).
+   */
   const trace = (
     entryId: string,
     start: Array<{ node: string; module: string; unit: string }>,
     extra: string[] = [],
+    side: "client" | "server" = "server",
+    initialStops: ComponentTrace["stopped_at"] = [],
   ): ComponentTrace => {
     const ids = new Set<string>(extra);
-    const stops = new Map<string, ComponentTrace["stopped_at"][number]>();
+    const stops = new Map<string, ComponentTrace["stopped_at"][number]>(
+      initialStops.map((s) => [`init\0${s.entity_id}\0${s.reason_code}`, s]),
+    );
     const visited = new Set<string>();
     const queue = start.map((s) => ({ ...s, depth: 0 }));
     while (queue.length > 0) {
@@ -168,12 +181,16 @@ export function traceComponents(
           } as Entity);
         }
         const gapId = `gap:external:${integration.id.slice("integration:".length)}`;
+        const backend = side === "client" && !o.literal;
         addGap({
           id: gapId,
           type: "external_boundary",
-          description: `Requests to ${integration.host ?? o.target} leave the analyzed code (${module.path}); what the provider does with them is not visible.`,
-          impact:
-            "Outcomes after the request (delivery, side effects at the provider) cannot be confirmed from source.",
+          description: backend
+            ? `Browser code (${module.path}) sends requests to a backend at ${integration.host ?? o.target}, which is not in the analyzed scope; its handling is not visible.`
+            : `Requests to ${integration.host ?? o.target} leave the analyzed code (${module.path}); what the provider does with them is not visible.`,
+          impact: backend
+            ? "What the backend does with the request (validation, persistence, side effects) cannot be confirmed from this source."
+            : "Outcomes after the request (delivery, side effects at the provider) cannot be confirmed from source.",
           evidence_ids: [o.evidence],
           related_entity_ids: [integration.id],
           requires_human_clarification: false,
@@ -182,9 +199,34 @@ export function traceComponents(
         ids.add(relate("SENDS_TO", node, integration.id, [o.evidence]));
         stops.set(`ext\0${integration.id}`, {
           entity_id: integration.id,
-          reason_code: "external_service",
+          reason_code: backend ? "missing_repository" : "external_service",
           gap_id: gapId,
         });
+      }
+      for (const t of unit.topics ?? []) {
+        const id = `queue_topic:${t.name}`;
+        const topic = topics.get(id) ?? { id, publishers: 0, subscribers: 0, evidence: [] };
+        if (!topics.has(id)) {
+          topics.set(id, topic);
+          if (!seenEntities.has(id)) {
+            seenEntities.add(id);
+            out.entities.push({
+              id,
+              kind: "queue_topic",
+              name: t.name,
+              project_boundary: module.project_boundary,
+              status: "source_verified",
+              origin: "source",
+              evidence_ids: [t.evidence],
+            } as Entity);
+          }
+        }
+        if (!topic.evidence.includes(t.evidence)) {
+          topic.evidence.push(t.evidence);
+          if (t.role === "publish") topic.publishers++;
+          else topic.subscribers++;
+        }
+        ids.add(relate(t.role === "publish" ? "PUBLISHES" : "SUBSCRIBES_TO", node, id, [t.evidence]));
       }
       for (const dyn of unit.dynamic_imports) {
         const gapId = `gap:dynamic-import:${local(moduleId)}`;
@@ -285,8 +327,14 @@ export function traceComponents(
   for (const job of jobs)
     out.component_traces.push(trace(job.id, [{ node: job.id, module: job.module, unit: job.unit }]));
 
-  // Pages: their forms, submissions, requests and navigation, as linked by the framework layer.
+  // Pages: their forms, submissions, requests and navigation, as linked by the framework layer, then the code of the
+  // component they render. A page registered only under a run-time condition stops before it (`config_unavailable`).
   for (const page of derived.entities.filter((e) => e.kind === "page")) {
+    const p = page as unknown as {
+      component_module_id?: string;
+      component?: string;
+      condition_gap_id?: string;
+    };
     const forms = new Set(
       derived.relationships.filter((r) => r.type === "CONTAINS" && r.from === page.id).map((r) => r.to),
     );
@@ -297,8 +345,27 @@ export function traceComponents(
           (forms.has(r.from) && r.type === "SUBMITS_TO"),
       )
       .map((r) => r.id);
-    out.component_traces.push(trace(page.id, [], ids));
+    const start =
+      p.component_module_id && p.component
+        ? [{ node: page.id, module: p.component_module_id, unit: `fn:${p.component}` }]
+        : [];
+    const conditional = p.condition_gap_id
+      ? [{ entity_id: page.id, reason_code: "config_unavailable" as const, gap_id: p.condition_gap_id }]
+      : [];
+    out.component_traces.push(trace(page.id, start, ids, "client", conditional));
   }
+  // A topic published here with no consumer in the analyzed scope.
+  for (const topic of [...topics.values()].filter((t) => t.subscribers === 0))
+    addGap({
+      id: `gap:consumer:${topic.id.slice("queue_topic:".length)}`,
+      type: "missing_evidence",
+      description: `Messages are published to ${topic.id.slice("queue_topic:".length)}, but no consumer was found in the analyzed scope; it may live in another repository.`,
+      impact: "What happens after the message is published cannot be described from this source.",
+      evidence_ids: topic.evidence.slice(0, 10),
+      related_entity_ids: [topic.id],
+      requires_human_clarification: true,
+      status: "unresolved",
+    });
   out.relationships = [...relationships.values()];
   return out;
 }

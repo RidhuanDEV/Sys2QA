@@ -10,6 +10,8 @@ import {
   budgetFor,
   detectStack,
   findCycles,
+  composeWorkflows,
+  deepenWorkflow,
   normalizeRoutePath,
   RootSandbox,
   scheduleLabel,
@@ -19,6 +21,7 @@ import {
 
 const fixture = (path: string) => fileURLToPath(new URL(`../../../fixtures/${path}`, import.meta.url));
 const F1 = fixture("benchmarks/F1-repository-only/repo/");
+const F4 = fixture("benchmarks/F4-incomplete-evidence/repo/");
 const MONOREPO = fixture("saa/monorepo/repo/");
 const NEXTJS = fixture("saa/nextjs/repo/");
 const CONFIG = fixture("saa/config/repo/");
@@ -418,6 +421,116 @@ describe("component traces [@req SAA-FR-009] [@req SAA-FR-041]", () => {
     expect(scheduleLabel("*/5 * * * *")).toBe("scheduled");
     expect(scheduleLabel("0 0 2 * * *")).toBe("nightly");
   });
+});
+
+describe("workflow catalog [@req SAA-FR-040] [@req SAA-FR-046]", () => {
+  const WORKFLOW = { $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/workflow" };
+  type Truth = {
+    workflows: Array<{ key: string; category: string; entry_point: string; steps: string[] }>;
+  };
+  const truthOf = (root: string) =>
+    JSON.parse(readFileSync(join(root, "..", "ground-truth", "workflows.json"), "utf8")) as Truth;
+  const steps = (w: { steps: Array<{ entity_id: string }> }) => w.steps.map((s) => s.entity_id);
+
+  it("discovers every F1 workflow without names, with the ground truth's category and stops", async () => {
+    const result = await analyze(F1);
+    const { catalog } = result;
+    expect(catalog.count_scope).toBe("within_examined_scope");
+    const byEntry = new Map(catalog.workflows.map((w) => [w.entry_point_ids[0], w]));
+    for (const expected of truthOf(F1).workflows) {
+      const w = byEntry.get(expected.entry_point)!;
+      expect(w, expected.key).toBeDefined();
+      expect(w.category, expected.key).toBe(expected.category);
+      expect(steps(w), expected.key).toEqual(
+        expect.arrayContaining(expected.steps.filter((s) => !s.startsWith("state_machine:"))),
+      );
+    }
+    expect(steps(byEntry.get("page:web:/register")!)).toEqual([
+      "page:web:/register",
+      "form:web:/register#register",
+      "api:POST:/api/auth/register",
+    ]);
+    expect(steps(byEntry.get("job:cleanup.nightly")!)).toEqual([
+      "job:cleanup.nightly",
+      "entity:password_reset_token",
+      "entity:order",
+    ]);
+    // A stop inside the endpoint's trace is an unresolved hop after the endpoint's step.
+    const register = byEntry.get("page:web:/register")!;
+    expect(register.discovery_status).toBe("partially_reconstructed");
+    expect(register.unresolved_hops).toEqual([
+      expect.objectContaining({
+        after_step: "step:page:web:/register#3",
+        reason_code: "external_service",
+        gap_id: "gap:external:email.provider",
+      }),
+    ]);
+    expect(register.steps[2]).toMatchObject({ writes: ["entity:user"], side_effects: ["integration:email.provider"] });
+    expect(byEntry.get("page:web:/login")!.discovery_status).toBe("reconstructed");
+    // The endpoint no page calls is listed as an API workflow; the dead legacy router is not.
+    expect(byEntry.get("api:GET:/api/orders/{id}")?.category).toBe("api");
+    expect([...byEntry.keys()].some((id) => id!.includes("legacy"))).toBe(false);
+    // Ranked 1..n, grouped by boundary, area and category, nothing dropped.
+    expect(catalog.workflows.map((w) => w.rank)).toEqual(catalog.workflows.map((_, i) => i + 1));
+    expect(catalog.groups.flatMap((g) => g.workflow_ids).sort()).toEqual(catalog.workflows.map((w) => w.id).sort());
+    expect(catalog.groups).toContainEqual(
+      expect.objectContaining({
+        area: "server/jobs",
+        category: "scheduled_processing",
+        workflow_ids: ["workflow:job:cleanup.nightly"],
+      }),
+    );
+    for (const w of catalog.workflows) expect(validateJsonSchema(WORKFLOW, w).errors, w.id).toEqual([]);
+  }, 60_000);
+
+  it("stops honestly where F4's evidence ends", async () => {
+    const result = await analyze(F4);
+    const byEntry = new Map(result.catalog.workflows.map((w) => [w.entry_point_ids[0], w]));
+    const backend = "integration:api.shop.internal.example";
+    const checkout = byEntry.get("page:app:/cart")!;
+    expect(steps(checkout)).toEqual(["page:app:/cart", "form:app:/cart#checkout", backend]);
+    expect(checkout.unresolved_hops).toEqual([
+      expect.objectContaining({ after_step: "step:page:app:/cart#3", reason_code: "missing_repository" }),
+    ]);
+    // The loyalty page exists only when run-time configuration enables it: the hop comes before the page.
+    const loyalty = byEntry.get("page:app:/loyalty")!;
+    expect(loyalty.unresolved_hops.map((h) => [h.after_step, h.reason_code])).toEqual([
+      [undefined, "config_unavailable"],
+      ["step:page:app:/loyalty#2", "missing_repository"],
+    ]);
+    expect(result.gaps.find((g) => g.id === loyalty.unresolved_hops[0]!.gap_id)?.related_entity_ids).toEqual([
+      "config_key:loyaltyProgram",
+      "page:app:/loyalty",
+    ]);
+    // The consumer of orders.placed is elsewhere: known to exist, not traceable (CR-042), and never described.
+    const fulfillment = byEntry.get("queue_topic:orders.placed")!;
+    expect(fulfillment).toMatchObject({
+      discovery_status: "known_not_traceable",
+      component_trace_ids: [],
+      completion: "unresolved",
+      status: "unresolved",
+    });
+    expect(fulfillment.evidence_ids!.length).toBeGreaterThan(0);
+    expect(result.relationships.some((r) => r.type === "WRITES_TO")).toBe(false);
+    for (const w of result.catalog.workflows) expect(validateJsonSchema(WORKFLOW, w).errors, w.id).toEqual([]);
+  }, 60_000);
+
+  it("marks workflows beyond the budget as not deepened and deepens one on demand", async () => {
+    const result = await analyze(F1);
+    const catalog = composeWorkflows(result, { maxDeepened: 2 });
+    expect(catalog.workflows).toHaveLength(result.catalog.workflows.length);
+    expect(catalog.workflows.filter((w) => w.deepened)).toHaveLength(2);
+    const register = catalog.workflows.find((w) => w.id === "workflow:page:web:/register")!;
+    expect(catalog.not_deepened).toContain(register.id);
+    expect(register).toMatchObject({ deepened: false, discovery_status: "partially_reconstructed" });
+    expect(register.unresolved_hops).toEqual([expect.objectContaining({ reason_code: "budget_exhausted" })]);
+    expect(register.steps[2]!.writes).toBeUndefined();
+    const deeper = deepenWorkflow(result, { maxDeepened: 2 }, register.id);
+    const deepened = deeper.workflows.find((w) => w.id === register.id)!;
+    expect(deepened).toEqual(result.catalog.workflows.find((w) => w.id === register.id));
+    expect(deeper.not_deepened).not.toContain(register.id);
+    for (const w of catalog.workflows) expect(validateJsonSchema(WORKFLOW, w).errors, w.id).toEqual([]);
+  }, 60_000);
 });
 
 describe("import cycles [@req SAA-FR-006]", () => {

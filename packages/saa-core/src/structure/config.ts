@@ -59,6 +59,11 @@ function hash16(...parts: string[]): string {
  * jobs become `deployment_unit` entities, linked to their keys with `CONFIGURED_BY` and to each other with
  * `DEPENDS_ON`. No value is modeled. Install lifecycle scripts are reported, because they would run on `npm install`.
  */
+/** `<kind>:<key>` in the root boundary, `<kind>:<boundary path>:<key>` elsewhere. */
+export function scopedId(kind: string, boundary: string, key: string): string {
+  return boundary === "project:." ? `${kind}:${key}` : `${kind}:${boundary.slice("project:".length)}:${key}`;
+}
+
 export function linkConfig(facts: StructuralFacts): ConfigLinks {
   const out: ConfigLinks = { entities: [], relationships: [], coverage: [] };
   const keys = new Map<
@@ -73,8 +78,7 @@ export function linkConfig(facts: StructuralFacts): ConfigLinks {
       documented: boolean;
     }
   >();
-  const scoped = (kind: string, boundary: string, key: string) =>
-    boundary === "project:." ? `${kind}:${key}` : `${kind}:${boundary.slice("project:".length)}:${key}`;
+  const scoped = scopedId;
   const relate = (type: Relationship["type"], from: string, to: string, evidence: string[]) =>
     out.relationships.push({
       id: `relationship:${hash16(type, from, to)}`,
@@ -118,9 +122,16 @@ export function linkConfig(facts: StructuralFacts): ConfigLinks {
       project_boundary: string;
       evidence_ids: string[];
       env_reads?: Array<{ name: string; has_default: boolean; evidence: string }>;
+      react_router?: { routes: Array<{ condition?: { key?: string }; evidence: string }> };
       config?: ConfigFacts;
     };
     const boundary = e.project_boundary;
+    // Values a route's registration depends on at run time (feature switches); linked to the page by the framework layer.
+    for (const route of e.react_router?.routes ?? [])
+      if (route.condition?.key) {
+        const id = key(boundary, route.condition.key, "route_condition", route.evidence);
+        relate("CONFIGURED_BY", e.id, id, [route.evidence]);
+      }
     for (const read of e.env_reads ?? []) {
       const id = key(boundary, read.name, "code", read.evidence, { readWithDefault: read.has_default });
       relate("CONFIGURED_BY", e.id, id, [read.evidence]);

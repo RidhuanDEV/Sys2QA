@@ -15,8 +15,11 @@ export interface Unit {
   key: string;
   calls: Array<{ name: string; line: number; evidence: string }>;
   data: Array<{ model: string; op: string; access: "read" | "write"; line: number; evidence: string }>;
-  outbound: Array<{ target: string; literal: boolean; line: number; evidence: string }>;
+  /** `base_host`: the host of the URL a computed target starts with, when a module constant gives one. */
+  outbound: Array<{ target: string; literal: boolean; base_host?: string; line: number; evidence: string }>;
   dynamic_imports: Array<{ line: number; evidence: string }>;
+  /** Message topics named by a literal `topic` property: in a `subscribe`/`consume` call, else published. */
+  topics?: Array<{ name: string; role: "publish" | "subscribe"; line: number; evidence: string }>;
 }
 
 type Evidence = (node: ts.Node) => string;
@@ -58,6 +61,7 @@ export function traceFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: R
   // Names a unit may call and the host can follow: imports and module-level functions.
   const followable = new Set<string>();
   const namespaces = new Set<string>();
+  const constants = new Map<string, ts.Expression>();
   for (const statement of source.statements) {
     if (ts.isImportDeclaration(statement) && statement.importClause) {
       const clause = statement.importClause;
@@ -68,9 +72,25 @@ export function traceFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: R
     }
     if (ts.isFunctionDeclaration(statement) && statement.name) followable.add(statement.name.text);
     if (ts.isVariableStatement(statement))
-      for (const d of statement.declarationList.declarations)
+      for (const d of statement.declarationList.declarations) {
         if (ts.isIdentifier(d.name) && isFunction(d.initializer)) followable.add(d.name.text);
+        else if (ts.isIdentifier(d.name) && d.initializer) constants.set(d.name.text, d.initializer);
+      }
   }
+  /** `${BASE}/path` where `const BASE = env.X ?? "https://host"`: the host of the URL literal in the constant. */
+  const baseHost = (arg: ts.Expression | undefined): string | undefined => {
+    if (!arg || !ts.isTemplateExpression(arg) || arg.head.text !== "") return undefined;
+    const first = arg.templateSpans[0]!.expression;
+    const init = ts.isIdentifier(first) ? constants.get(first.text) : undefined;
+    let host: string | undefined;
+    const find = (node: ts.Node): void => {
+      if (host === undefined && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)))
+        host = /^https?:\/\/([^/:?#\s]+)/i.exec(node.text)?.[1]?.toLowerCase();
+      if (host === undefined) ts.forEachChild(node, find);
+    };
+    if (init) find(init);
+    return host;
+  };
 
   const units: Unit[] = [];
   const jobs: NonNullable<TraceFacts["jobs"]> = [];
@@ -89,10 +109,12 @@ export function traceFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: R
             arg && (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) ? arg.text : undefined;
           // A path relative to the application's own origin is an internal request, not an outbound one.
           const relative = (text ?? (arg && ts.isTemplateExpression(arg) ? arg.head.text : "")).startsWith("/");
+          const host = text === undefined ? baseHost(arg) : undefined;
           if (!relative)
             unit.outbound.push({
               target: text ?? arg?.getText(source).slice(0, 120) ?? "<none>",
               literal: text !== undefined,
+              ...(host ? { base_host: host } : {}),
               line,
               evidence: evidence(node),
             });
@@ -122,6 +144,24 @@ export function traceFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: R
           if (arg && !ts.isStringLiteral(arg) && !ts.isNoSubstitutionTemplateLiteral(arg))
             unit.dynamic_imports.push({ line, evidence: evidence(node) });
         }
+      }
+      if (
+        ts.isPropertyAssignment(node) &&
+        node.name.getText(source) === "topic" &&
+        (ts.isStringLiteral(node.initializer) || ts.isNoSubstitutionTemplateLiteral(node.initializer))
+      ) {
+        let call: ts.Node | undefined = node.parent;
+        while (call && !ts.isCallExpression(call) && call !== body) call = call.parent;
+        const name =
+          call && ts.isCallExpression(call) && ts.isPropertyAccessExpression(call.expression)
+            ? call.expression.name.text
+            : "";
+        (unit.topics ??= []).push({
+          name: node.initializer.text,
+          role: /^(subscribe|consume)$/.test(name) ? "subscribe" : "publish",
+          line: rangeOf(node).start_line,
+          evidence: evidence(node),
+        });
       }
       ts.forEachChild(node, walk);
     };
@@ -186,7 +226,9 @@ export function traceFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: R
   visit(source);
   const facts: TraceFacts = {};
   const useful = units.filter(
-    (u) => u.calls.length + u.data.length + u.outbound.length + u.dynamic_imports.length > 0 || u.key.startsWith("at:"),
+    (u) =>
+      u.calls.length + u.data.length + u.outbound.length + u.dynamic_imports.length + (u.topics?.length ?? 0) > 0 ||
+      u.key.startsWith("at:"),
   );
   if (useful.length > 0) facts.units = useful;
   if (jobs.length > 0) facts.jobs = jobs;

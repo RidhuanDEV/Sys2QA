@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { CoverageItem, Entity, Gap, Relationship } from "@sys2qa/contract";
 import type { ProjectBoundary } from "../stack/stack.js";
+import { scopedId } from "./config.js";
 import type { StructuralFacts } from "./graph.js";
 
 // Shapes recorded on module entities by the js-ts adapter (packages/saa-adapters/src/adapters/js-ts/frameworks.ts).
@@ -44,7 +45,9 @@ interface ModuleFacts {
   exports?: string[];
   imports?: ImportRecord[];
   express?: ExpressFacts;
-  react_router?: { routes: Array<{ path: string; component?: string; evidence: string }> };
+  react_router?: {
+    routes: Array<{ path: string; component?: string; condition?: { text: string; key?: string }; evidence: string }>;
+  };
   components?: ComponentFacts[];
 }
 
@@ -264,8 +267,15 @@ export function linkFrameworks(facts: StructuralFacts, boundaries: ReadonlyArray
   }
 
   // ---------------------------------------------------------------- React Router pages
-  const pages: Array<{ id: string; ns: string; path: string; module: string; component?: string; evidence: string[] }> =
-    [];
+  const pages: Array<{
+    id: string;
+    ns: string;
+    path: string;
+    module: string;
+    component?: string;
+    condition?: { text: string; key?: string };
+    evidence: string[];
+  }> = [];
   for (const m of modules.values()) {
     if (!m.react_router) continue;
     const key = m.id.slice("module:".length).split(":").pop()!;
@@ -285,9 +295,30 @@ export function linkFrameworks(facts: StructuralFacts, boundaries: ReadonlyArray
         path,
         module: m.id,
         ...(route.component ? { component: route.component } : {}),
+        ...(route.condition ? { condition: route.condition } : {}),
         evidence: [route.evidence],
       });
     }
+  }
+  // Pages registered only when a run-time condition holds: whether they exist depends on configuration not in source.
+  for (const page of pages.filter((p) => p.condition)) {
+    const boundary = modules.get(page.module)!.project_boundary;
+    const keyId = page.condition!.key ? scopedId("config_key", boundary, page.condition!.key) : undefined;
+    const gapId = `gap:route-condition:${page.ns}:${page.path}`;
+    out.gaps.push({
+      id: gapId,
+      type: "missing_evidence",
+      description: `${page.path} is registered only when \`${page.condition!.text}\` holds at run time; whether it exists in a deployment depends on configuration that is not in the source.`,
+      impact: "The page cannot be assumed to be available; check the deployed configuration.",
+      evidence_ids: page.evidence,
+      related_entity_ids: keyId ? [keyId, page.id] : [page.id],
+      requires_human_clarification: true,
+      status: "unresolved",
+    });
+    if (keyId) relate("CONFIGURED_BY", page.id, keyId, page.evidence);
+    const entity = out.entities.find((e) => e.id === page.id) as unknown as Record<string, unknown>;
+    entity.condition = page.condition!.text;
+    entity.condition_gap_id = gapId;
   }
   function addPage(id: string, path: string, m: ModuleFacts, evidence: string[]) {
     add({
@@ -309,6 +340,9 @@ export function linkFrameworks(facts: StructuralFacts, boundaries: ReadonlyArray
     const target = resolve(page.module, page.component);
     const component = target && modules.get(target.module)?.components?.find((c) => c.name === target.name);
     if (!component) continue;
+    const pageEntity = out.entities.find((e) => e.id === page.id) as unknown as Record<string, unknown>;
+    pageEntity.component = target!.name;
+    pageEntity.component_module_id = target!.module;
     const boundary = modules.get(target!.module)!.project_boundary;
     for (const form of component.forms) {
       const formId = `form:${page.ns}:${page.path}#${form.key}`;

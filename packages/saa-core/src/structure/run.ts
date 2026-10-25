@@ -15,6 +15,7 @@ import { linkDataModel } from "./datamodel.js";
 import { linkFrameworks } from "./frameworks.js";
 import { linkStructure, mergeFacts, type DependencyGraph, type StructuralFacts } from "./graph.js";
 import { traceComponents } from "./trace.js";
+import { composeWorkflows, type CatalogOptions, type WorkflowCatalog } from "./workflows.js";
 
 export interface StructureOptions {
   sandbox: RootSandbox;
@@ -29,6 +30,8 @@ export interface StructureOptions {
   /** Restarts allowed per adapter after a crash before its remaining batches are skipped. */
   maxRestarts?: number;
   signal?: AbortSignal;
+  /** Workflow catalog budget and deepen requests (SAA-FR-046). */
+  catalog?: CatalogOptions;
 }
 
 export interface StructureResult extends StructuralFacts {
@@ -37,6 +40,8 @@ export interface StructureResult extends StructuralFacts {
   gaps: Gap[];
   /** One trace per entry point (API endpoint, page, scheduled job) with where and why it stopped (SAA-FR-041). */
   component_traces: ComponentTrace[];
+  /** Workflows composed from the traces, ranked and grouped (SAA-FR-040, SAA-FR-046). */
+  catalog: WorkflowCatalog;
   adapters: InitializeResult[];
   /** Batches that failed, by adapter and error code; their files are `failed` in `coverage`. */
   failed_batches: Array<{ adapter: string; code: string; files: number }>;
@@ -145,20 +150,34 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     entities: [...frameworks.entities, ...data.entities],
     relationships: frameworks.relationships,
   });
+  const entities = [
+    ...facts.entities,
+    ...frameworks.entities,
+    ...data.entities,
+    ...config.entities,
+    ...traces.entities,
+  ];
+  const relationships = [
+    ...facts.relationships,
+    ...linked.relationships,
+    ...frameworks.relationships,
+    ...data.relationships,
+    ...config.relationships,
+    ...traces.relationships,
+  ];
+  const gaps = [...frameworks.gaps, ...traces.gaps];
+  const catalog = composeWorkflows(
+    { entities, relationships, component_traces: traces.component_traces, gaps, evidence: facts.evidence },
+    options.catalog,
+  );
   return {
-    entities: [...facts.entities, ...frameworks.entities, ...data.entities, ...config.entities, ...traces.entities],
-    relationships: [
-      ...facts.relationships,
-      ...linked.relationships,
-      ...frameworks.relationships,
-      ...data.relationships,
-      ...config.relationships,
-      ...traces.relationships,
-    ],
+    entities,
+    relationships,
     evidence: facts.evidence,
     coverage: [...facts.coverage, ...frameworks.coverage, ...data.coverage, ...config.coverage],
-    gaps: [...frameworks.gaps, ...traces.gaps],
+    gaps,
     component_traces: traces.component_traces,
+    catalog,
     graph: linked.graph,
     adapters: infos,
     failed_batches: failed,

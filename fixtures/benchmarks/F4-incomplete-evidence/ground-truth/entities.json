@@ -1,19 +1,19 @@
 {
   "entities": [
     {
-      "id": "page:web:/cart",
+      "id": "page:app:/cart",
       "kind": "page"
     },
     {
-      "id": "form:web:/cart#checkout",
+      "id": "form:app:/cart#checkout",
       "kind": "form"
     },
     {
-      "id": "page:web:/loyalty",
+      "id": "page:app:/loyalty",
       "kind": "page"
     },
     {
-      "id": "integration:acme-shop-api",
+      "id": "integration:api.shop.internal.example",
       "kind": "integration"
     },
     {

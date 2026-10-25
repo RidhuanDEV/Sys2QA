@@ -4,7 +4,7 @@
       "key": "backend-missing",
       "type": "external_boundary",
       "related": [
-        "integration:acme-shop-api"
+        "integration:api.shop.internal.example"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "type": "missing_evidence",
       "related": [
         "config_key:loyaltyProgram",
-        "page:web:/loyalty"
+        "page:app:/loyalty"
       ]
     }
   ]

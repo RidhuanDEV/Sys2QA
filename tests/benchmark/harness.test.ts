@@ -2,9 +2,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { fileURLToPath } from "node:url";
 import {
+  bundleSaaAdapters,
   computeMetrics,
   lcs,
+  loadGroundTruth,
+  saaProducer,
   storeBenchmarkResult,
   stubProducer,
   workflowMatches,
@@ -237,4 +241,35 @@ describe("benchmark harness (IMP-014)", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+});
+
+describe("SAA producer on the repository fixtures (IMP-111) [@req SAA-FR-040]", () => {
+  const fixtures = fileURLToPath(new URL("../../fixtures/benchmarks/", import.meta.url));
+
+  it("produces discovery, reconstruction and uncertainty metrics on F1 and F4, separately", async () => {
+    const work = mkdtempSync(join(tmpdir(), "sys2qa-bench-saa-"));
+    try {
+      const adapters = await bundleSaaAdapters(join(work, "adapters"));
+      const measure = async (name: string) =>
+        computeMetrics(
+          loadGroundTruth(join(fixtures, name, "ground-truth"), name),
+          await saaProducer(join(fixtures, name, "repo"), { adapters, scratch: join(work, name) }),
+        );
+      const f1 = await measure("F1-repository-only");
+      expect(f1.discovery).toMatchObject({ expected: 7, matched: 7, recall: 1 });
+      expect(f1.reconstruction.stop_point_accuracy).toBe(1);
+      expect(f1.reconstruction.external_boundary_accuracy).toBe(1);
+      expect(f1.over_claiming.count).toBe(0);
+      expect(f1.gates.every((g) => g.passed)).toBe(true);
+      // F4: the fulfillment consumer is known_not_traceable, which never counts as discovered (Test Strategy §5).
+      const f4 = await measure("F4-incomplete-evidence");
+      expect(f4.discovery).toMatchObject({ expected: 3, matched: 2 });
+      expect(f4.reconstruction.stop_point_accuracy).toBe(1);
+      expect(f4.uncertainty.true_gap_ratio).toBe(1);
+      expect(f4.over_claiming.count).toBe(0);
+      expect(f4.gates.every((g) => g.passed)).toBe(true);
+    } finally {
+      rmSync(work, { recursive: true, force: true });
+    }
+  }, 120_000);
 });

@@ -183,3 +183,52 @@ describe("js-ts trace facts [@req SAA-FR-009]", () => {
     expect(unit.data).toEqual([expect.objectContaining({ model: "token", op: "deleteMany", access: "write" })]);
   });
 });
+
+describe("js-ts discovery facts [@req SAA-FR-040]", () => {
+  const moduleOf = (path: string, text: string, id: string) =>
+    extractFiles([{ path, sha256: SHA, text }], context([path])).entities.find((e) => e.id === id) as unknown as Record<
+      string,
+      never
+    >;
+
+  it("records routes registered under a run-time condition, with the value they test", () => {
+    const main = moduleOf(
+      "src/main.tsx",
+      [
+        'import { createBrowserRouter } from "react-router-dom";',
+        "const router = createBrowserRouter([",
+        '  { path: "/cart", element: <Cart /> },',
+        '  ...(config.loyaltyProgram ? [{ path: "/loyalty", element: <Loyalty /> }] : []),',
+        '  ...(!flags.beta && [{ path: "/beta", element: <Beta /> }]),',
+        "]);",
+      ].join("\n"),
+      "module:main",
+    ) as unknown as { react_router: { routes: Array<{ path: string; condition?: { text: string; key?: string } }> } };
+    expect(main.react_router.routes.map((r) => [r.path, r.condition?.key])).toEqual([
+      ["/cart", undefined],
+      ["/loyalty", "loyaltyProgram"],
+      ["/beta", "beta"],
+    ]);
+    expect(main.react_router.routes[1]!.condition!.text).toBe("config.loyaltyProgram");
+  });
+
+  it("names a computed backend by the host of its default base URL and records message topics", () => {
+    const client = moduleOf(
+      "src/client.ts",
+      [
+        'const API = import.meta.env.VITE_API_URL ?? "https://API.Shop.example/v1";',
+        "export async function api(path: string, body: unknown) {",
+        '  return fetch(`${API}${path}`, { method: "POST", body: JSON.stringify({ topic: "orders.placed", body }) });',
+        "}",
+        'export function listen(consumer: { subscribe(o: object): void }) { consumer.subscribe({ topic: "orders.paid" }); }',
+      ].join("\n"),
+      "module:client",
+    ) as unknown as { units: Array<{ key: string; outbound: unknown[]; topics?: unknown[] }> };
+    const api = client.units.find((u) => u.key === "fn:api")!;
+    expect(api.outbound).toEqual([expect.objectContaining({ literal: false, base_host: "api.shop.example" })]);
+    expect(api.topics).toEqual([expect.objectContaining({ name: "orders.placed", role: "publish" })]);
+    expect(client.units.find((u) => u.key === "fn:listen")!.topics).toEqual([
+      expect.objectContaining({ name: "orders.paid", role: "subscribe" }),
+    ]);
+  });
+});

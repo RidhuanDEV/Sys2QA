@@ -41,6 +41,8 @@ export interface PageRoute {
   path: string;
   /** Local identifier of the rendered component. */
   component?: string;
+  /** Set when the route is only registered if a run-time condition holds; `key` is the value it tests. */
+  condition?: { text: string; key?: string };
   line: number;
   evidence: string;
 }
@@ -279,8 +281,27 @@ function middlewareOf(node: ts.Expression, source: ts.SourceFile): Array<{ name:
 
 function reactRouterRoutes(source: ts.SourceFile, evidence: Evidence, rangeOf: RangeOf): PageRoute[] {
   const routes: PageRoute[] = [];
-  const fromObjects = (array: ts.ArrayLiteralExpression, parent: string) => {
+  const fromObjects = (array: ts.ArrayLiteralExpression, parent: string, condition?: PageRoute["condition"]) => {
     for (const element of array.elements) {
+      // `...(flag ? [routes] : [])` and `...(flag && [routes])`: routes registered only when a condition holds.
+      if (ts.isSpreadElement(element)) {
+        let e: ts.Expression = element.expression;
+        while (ts.isParenthesizedExpression(e)) e = e.expression;
+        const test = ts.isConditionalExpression(e)
+          ? e.condition
+          : ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+            ? e.left
+            : undefined;
+        const branches = ts.isConditionalExpression(e)
+          ? [e.whenTrue, e.whenFalse]
+          : test
+            ? [(e as ts.BinaryExpression).right]
+            : [];
+        if (test)
+          for (const branch of branches)
+            if (ts.isArrayLiteralExpression(branch)) fromObjects(branch, parent, conditionOf(test, source));
+        continue;
+      }
       if (!ts.isObjectLiteralExpression(element)) continue;
       const prop = (name: string) =>
         element.properties.find(
@@ -298,11 +319,12 @@ function reactRouterRoutes(source: ts.SourceFile, evidence: Evidence, rangeOf: R
         routes.push({
           path,
           ...(component ? { component } : {}),
+          ...(condition ? { condition } : {}),
           line: rangeOf(element).start_line,
           evidence: evidence(element),
         });
       const children = prop("children");
-      if (children && ts.isArrayLiteralExpression(children)) fromObjects(children, path);
+      if (children && ts.isArrayLiteralExpression(children)) fromObjects(children, path, condition);
     }
   };
   const fromJsx = (node: ts.Node, parent: string) => {
@@ -346,6 +368,15 @@ function reactRouterRoutes(source: ts.SourceFile, evidence: Evidence, rangeOf: R
   visit(source);
   if (routes.length === 0) fromJsx(source, "");
   return routes;
+}
+
+/** The condition's source text and the value it tests: the last property or identifier name (`config.beta` → `beta`). */
+function conditionOf(test: ts.Expression, source: ts.SourceFile): NonNullable<PageRoute["condition"]> {
+  let e: ts.Expression = test;
+  while (ts.isParenthesizedExpression(e) || ts.isPrefixUnaryExpression(e))
+    e = ts.isParenthesizedExpression(e) ? e.expression : e.operand;
+  const key = ts.isPropertyAccessExpression(e) ? e.name.text : ts.isIdentifier(e) ? e.text : undefined;
+  return { text: test.getText(source).slice(0, 200), ...(key ? { key } : {}) };
 }
 
 function joinPath(parent: string, own: string): string {
@@ -434,8 +465,8 @@ function componentFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: Rang
     walk(body);
     const formRequests = new Set(forms.flatMap((f) => f.submits.map((r) => `${r.method} ${r.url}`)));
     const requests = requestsIn(body, evidence).filter((r) => !formRequests.has(`${r.method} ${r.url}`));
-    if (forms.length > 0 || navigations.length > 0 || requests.length > 0)
-      components.push({ name, exported, forms, navigations, requests });
+    // Recorded even when empty: a page's trace starts at its component's code.
+    components.push({ name, exported, forms, navigations, requests });
   };
   for (const statement of source.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.name && statement.body && /^[A-Z]/.test(statement.name.text))

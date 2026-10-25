@@ -3,21 +3,21 @@
     {
       "key": "checkout",
       "category": "business_process",
-      "entry_point": "page:web:/cart",
+      "entry_point": "page:app:/cart",
       "steps": [
-        "page:web:/cart",
-        "form:web:/cart#checkout",
-        "integration:acme-shop-api"
+        "page:app:/cart",
+        "form:app:/cart#checkout",
+        "integration:api.shop.internal.example"
       ],
       "branches": [],
       "stop_points": [
         {
-          "after": "integration:acme-shop-api",
+          "after": "integration:api.shop.internal.example",
           "reason_code": "missing_repository"
         }
       ],
       "external_boundaries": [
-        "integration:acme-shop-api"
+        "integration:api.shop.internal.example"
       ],
       "area": "frontend"
     },
@@ -41,10 +41,10 @@
     {
       "key": "loyalty_join",
       "category": "user_interface",
-      "entry_point": "page:web:/loyalty",
+      "entry_point": "page:app:/loyalty",
       "steps": [
-        "page:web:/loyalty",
-        "integration:acme-shop-api"
+        "page:app:/loyalty",
+        "integration:api.shop.internal.example"
       ],
       "branches": [],
       "stop_points": [
@@ -53,12 +53,12 @@
           "reason_code": "config_unavailable"
         },
         {
-          "after": "integration:acme-shop-api",
+          "after": "integration:api.shop.internal.example",
           "reason_code": "missing_repository"
         }
       ],
       "external_boundaries": [
-        "integration:acme-shop-api"
+        "integration:api.shop.internal.example"
       ],
       "area": "frontend"
     }
