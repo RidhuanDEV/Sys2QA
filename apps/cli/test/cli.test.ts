@@ -109,7 +109,7 @@ describe("adapters [@req SAA-FR-047]", () => {
   it("prints the support matrix of the installed adapters", async () => {
     expect(await main(["adapters", "--home", home], io())).toBe(EXIT_CODES.ok);
     // js-ts is registered: its matrix when bundled, otherwise a line naming the missing bundle.
-    expect(out).toMatch(/^js-ts (0\.\d+\.\d+ \(protocol 1\.\d+\.\d+\)|: unavailable \(ADAPTER_NOT_BUILT)/m);
+    expect(out).toMatch(/^js-ts( 0\.\d+\.\d+ \(protocol 1\.\d+\.\d+\)|: unavailable \(ADAPTER_NOT_BUILT)/m);
   });
 });
 
