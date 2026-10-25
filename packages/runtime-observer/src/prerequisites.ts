@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 
@@ -55,29 +55,59 @@ export async function checkBrowserRuntime(): Promise<RuntimeCheck> {
   }
 }
 
-/** Container runtime for automated execution (L3, OD-16). Optional: everything else works without it. */
-export function checkContainerRuntime(): RuntimeCheck {
+interface ProbeResult {
+  command: string;
+  status: number | null;
+  stdout: string;
+  missing: boolean;
+}
+
+/** Runs `<command> version` with a time limit; resolves (never rejects) with what happened. */
+function probe(command: string, timeoutMs: number): Promise<ProbeResult> {
+  return new Promise((resolve) => {
+    let stdout = "";
+    let settled = false;
+    const done = (result: Omit<ProbeResult, "command" | "stdout">) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ command, stdout: stdout.trim(), ...result });
+    };
+    const child = spawn(command, ["version", "--format", "{{.Server.Version}}"], {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const timer = setTimeout(() => {
+      child.kill();
+      done({ status: null, missing: false });
+    }, timeoutMs);
+    child.stdout.on("data", (c: Buffer) => (stdout += c.toString()));
+    child.on("error", () => done({ status: null, missing: true }));
+    child.on("close", (status) => done({ status, missing: false }));
+  });
+}
+
+/**
+ * Container runtime for automated execution (L3, OD-16). Optional: everything else works without it. Docker and Podman
+ * are probed concurrently, so the check takes as long as the slowest probe (at most `timeoutMs`), not their sum.
+ */
+export async function checkContainerRuntime(timeoutMs = 5000): Promise<RuntimeCheck> {
   const base = {
     id: "container_runtime",
     title: "Container runtime (Docker or Podman)",
     required_for: ["automated execution (L3)"],
   };
-  for (const command of ["docker", "podman"]) {
-    const result = spawnSync(command, ["version", "--format", "{{.Server.Version}}"], {
-      encoding: "utf8",
-      timeout: 5000,
-      windowsHide: true,
-    });
-    if (result.status === 0 && result.stdout.trim() !== "")
-      return { ...base, status: "ok", detail: `${command} ${result.stdout.trim()}` };
-    if (result.status !== null && result.error === undefined) {
-      return {
-        ...base,
-        status: "warn",
-        detail: `${command} is installed but its engine did not answer`,
-        remediation: `Start the ${command} engine to run approved automated tests.`,
-      };
-    }
+  const results = await Promise.all(["docker", "podman"].map((c) => probe(c, timeoutMs)));
+  const running = results.find((r) => r.status === 0 && r.stdout !== "");
+  if (running) return { ...base, status: "ok", detail: `${running.command} ${running.stdout}` };
+  const installed = results.find((r) => !r.missing);
+  if (installed) {
+    return {
+      ...base,
+      status: "warn",
+      detail: `${installed.command} is installed but its engine did not answer`,
+      remediation: `Start the ${installed.command} engine to run approved automated tests.`,
+    };
   }
   return {
     ...base,

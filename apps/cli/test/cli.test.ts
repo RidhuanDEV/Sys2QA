@@ -135,14 +135,15 @@ describe("doctor and configuration [@req NFR-007] [@req SEC-018]", () => {
     expect(
       (JSON.parse(out) as { data: { llm_disclosure: { text: { en: string } } } }).data.llm_disclosure.text.en,
     ).toContain("Nothing is sent");
-  });
+    // doctor runs real probes (git, docker, podman), each bounded at 5 s; slower on Windows runners (CI run #17).
+  }, 30_000);
 
   it("fails doctor with the unavailable exit code when a prerequisite fails", async () => {
     const failing = { ...io(), env: { SYS2QA_LLM_BASE_URL: "https://llm.example.com/v1", SYS2QA_LLM_MODEL: "m" } };
     expect(await main(["doctor", "--home", home], failing)).toBe(EXIT_CODES.unavailable);
     expect(out).toContain("[FAIL] Model provider");
     expect(out).toContain("overall: fail");
-  });
+  }, 30_000);
 });
 
 describe("credentials from the CLI [@req SEC-011]", () => {
@@ -168,5 +169,18 @@ describe("credentials from the CLI [@req SEC-011]", () => {
       EXIT_CODES.unavailable,
     );
     expect(err).toContain("SECRET_STORE_UNAVAILABLE");
+  });
+});
+
+describe("project deletion from the CLI [@req QAA-FR-001] [@req SEC-015]", () => {
+  it("requires the project name as confirmation", async () => {
+    expect(await main(["project", "create", "Acme", "--home", home, "--json"], io())).toBe(EXIT_CODES.ok);
+    const id = (JSON.parse(out) as { data: { id: string } }).data.id;
+    expect(await main(["project", "delete", id, "--confirm", "acme", "--home", home], io())).toBe(
+      EXIT_CODES.invalid_input,
+    );
+    expect(await main(["project", "delete", id, "--confirm", "Acme", "--home", home], io())).toBe(EXIT_CODES.ok);
+    expect(await main(["project", "show", id, "--home", home], io())).toBe(EXIT_CODES.not_found);
+    expect(await main(["retention", "run", "--home", home, "--json"], io())).toBe(EXIT_CODES.ok);
   });
 });

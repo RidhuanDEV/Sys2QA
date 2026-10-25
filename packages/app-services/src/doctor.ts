@@ -71,6 +71,6 @@ export async function runDoctor(options: {
       ...(e.remediation ? { remediation: e.remediation } : {}),
     });
   }
-  checks.push(await checkBrowserRuntime(), checkContainerRuntime());
+  checks.push(...(await Promise.all([checkBrowserRuntime(), checkContainerRuntime()])));
   return { status: doctorStatus(checks), checks, llm_disclosure: disclosure };
 }
