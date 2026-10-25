@@ -34,6 +34,9 @@ const LLM_SDKS = [
   "@langchain/[^/]+",
 ];
 const CONTRACT_TOOLING = ["ajv", "ajv-formats", "json-schema-to-typescript"];
+/** Modules that start processes. Analysis and QA design modules never do (SEC-002); workers, the adapter host, the observer and the runner do. */
+const PROCESS_CORE = ["child_process", "cluster"];
+const NO_PROCESS_MODULES = ["saa-core", "system-model", "evidence", "qaa-core", "contract"];
 
 const escape = (s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 /** Matches an npm package whether resolved (any node_modules layout, including pnpm's) or unresolved (bare specifier). */
@@ -107,6 +110,13 @@ export function dependencyRules(root = "") {
       severity: "error",
       from: { path: `^${r}(apps|packages)/`, pathNot: `^${r}packages/contract/` },
       to: { path: npm(CONTRACT_TOOLING) },
+    },
+    {
+      name: "no-process-spawn-in-analysis",
+      comment: "Analysis, model, evidence, QA design and contract code never starts a process (SEC-002, SAA-FR-004)",
+      severity: "error",
+      from: { path: `^${r}packages/(${NO_PROCESS_MODULES.join("|")})/src/` },
+      to: { path: core(PROCESS_CORE) },
     },
     {
       name: "no-circular",

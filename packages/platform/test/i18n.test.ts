@@ -46,7 +46,7 @@ describe("versioned glossary [@req LOC-002] [@req LOC-003] [@req LOC-009]", () =
   });
 
   it("references the glossary version for exports and renders codes with an explicit fallback", () => {
-    expect(registry.reference("id")).toBe("id@1.0.0");
+    expect(registry.reference("id")).toBe("id@1.1.0");
     expect(registry.term("id", "case_outcome", "passed")).toEqual({ text: "Lulus", language: "id" });
     expect(registry.term("en", "claim_status", "source_verified").text).toBe("Verified in source");
     expect(registry.term("xx", "severity", "critical")).toEqual({

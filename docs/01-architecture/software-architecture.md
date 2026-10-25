@@ -125,6 +125,7 @@ Enforcement (IMP-002): `scripts/dependency-rules.mjs`, run by `pnpm deps:check` 
 | `browser-only-in-runtime-observer-and-test-runner` | Playwright. `test-runner` is included because it drives the browser inside L3 containers |
 | `llm-sdk-only-in-platform` | Known LLM SDK packages |
 | `contract-validation-only-in-contract` | `ajv`, `ajv-formats`, `json-schema-to-typescript` |
+| `no-process-spawn-in-analysis` | `child_process` and `cluster` in the sources of `saa-core`, `system-model`, `evidence`, `qaa-core` and `contract` (tests may spawn): analysis never starts a process (SEC-002). Processes are started only by `platform` (job workers, doctor probes), `saa-adapters` (adapter host), `runtime-observer` and `test-runner` |
 | `no-circular`, `not-to-unresolvable` | No import cycles; every import resolves |
 
 ### 4.2 Ports and adapters inside the host

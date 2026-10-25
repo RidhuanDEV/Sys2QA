@@ -1,6 +1,6 @@
 {
   "locale": "en",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "terms": {
     "analysis_status": {
       "completed": "Completed",
@@ -326,6 +326,28 @@
       "automation_candidate": "Automation candidate",
       "automation_ready": "Ready for automation",
       "both": "Manual and automated"
+    },
+    "inventory_status": {
+      "included": "Included",
+      "excluded": "Excluded",
+      "skipped": "Skipped",
+      "unreadable": "Unreadable"
+    },
+    "inventory_reason": {
+      "default_exclusion": "Excluded by default (dependencies, build output, version control)",
+      "excluded_by_user": "Excluded by a user rule",
+      "ignored_by_gitignore": "Ignored by .gitignore",
+      "generated": "Generated code",
+      "binary": "Binary file",
+      "too_large": "Larger than the file size budget",
+      "depth_budget": "Deeper than the depth budget",
+      "symlink_not_followed": "Symbolic link not followed",
+      "symlink_outside_root": "Link points outside the approved root",
+      "broken_symlink": "Broken symbolic link",
+      "special_file": "Special file (pipe, socket or device)",
+      "unsupported_name": "File name cannot be processed safely",
+      "permission_denied": "Permission denied",
+      "read_error": "Read error"
     }
   }
 }

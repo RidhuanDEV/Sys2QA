@@ -1,6 +1,6 @@
 {
   "locale": "id",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "terms": {
     "analysis_status": {
       "completed": "Selesai",
@@ -326,6 +326,28 @@
       "automation_candidate": "Kandidat otomasi",
       "automation_ready": "Siap diotomasi",
       "both": "Manual dan otomatis"
+    },
+    "inventory_status": {
+      "included": "Disertakan",
+      "excluded": "Dikecualikan",
+      "skipped": "Dilewati",
+      "unreadable": "Tidak dapat dibaca"
+    },
+    "inventory_reason": {
+      "default_exclusion": "Dikecualikan secara bawaan (dependensi, hasil build, kontrol versi)",
+      "excluded_by_user": "Dikecualikan oleh aturan pengguna",
+      "ignored_by_gitignore": "Diabaikan oleh .gitignore",
+      "generated": "Kode hasil generate",
+      "binary": "Berkas biner",
+      "too_large": "Melebihi anggaran ukuran berkas",
+      "depth_budget": "Melebihi anggaran kedalaman",
+      "symlink_not_followed": "Tautan simbolik tidak diikuti",
+      "symlink_outside_root": "Tautan menunjuk ke luar root yang disetujui",
+      "broken_symlink": "Tautan simbolik rusak",
+      "special_file": "Berkas khusus (pipe, socket, atau perangkat)",
+      "unsupported_name": "Nama berkas tidak dapat diproses dengan aman",
+      "permission_denied": "Izin ditolak",
+      "read_error": "Kesalahan baca"
     }
   }
 }

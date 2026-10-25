@@ -117,7 +117,17 @@ importers:
 
   packages/saa-adapters: {}
 
-  packages/saa-core: {}
+  packages/saa-core:
+    dependencies:
+      '@sys2qa/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@sys2qa/platform':
+        specifier: workspace:*
+        version: link:../platform
+      ignore:
+        specifier: ^7.0.13
+        version: 7.0.13
 
   packages/system-model: {}
 

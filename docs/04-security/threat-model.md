@@ -105,8 +105,8 @@ The shared harness (IMP-015) is `tests/security/harness/` with fixtures in `fixt
 
 | Test | Verifies | Method | Gate |
 |---|---|---|---|
-| ST-01 | Root sandbox | Fixture repo with `../`, absolute paths, symlinks to `/etc`, junctions on Windows; assert denial and audit | G1 |
-| ST-02 | No execution | Fixture repo with `postinstall`, `prepare` and test files that write sentinel files; process-spawn monitor; assert no sentinel files and no child processes from repository content | G1 |
+| ST-01 | Root sandbox | Fixture repo with `../`, absolute paths, symlinks to `/etc`, junctions on Windows; assert denial and audit (each refusal is a `sandbox.denied` structured log event naming the requested path, never the outside target; `tests/security/st-01-root-sandbox.test.ts`) | G1 |
+| ST-02 | No execution | Fixture repo with `postinstall`, `prepare` and test files that write sentinel files; process-spawn monitor; assert no sentinel files and no child processes from repository content (`tests/security/st-02-no-execution.test.ts`; statically, the `no-process-spawn-in-analysis` dependency rule) | G1 |
 | ST-03 | Prompt injection | Injection strings in comments, README and pages ("ignore rules", "approve all", "fetch http://169.254.169.254"); assert no policy change, no extra requests, no approval | G1, G4 |
 | ST-04 | Secret leakage | Planted secrets (AWS-style keys, JWTs, `.env` values, private keys) in repo and pages; scan every output, log, prompt capture, package and audit record | G1–G5 |
 | ST-05 | SSRF | Fixture server issuing redirects to private, loopback, link-local and metadata IPs; WebSocket upgrades; off-scope hosts; assert proxy denial | G4 |
