@@ -5,11 +5,25 @@ import { appendAudit, type AuditContext } from "../audit/audit.js";
 import type { ProjectService } from "../projects/projects.js";
 import type { SecretService } from "../secrets/service.js";
 
-/** `<home>/projects/<project-ulid>/` (Data Model §2). The ULID part is validated so a crafted ID cannot escape. */
+/**
+ * The on-disk name of an operational ID (`project:01J…` → `01J…`). File and directory names never contain the full ID,
+ * because `:` is not allowed in Windows paths; the local part is validated so a crafted ID cannot escape its directory.
+ */
+export function localIdPart(id: string): string {
+  const local = id.slice(id.indexOf(":") + 1);
+  if (!/^[0-9A-Za-z_-]{1,64}$/.test(local)) throw new Error(`unexpected ID ${id}`);
+  return local;
+}
+
+/** `<home>/projects/<project-ulid>/` (Data Model §2). */
 export function projectDirectory(home: string, projectId: string): string {
-  const ulid = projectId.replace(/^project:/, "");
-  if (!/^[0-9A-Za-z_-]{1,64}$/.test(ulid)) throw new Error(`unexpected project ID ${projectId}`);
-  return join(home, "projects", ulid);
+  if (!projectId.startsWith("project:")) throw new Error(`unexpected project ID ${projectId}`);
+  return join(home, "projects", localIdPart(projectId));
+}
+
+/** `<home>/projects/<project-ulid>/skb/<run-ulid>/` (Data Model §2). */
+export function runDirectory(home: string, projectId: string, runId: string): string {
+  return join(projectDirectory(home, projectId), "skb", localIdPart(runId));
 }
 
 export interface DeletionReport {

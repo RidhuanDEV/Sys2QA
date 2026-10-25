@@ -3,7 +3,8 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    # main is updated at the end of each gate; work branches are verified on every push.
+    branches: [main, "claude/**"]
   pull_request:
 
 permissions:

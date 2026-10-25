@@ -53,6 +53,8 @@ Rules:
 └── logs/                            structured logs (rotated, redacted)
 ```
 
+Directory and file names use the local part of an ID (`project:01J…` → `01J…`, `run:01J…` → `01J…`), never the full ID, because `:` is not allowed in Windows paths (`localIdPart`, `projectDirectory`, `runDirectory`).
+
 The **user-visible output directory** (SAA-FR-036) is separate and configurable. Exports are copied there; the home directory remains the system of record.
 
 Sharding: entity and relationship files are sharded by a hash of the ID (target ≤ 5,000 records or ≤ 8 MB per shard), so that diffs and partial reloads stay cheap.

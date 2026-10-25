@@ -11,6 +11,7 @@ import {
   openStateDatabase,
   pendingDeletions,
   projectDirectory,
+  runDirectory,
   ProjectService,
   Redactor,
   runRetention,
@@ -73,8 +74,8 @@ async function populatedProject(name: string) {
     )
     .run(runId);
   const dir = projectDirectory(home, project.id);
-  mkdirSync(join(dir, "skb", runId), { recursive: true });
-  writeFileSync(join(dir, "skb", runId, "manifest.json"), "{}");
+  mkdirSync(runDirectory(home, project.id, runId), { recursive: true });
+  writeFileSync(join(runDirectory(home, project.id, runId), "manifest.json"), "{}");
   return { project, dir, runId };
 }
 
@@ -147,8 +148,11 @@ describe("project deletion [@req SEC-015] [@req QAA-FR-001]", () => {
     expect(backend.values.size).toBe(0);
   });
 
-  it("refuses project IDs that could escape the projects directory", () => {
-    expect(() => projectDirectory(home, "project:../../etc")).toThrow(/unexpected project ID/);
+  it("names directories by the local part of IDs and refuses IDs that could escape", () => {
+    expect(() => projectDirectory(home, "project:../../etc")).toThrow(/unexpected ID/);
+    expect(() => projectDirectory(home, "run:01ABC")).toThrow(/unexpected project ID/);
+    // Directory names never contain ":", which Windows does not allow (CI run #18).
+    expect(runDirectory(home, "project:01ABC", "run:01DEF")).toBe(join(home, "projects", "01ABC", "skb", "01DEF"));
   });
 });
 
