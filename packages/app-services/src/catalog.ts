@@ -4,9 +4,12 @@ import { CONTRACT_VERSION, validatePackage } from "@sys2qa/contract";
 import {
   checkHealth,
   collectMetrics,
+  deleteProjectEverywhere,
   OPERATION_LEVELS,
+  pendingDeletions,
   PERMISSION_LEVELS,
   renderPrometheus,
+  runRetention,
   type Operation as PolicyOperation,
 } from "@sys2qa/platform";
 import { runDoctor } from "./doctor.js";
@@ -372,6 +375,70 @@ const secretRemove = defineOperation<{ ref: string }, unknown>({
   },
 });
 
+const projectDelete = defineOperation<{ project_id: string; confirm_name: string }, unknown>({
+  name: "project.delete",
+  title: "Delete a project",
+  description:
+    "Deletes a project's state, files, index rows and stored credentials (SEC-015). Requires the project name as confirmation. Not available through MCP.",
+  level: "none",
+  effect: "write",
+  destructive: true,
+  interfaces: ["cli", "api", "test"],
+  input: {
+    type: "object",
+    additionalProperties: false,
+    required: ["project_id", "confirm_name"],
+    properties: { project_id: ID, confirm_name: { type: "string" } },
+  },
+  run: async ({ host, caller }, input) => {
+    const project = host.projects.getProject(input.project_id);
+    if (project.name !== input.confirm_name)
+      throw serviceError("INPUT_INVALID", "confirm_name does not match the project name", { field: "confirm_name" });
+    return deleteProjectEverywhere({
+      db: host.state.db,
+      home: host.home,
+      projects: host.projects,
+      secrets: () => host.secrets(),
+      projectId: project.id,
+      actor: caller.actor,
+    });
+  },
+});
+
+const retentionRun = defineOperation<Record<string, never>, unknown>({
+  name: "system.retention_run",
+  title: "Apply retention",
+  description:
+    "Finishes interrupted project deletions, then removes logs, evidence blobs and cache files past their retention (Data Model §8). Audit events are kept.",
+  level: "none",
+  effect: "write",
+  destructive: true,
+  input: { type: "object", additionalProperties: false },
+  run: async ({ host, caller }) => {
+    const resumed = [];
+    for (const projectId of pendingDeletions(host.state.db)) {
+      resumed.push(
+        await deleteProjectEverywhere({
+          db: host.state.db,
+          home: host.home,
+          projects: host.projects,
+          secrets: () => host.secrets(),
+          projectId,
+          actor: caller.actor,
+        }),
+      );
+    }
+    const retention = runRetention({
+      db: host.state.db,
+      home: host.home,
+      now: host.now,
+      policy: host.config.config.retention,
+      audit: { redactor: host.redactor, now: host.now },
+    });
+    return { resumed_deletions: resumed, ...retention };
+  },
+});
+
 const MAX_PACKAGE_FILES = 10_000;
 const MAX_PACKAGE_BYTES = 256 * 1024 * 1024;
 
@@ -432,6 +499,8 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   secretPut,
   secretList,
   secretRemove,
+  projectDelete,
+  retentionRun,
   projectCreate,
   projectList,
   projectGet,

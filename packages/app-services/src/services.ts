@@ -13,6 +13,7 @@ export interface OperationInfo {
   description: string;
   level: Operation["level"];
   effect: Operation["effect"];
+  destructive: boolean;
   input: object;
 }
 
@@ -45,6 +46,7 @@ export class AppServices {
         description: o.description,
         level: o.level,
         effect: o.effect,
+        destructive: o.destructive === true,
         input: o.input,
       }));
   }

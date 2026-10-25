@@ -13,6 +13,8 @@ export interface Sys2QaConfig {
   llm_exclusions: string[];
   /** Secret backend selection (ADR-011). */
   secrets: { backend: "auto" | "os" | "file" };
+  /** Retention (Data Model §8). Audit events are kept until their project is deleted. */
+  retention: { blob_days: number; log_days: number; cache_max_bytes: number };
 }
 
 export const DEFAULT_CONFIG: Sys2QaConfig = {
@@ -21,6 +23,7 @@ export const DEFAULT_CONFIG: Sys2QaConfig = {
   jobs: { max_concurrent: 2, cancel_grace_ms: 10_000, lease_ms: 30_000 },
   llm_exclusions: [],
   secrets: { backend: "auto" },
+  retention: { blob_days: 30, log_days: 14, cache_max_bytes: 2 * 1024 ** 3 },
 };
 
 export const CONFIG_SCHEMA = {
@@ -61,6 +64,15 @@ export const CONFIG_SCHEMA = {
     },
     llm_exclusions: { type: "array", items: { type: "string", minLength: 1 } },
     secrets: { type: "object", additionalProperties: false, properties: { backend: { enum: ["auto", "os", "file"] } } },
+    retention: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        blob_days: { type: "integer", minimum: 1 },
+        log_days: { type: "integer", minimum: 1 },
+        cache_max_bytes: { type: "integer", minimum: 0 },
+      },
+    },
   },
 } as const;
 
@@ -84,7 +96,13 @@ export class ConfigError extends Error {
   }
 }
 
-type PartialConfig = { [K in keyof Sys2QaConfig]?: K extends "jobs" ? Partial<Sys2QaConfig["jobs"]> : Sys2QaConfig[K] };
+type PartialConfig = {
+  [K in keyof Sys2QaConfig]?: K extends "jobs"
+    ? Partial<Sys2QaConfig["jobs"]>
+    : K extends "retention"
+      ? Partial<Sys2QaConfig["retention"]>
+      : Sys2QaConfig[K];
+};
 export type { PartialConfig };
 
 /** `SYS2QA_*` environment variables (the layer above the user file). */
@@ -160,7 +178,7 @@ export function loadConfig(options: {
     for (const [key, value] of Object.entries(values) as Array<[keyof Sys2QaConfig, unknown]>) {
       if (value === undefined) continue;
       (config as unknown as Record<string, unknown>)[key] =
-        key === "jobs" ? { ...config.jobs, ...(value as object) } : value;
+        key === "jobs" || key === "retention" ? { ...(config[key] as object), ...(value as object) } : value;
       sources[key] = layer;
     }
   }

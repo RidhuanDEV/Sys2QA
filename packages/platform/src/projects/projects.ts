@@ -151,13 +151,27 @@ export class ProjectService {
    * append-only tables, and an installation-wide audit event records the head of the deleted project's audit chain.
    * Files, secrets and index rows are removed by the deletion job (IMP-019).
    */
+  /**
+   * Records the deletion tombstone (SEC-015). From here on the project's append-only rows may be deleted, and an
+   * interrupted deletion can be resumed (IMP-019).
+   */
+  requestDeletion(id: string, actor: string): void {
+    this.getProject(id);
+    const at = this.at();
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO project_deletions (project_id, requested_by, requested_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(id, actor, at, at, at);
+  }
+
   deleteProject(id: string, actor: string): void {
     this.getProject(id);
     this.tx(() => {
       const at = this.at();
       this.db
         .prepare(
-          "INSERT INTO project_deletions (project_id, requested_by, requested_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+          "INSERT OR IGNORE INTO project_deletions (project_id, requested_by, requested_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
         .run(id, actor, at, at, at);
       this.audit({

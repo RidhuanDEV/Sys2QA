@@ -72,6 +72,14 @@ const COMMANDS: Record<string, Command> = {
     build: ([name], v) => ({ operation: "project.create", input: defined({ name, languages: list(v.language) }) }),
   },
   "project list": { usage: "project list", build: () => ({ operation: "project.list", input: {} }) },
+  "project delete": {
+    usage: "project delete <project-id> --confirm <project-name>",
+    build: ([project_id], v) => ({
+      operation: "project.delete",
+      input: defined({ project_id, confirm_name: str(v.confirm) }),
+    }),
+  },
+  "retention run": { usage: "retention run", build: () => ({ operation: "system.retention_run", input: {} }) },
   "project show": {
     usage: "project show <project-id>",
     build: ([project_id]) => ({ operation: "project.get", input: defined({ project_id }) }),
@@ -168,6 +176,7 @@ const OPTIONS = {
   "local-owner-mode": { type: "boolean" },
   input: { type: "string" },
   prometheus: { type: "boolean" },
+  confirm: { type: "string" },
 } as const;
 
 function safeUser(): string {

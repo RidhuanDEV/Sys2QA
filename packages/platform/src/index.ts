@@ -12,5 +12,6 @@ export * from "./observability/index.js";
 export * from "./policy/index.js";
 export * from "./projects/index.js";
 export * from "./redaction.js";
+export * from "./retention/index.js";
 export * from "./secrets/index.js";
 export * from "./storage/index.js";

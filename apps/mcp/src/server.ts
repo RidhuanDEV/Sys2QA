@@ -19,7 +19,7 @@ export function createMcpServer(services: AppServices, options: { actor?: string
       annotations: {
         title: op.title,
         readOnlyHint: op.effect === "read",
-        destructiveHint: false,
+        destructiveHint: op.destructive,
         idempotentHint: op.effect === "read",
         openWorldHint: false,
       },

@@ -57,6 +57,7 @@ describe("configuration layers [@req QAA-FR-100]", () => {
       jobs: "override",
       llm_exclusions: "default",
       secrets: "default",
+      retention: "default",
     });
   });
 

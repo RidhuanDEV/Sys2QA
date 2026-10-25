@@ -100,6 +100,7 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `defect_transitions` | `defect_id`, `seq`, `from`, `to`, `by`, `at`, `reason` | **Append-only** |
 | `audit_events` | `seq`, `project_id?`, `at`, `actor`, `action`, `target`, `details_json`, `prev_hash`, `hash` | **Append-only**; details pass through the redactor, and fields it replaced are listed in `details.redacted_paths` (SEC-004, SEC-014). One hash chain per project and one for installation-wide events (`project_id` NULL): `hash = sha256(canonical JSON of the event and prev_hash)`. Deleting a project removes its chain; the installation-wide `project.deleted` event records that chain's last hash. Actions are the catalog `AUDIT_ACTIONS` in `@sys2qa/platform` |
 | `model_usage` | `job_id?`, `project_id?`, `agent?`, `purpose`, `provider`, `model`, `prompt_template_version`, `tokens_in`, `tokens_out`, `cost?`, `outcome`, `duration_ms` | NFR-011; one row per LLM call, including failed calls (no prompt or output content). Attribution columns added by migration 0004 |
+| `blob_pins` | `project_id`, `sha256`, `reason` | Evidence blobs kept beyond retention (migration 0006) |
 | `settings` | `key`, `value_json` | Installation settings, including the administrator switches `l4_enabled` and `local_owner_mode_enabled` (both off by default; changes are audited as `settings.changed`), and `index_schema_version` |
 | `schema_migrations` | `version`, `applied_at` | |
 
@@ -151,6 +152,23 @@ Rebuild procedure: drop `idx_*` → stream every `skb/` and `observed/` partitio
 These defaults are conservative initial values to be reviewed after Gate 3 feedback. They are not measured requirements.
 
 Project deletion removes: the state rows (in one transaction), `projects/<id>/`, the project's secret references in class F, and index rows. A final audit event is written to a global audit table.
+
+Implementation (IMP-019):
+- **Deletion** (`deleteProjectEverywhere`, operation `project.delete`, which requires the project name as confirmation and is not available through MCP) runs in this order:
+  1. writes the `project_deletions` tombstone;
+  2. deletes the project's credential values (class F);
+  3. removes `projects/<ulid>/`;
+  4. deletes the index rows of the project's runs;
+  5. deletes the state rows, plus the installation-wide `project.deleted` event carrying the head of the project's audit chain, in one transaction.
+
+  Every step is idempotent. If a step fails (for example a locked secret store), the tombstone stays, `pendingDeletions` lists the project, and the next `system.retention_run` finishes it.
+- **Retention** (`runRetention`, operation `system.retention_run`, `sys2qa retention run`) removes:
+  - log files older than `log_days`;
+  - evidence blobs whose modification time is older than `blob_days`, unless a defect's `links_json` names their hash or a `blob_pins` row (migration 0006: `defect`, `export` or `manual`) keeps them;
+  - the least recently used cache files while a project's `cache/` exceeds `cache_max_bytes`.
+
+  It never deletes audit events, packages or imported originals. Removal counts, without paths, are audited as `data.deleted`. Defaults are in the configuration (`retention`).
+- **Not yet covered:** SKB run retention (last 5 runs per project), which arrives with the SKB writer (Gate 1).
 
 ## 9. Recovery
 

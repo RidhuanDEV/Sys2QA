@@ -24,6 +24,8 @@ export interface Operation<I = Record<string, unknown>, O = unknown> {
   effect: "read" | "write";
   /** JSON Schema (2020-12) of the input; validated before `run`. */
   input: object;
+  /** Removes data irreversibly (declared to MCP clients as `destructiveHint`). */
+  destructive?: boolean;
   /** Restricts the interfaces that may call it (e.g. secret values never through MCP). All when absent. */
   interfaces?: ReadonlyArray<Caller["interface"]>;
   run(context: OperationContext, input: I): O | Promise<O>;
