@@ -18,6 +18,7 @@ interface ExpressFacts {
     path?: string;
     dynamic?: string;
     middleware: Array<{ name: string; args: string[] }>;
+    handler?: { name: string } | { unit: string };
     line: number;
     evidence: string;
   }>;
@@ -33,6 +34,7 @@ interface ComponentFacts {
   name: string;
   forms: FormFacts[];
   navigations: Array<{ to: string; evidence: string }>;
+  requests?: Array<{ method: string; url: string; evidence: string }>;
 }
 interface ModuleFacts {
   id: string;
@@ -193,6 +195,7 @@ export function linkFrameworks(facts: StructuralFacts, boundaries: ReadonlyArray
             method: route.method,
             route_pattern: pattern,
             middleware: route.middleware,
+            ...(route.handler ? { handler: route.handler } : {}),
             status: viaParameter ? "inferred" : "source_verified",
             ...(viaParameter
               ? {
@@ -357,6 +360,14 @@ export function linkFrameworks(facts: StructuralFacts, boundaries: ReadonlyArray
           status: "unresolved",
         });
       }
+    }
+    for (const request of component.requests ?? []) {
+      const path = normalizeRoutePath(request.url);
+      const endpoint = [...apis].find((id) => {
+        const [, method, pattern] = /^api:([^:]+):(.*)$/.exec(id)!;
+        return (method === request.method || method === "ANY" || method === "ALL") && matchesPattern(pattern!, path);
+      });
+      if (endpoint) relate("CONSUMES", page.id, endpoint, [request.evidence]);
     }
     for (const nav of component.navigations) {
       const to = `page:${page.ns}:${normalizeRoutePath(nav.to)}`;

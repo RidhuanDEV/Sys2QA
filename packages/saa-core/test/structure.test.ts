@@ -12,6 +12,7 @@ import {
   findCycles,
   normalizeRoutePath,
   RootSandbox,
+  scheduleLabel,
   scanInventory,
   type InventoryEntry,
 } from "../src/index.js";
@@ -340,6 +341,83 @@ describe("configuration and deployment [@req SAA-FR-020] [@req SEC-002]", () => 
     for (const e of result.entities) expect(validateJsonSchema(ENTITY, e).errors, e.id).toEqual([]);
     for (const r of result.relationships) expect(validateJsonSchema(RELATIONSHIP, r).errors, r.id).toEqual([]);
   }, 60_000);
+});
+
+describe("component traces [@req SAA-FR-009] [@req SAA-FR-041]", () => {
+  it("traces every F1 entry point and stops exactly where the ground truth says", async () => {
+    const truth = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "workflows.json"), "utf8")) as {
+      workflows: Array<{
+        entry_point: string;
+        steps: string[];
+        stop_points: Array<{ after: string | null; reason_code: string }>;
+      }>;
+    };
+    const gapsTruth = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "gaps.json"), "utf8")) as {
+      gaps: Array<{ key: string; type: string; related: string[] }>;
+    };
+    const result = await analyze(F1);
+    const traces = new Map(result.component_traces.map((t) => [t.entry_point_id, t]));
+    const relationships = new Map(result.relationships.map((r) => [r.id, r]));
+    const edges = (entry: string) =>
+      traces
+        .get(entry)!
+        .relationship_ids.map(
+          (id) => `${relationships.get(id)!.type} ${relationships.get(id)!.from} ${relationships.get(id)!.to}`,
+        );
+
+    // Every entry point of the ground truth has a trace.
+    for (const w of truth.workflows) expect(traces.has(w.entry_point), w.entry_point).toBe(true);
+    // Stops: each expected stop is on the trace of the step it follows; API traces stop nowhere else.
+    const expectedStops = new Map<string, string[]>();
+    for (const w of truth.workflows)
+      for (const stop of w.stop_points)
+        expectedStops.set(stop.after!, [...(expectedStops.get(stop.after!) ?? []), stop.reason_code]);
+    for (const trace of result.component_traces.filter((t) => t.entry_point_id.startsWith("api:"))) {
+      const expected = [...new Set(expectedStops.get(trace.entry_point_id) ?? [])].sort();
+      expect(trace.stopped_at.map((s) => s.reason_code).sort(), trace.entry_point_id).toEqual(expected);
+    }
+    // The external boundary is the email provider, and its gap is the ground truth's email-delivery gap.
+    const email = gapsTruth.gaps.find((g) => g.key === "email-delivery")!;
+    const stop = traces.get("api:POST:/api/auth/register")!.stopped_at[0]!;
+    expect(stop.entity_id).toBe(email.related[0]);
+    expect(result.gaps.find((g) => g.id === stop.gap_id)).toMatchObject({
+      type: email.type,
+      related_entity_ids: email.related,
+    });
+    expect(edges("api:POST:/api/auth/register")).toEqual(
+      expect.arrayContaining([
+        "WRITES_TO api:POST:/api/auth/register entity:user",
+        "CALLS api:POST:/api/auth/register function:server.email.sendEmail",
+        "SENDS_TO function:server.email.sendEmail integration:email.provider",
+      ]),
+    );
+    // The nightly job writes the entities the ground truth lists.
+    const job = truth.workflows.find((w) => w.entry_point.startsWith("job:"))!;
+    expect(edges(job.entry_point).sort()).toEqual(
+      job.steps
+        .slice(1)
+        .map((e) => `WRITES_TO ${job.entry_point} ${e}`)
+        .sort(),
+    );
+    expect(result.entities.find((e) => e.id === job.entry_point)).toMatchObject({ kind: "job", schedule: "0 3 * * *" });
+    // Pages reach their endpoints through forms or requests.
+    expect(edges("page:web:/orders/{id}")).toContain(
+      "CONSUMES page:web:/orders/{id} api:POST:/api/orders/{id}/decision",
+    );
+    expect(edges("page:web:/register")).toContain("SUBMITS_TO form:web:/register#register api:POST:/api/auth/register");
+    const TRACE = { $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/component_trace" };
+    for (const t of result.component_traces) expect(validateJsonSchema(TRACE, t).errors, t.id).toEqual([]);
+    for (const r of result.relationships) expect(validateJsonSchema(RELATIONSHIP, r).errors, r.id).toEqual([]);
+  }, 60_000);
+
+  it("labels cron schedules for job IDs", () => {
+    expect(scheduleLabel("0 3 * * *")).toBe("nightly");
+    expect(scheduleLabel("30 14 * * *")).toBe("daily");
+    expect(scheduleLabel("0 9 * * 1")).toBe("weekly");
+    expect(scheduleLabel("15 * * * *")).toBe("hourly");
+    expect(scheduleLabel("*/5 * * * *")).toBe("scheduled");
+    expect(scheduleLabel("0 0 2 * * *")).toBe("nightly");
+  });
 });
 
 describe("import cycles [@req SAA-FR-006]", () => {

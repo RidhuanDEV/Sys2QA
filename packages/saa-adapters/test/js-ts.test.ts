@@ -129,3 +129,57 @@ describe("js-ts extraction [@req SAA-FR-005]", () => {
     expect(extractFiles(files, context(files.map((f) => f.path)))).toEqual(result);
   });
 });
+
+describe("js-ts trace facts [@req SAA-FR-009]", () => {
+  const source = [
+    'import { send } from "./mail.js";',
+    'import * as db from "./db.js";',
+    'import cron from "node-cron";',
+    "export async function notify(id: string) {",
+    "  await prisma.user.findUnique({ where: { id } });",
+    "  await prisma.order.update({ where: { id }, data: {} });",
+    "  await send(id);",
+    "  await db.audit(id);",
+    '  await fetch("https://api.example.test/v1");',
+    "  await fetch(`/api/orders/${id}`);",
+    "  await import(`./plugins/${id}.js`);",
+    "}",
+    'router.post("/x", async (req, res) => { await notify(req.body.id); });',
+    'cron.schedule("0 3 * * *", async () => { await prisma.token.deleteMany({}); });',
+  ].join("\n");
+  const files = [{ path: "src/jobs.ts", sha256: SHA, text: source }];
+  const module = extractFiles(files, context(["src/jobs.ts", "src/mail.ts", "src/db.ts"])).entities.find(
+    (e) => e.id === "module:jobs",
+  ) as unknown as {
+    units: Array<{
+      key: string;
+      calls: Array<{ name: string }>;
+      data: unknown[];
+      outbound: unknown[];
+      dynamic_imports: unknown[];
+    }>;
+    jobs: Array<{ expression: string; unit: string }>;
+  };
+
+  it("records calls, Prisma access, outbound requests and computed imports per unit", () => {
+    const notify = module.units.find((u) => u.key === "fn:notify")!;
+    expect(notify.calls.map((c) => c.name)).toEqual(["send", "db.audit"]);
+    expect(notify.data).toEqual([
+      expect.objectContaining({ model: "user", op: "findUnique", access: "read" }),
+      expect.objectContaining({ model: "order", op: "update", access: "write" }),
+    ]);
+    // Only the absolute URL is outbound; a path on the application's own origin is not.
+    expect(notify.outbound).toEqual([
+      expect.objectContaining({ target: "https://api.example.test/v1", literal: true }),
+    ]);
+    expect(notify.dynamic_imports).toHaveLength(1);
+    const handler = module.units.find((u) => u.key.startsWith("at:") && u.calls.some((c) => c.name === "notify"));
+    expect(handler).toBeDefined();
+  });
+
+  it("records cron jobs with their callback unit", () => {
+    expect(module.jobs).toEqual([expect.objectContaining({ expression: "0 3 * * *" })]);
+    const unit = module.units.find((u) => u.key === module.jobs[0]!.unit)!;
+    expect(unit.data).toEqual([expect.objectContaining({ model: "token", op: "deleteMany", access: "write" })]);
+  });
+});

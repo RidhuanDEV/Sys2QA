@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { positionKey } from "./trace.js";
 
 /**
  * Framework facts of one module (IMP-107). They are recorded on the module entity because a route, a page or a form
@@ -29,6 +30,8 @@ export interface ExpressRoute {
   path?: string;
   dynamic?: string;
   middleware: Array<{ name: string; args: string[] }>;
+  /** The handler: a function named in this module or imported (`name`), or an inline function (`unit`). */
+  handler?: { name: string } | { unit: string };
   line: number;
   evidence: string;
 }
@@ -47,6 +50,8 @@ export interface ComponentFacts {
   exported: boolean;
   forms: FormFacts[];
   navigations: Array<{ to: string; line: number; evidence: string }>;
+  /** Requests the component makes outside its forms' submit handlers (data loading, buttons). */
+  requests: Array<{ method: string; url: string; evidence: string }>;
 }
 
 export interface FormFacts {
@@ -230,6 +235,7 @@ function expressFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: RangeO
           method: method.toUpperCase(),
           ...(path === undefined ? { dynamic: first!.getText(source).slice(0, 200) } : { path }),
           middleware: handlers.slice(0, -1).flatMap((h) => middlewareOf(h, source)),
+          ...handlerOf(handlers[handlers.length - 1], source),
           line: rangeOf(node).start_line,
           evidence: evidence(node),
         });
@@ -250,6 +256,14 @@ function expressFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: RangeO
   };
   visitCalls(source);
   return { receivers, routes, mounts };
+}
+
+function handlerOf(node: ts.Expression | undefined, source: ts.SourceFile): Pick<ExpressRoute, "handler"> {
+  if (!node) return {};
+  if (ts.isIdentifier(node)) return { handler: { name: node.text } };
+  if (ts.isArrowFunction(node) || ts.isFunctionExpression(node))
+    return { handler: { unit: positionKey(node, source) } };
+  return {};
 }
 
 function middlewareOf(node: ts.Expression, source: ts.SourceFile): Array<{ name: string; args: string[] }> {
@@ -418,7 +432,10 @@ function componentFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: Rang
       ts.forEachChild(node, walk);
     };
     walk(body);
-    if (forms.length > 0 || navigations.length > 0) components.push({ name, exported, forms, navigations });
+    const formRequests = new Set(forms.flatMap((f) => f.submits.map((r) => `${r.method} ${r.url}`)));
+    const requests = requestsIn(body, evidence).filter((r) => !formRequests.has(`${r.method} ${r.url}`));
+    if (forms.length > 0 || navigations.length > 0 || requests.length > 0)
+      components.push({ name, exported, forms, navigations, requests });
   };
   for (const statement of source.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.name && statement.body && /^[A-Z]/.test(statement.name.text))
@@ -476,18 +493,36 @@ function submitHandler(
 }
 
 /** `fetch("/literal", { method: "POST" })` calls inside a handler. */
-function requestsIn(handler: ts.Node): FormFacts["submits"] {
-  const requests: FormFacts["submits"] = [];
+/** A request path from a literal or a template: `${id}` becomes `{id}` (other expressions `{param}`). */
+function requestUrl(node: ts.Node | undefined): string | undefined {
+  const plain = literal(node);
+  if (plain !== undefined) return plain;
+  if (node && ts.isTemplateExpression(node)) {
+    let url = node.head.text;
+    for (const span of node.templateSpans) {
+      const e = span.expression;
+      url += `{${ts.isIdentifier(e) ? e.text : ts.isPropertyAccessExpression(e) ? e.name.text : "param"}}${span.literal.text}`;
+    }
+    return url;
+  }
+  return undefined;
+}
+
+function requestsIn(handler: ts.Node): FormFacts["submits"];
+function requestsIn(handler: ts.Node, evidence: Evidence): Array<{ method: string; url: string; evidence: string }>;
+function requestsIn(handler: ts.Node, evidence?: Evidence): Array<{ method: string; url: string; evidence?: string }> {
+  const requests: Array<{ method: string; url: string; evidence?: string }> = [];
   const walk = (node: ts.Node): void => {
     if (ts.isCallExpression(node) && calleeName(node) === "fetch") {
-      const url = literal(node.arguments[0]);
+      const url = requestUrl(node.arguments[0]);
       let method = "GET";
       const options = node.arguments[1];
       if (options && ts.isObjectLiteralExpression(options))
         for (const p of options.properties)
           if (ts.isPropertyAssignment(p) && p.name.getText() === "method")
             method = (literal(p.initializer) ?? method).toUpperCase();
-      if (url !== undefined) requests.push({ method, url });
+      if (url !== undefined && url.startsWith("/"))
+        requests.push(evidence ? { method, url, evidence: evidence(node) } : { method, url });
     }
     ts.forEachChild(node, walk);
   };

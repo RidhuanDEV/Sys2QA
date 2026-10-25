@@ -9,11 +9,12 @@ import type { InventoryEntry } from "../intake/inventory.js";
 import type { RootSandbox } from "../intake/sandbox.js";
 import { redactOutput } from "../intake/secrets.js";
 import type { ProjectBoundary } from "../stack/stack.js";
-import type { Gap } from "@sys2qa/contract";
+import type { ComponentTrace, Gap } from "@sys2qa/contract";
 import { linkConfig } from "./config.js";
 import { linkDataModel } from "./datamodel.js";
 import { linkFrameworks } from "./frameworks.js";
 import { linkStructure, mergeFacts, type DependencyGraph, type StructuralFacts } from "./graph.js";
+import { traceComponents } from "./trace.js";
 
 export interface StructureOptions {
   sandbox: RootSandbox;
@@ -34,6 +35,8 @@ export interface StructureResult extends StructuralFacts {
   graph: DependencyGraph;
   /** What could not be established (dynamic routes, requests to endpoints no analyzed route defines). */
   gaps: Gap[];
+  /** One trace per entry point (API endpoint, page, scheduled job) with where and why it stopped (SAA-FR-041). */
+  component_traces: ComponentTrace[];
   adapters: InitializeResult[];
   /** Batches that failed, by adapter and error code; their files are `failed` in `coverage`. */
   failed_batches: Array<{ adapter: string; code: string; files: number }>;
@@ -138,18 +141,24 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
   const frameworks = linkFrameworks(facts, options.boundaries);
   const data = linkDataModel(facts);
   const config = linkConfig(facts);
+  const traces = traceComponents(facts, {
+    entities: [...frameworks.entities, ...data.entities],
+    relationships: frameworks.relationships,
+  });
   return {
-    entities: [...facts.entities, ...frameworks.entities, ...data.entities, ...config.entities],
+    entities: [...facts.entities, ...frameworks.entities, ...data.entities, ...config.entities, ...traces.entities],
     relationships: [
       ...facts.relationships,
       ...linked.relationships,
       ...frameworks.relationships,
       ...data.relationships,
       ...config.relationships,
+      ...traces.relationships,
     ],
     evidence: facts.evidence,
     coverage: [...facts.coverage, ...frameworks.coverage, ...data.coverage, ...config.coverage],
-    gaps: frameworks.gaps,
+    gaps: [...frameworks.gaps, ...traces.gaps],
+    component_traces: traces.component_traces,
     graph: linked.graph,
     adapters: infos,
     failed_batches: failed,
