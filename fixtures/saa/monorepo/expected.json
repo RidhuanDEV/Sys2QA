@@ -1,0 +1,53 @@
+{
+  "boundaries": [
+    {
+      "id": "project:.",
+      "name": "acme-mono",
+      "kind": "workspace_root",
+      "status": "source_verified",
+      "ecosystems": ["npm"],
+      "frameworks": []
+    },
+    {
+      "id": "project:apps/api",
+      "name": "@acme/api",
+      "kind": "member",
+      "status": "source_verified",
+      "ecosystems": ["npm"],
+      "frameworks": ["express", "prisma"]
+    },
+    {
+      "id": "project:apps/web",
+      "name": "@acme/web",
+      "kind": "member",
+      "status": "source_verified",
+      "ecosystems": ["npm"],
+      "frameworks": ["react", "react-router"]
+    },
+    {
+      "id": "project:packages/legacy-billing",
+      "name": "@acme/legacy-billing",
+      "kind": "nested",
+      "status": "inferred",
+      "ecosystems": ["npm"],
+      "frameworks": []
+    },
+    {
+      "id": "project:packages/shared",
+      "name": "@acme/shared",
+      "kind": "member",
+      "status": "source_verified",
+      "ecosystems": ["npm"],
+      "frameworks": []
+    },
+    {
+      "id": "project:services/worker",
+      "name": "worker",
+      "kind": "nested",
+      "status": "inferred",
+      "ecosystems": ["python"],
+      "frameworks": ["fastapi"]
+    }
+  ],
+  "unknown": { ".tf": 1 }
+}

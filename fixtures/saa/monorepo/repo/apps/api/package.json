@@ -1,0 +1,9 @@
+{
+  "name": "@acme/api",
+  "private": true,
+  "dependencies": {
+    "@acme/shared": "workspace:*",
+    "@prisma/client": "^5.22.0",
+    "express": "^4.21.2"
+  }
+}

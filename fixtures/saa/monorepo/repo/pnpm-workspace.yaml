@@ -1,0 +1,5 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  # Retired packages stay in the tree but are not workspace members.
+  - "!packages/legacy-*"
