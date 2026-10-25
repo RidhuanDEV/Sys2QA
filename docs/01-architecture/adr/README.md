@@ -15,3 +15,4 @@ ADRs record **why** a decision was made. The current architecture is described i
 | [ADR-009](ADR-009-adapter-process-protocol.md) | Analyzer adapters behind a versioned process protocol | Accepted | OD-05, SAA-FR-047 |
 | [ADR-010](ADR-010-documentation-layout.md) | Documentation layout and sources of truth | Accepted | PRD §1.4 |
 | [ADR-011](ADR-011-secret-store.md) | OS credential store through @napi-rs/keyring, with a passphrase-encrypted file fallback | Accepted | SEC-011 |
+| [ADR-012](ADR-012-in-process-git-metadata.md) | Read Git metadata in-process with isomorphic-git, never through the `git` binary | Accepted | CON-006, SEC-002, SEC-017 |

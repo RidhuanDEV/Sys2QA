@@ -144,7 +144,7 @@ Enforcement (IMP-002): `scripts/dependency-rules.mjs`, run by `pnpm deps:check` 
 | LLM port | platform | ADR-008 | OD-07, OSS-009 |
 | i18n & glossary | platform | Locale resolution, versioned glossary | LOC-* |
 | Contract library | contract | Schemas, types, validators, semantic rules, error codes | CON-* |
-| Source intake | saa-core | Root sandbox, ignore rules, inventory, secret detection, revision identity | SAA-FR-001, SEC-001, CON-006 |
+| Source intake | saa-core | Root sandbox, ignore rules, streaming inventory and budgets, secret detection, revision identity (in-process Git reading, ADR-012) | SAA-FR-001, SEC-001, CON-006 |
 | Adapter host | saa-adapters | Launch, protocol, budgets, output validation | ADR-009 |
 | Tracer & composer | saa-core | Entry points → component traces → workflows → catalog with statuses | SAA-FR-040, 041, 046 |
 | Synthesis | saa-core | Rules, roles, states, contradictions, completeness, docs, package export | SAA-FR-010–013, 029–036, 045 |

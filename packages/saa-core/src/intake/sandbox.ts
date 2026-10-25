@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { open, realpath, stat } from "node:fs/promises";
+import { open, realpath, stat, type FileHandle } from "node:fs/promises";
 import { isAbsolute, join, relative, sep, win32 } from "node:path";
 import type { Logger } from "@sys2qa/platform";
 
@@ -109,15 +110,9 @@ export class RootSandbox {
 
   /** Reads a regular file inside the root, at most `maxBytes`. */
   async readFile(resolved: ResolvedPath, maxBytes: number): Promise<Buffer | { too_large: number }> {
-    const handle = await open(resolved.real, constants.O_RDONLY | NOFOLLOW | NONBLOCK).catch((error: unknown) => {
-      // ELOOP: the final component became a symlink after resolution.
-      if ((error as NodeJS.ErrnoException).code === "ELOOP")
-        this.#deny(resolved.root, resolved.path, "symlink_outside_root");
-      throw error;
-    });
+    const handle = await this.#open(resolved);
     try {
       const info = await handle.stat();
-      if (!info.isFile()) this.#deny(resolved.root, resolved.path, "not_regular_file");
       if (info.size > maxBytes) return { too_large: info.size };
       const buffer = Buffer.alloc(info.size);
       let offset = 0;
@@ -132,6 +127,22 @@ export class RootSandbox {
     }
   }
 
+  /** SHA-256 of a regular file inside the root, streamed so that size does not matter. */
+  async sha256(resolved: ResolvedPath): Promise<{ digest: string; bytes: number }> {
+    const handle = await this.#open(resolved);
+    try {
+      const hash = createHash("sha256");
+      let bytes = 0;
+      for await (const chunk of handle.createReadStream({ autoClose: false })) {
+        hash.update(chunk as Buffer);
+        bytes += (chunk as Buffer).length;
+      }
+      return { digest: hash.digest("hex"), bytes };
+    } finally {
+      await handle.close();
+    }
+  }
+
   /** Reads a file as UTF-8 text, or reports it as binary or too large (PRD §11.5: never feed bytes onward). */
   async readText(resolved: ResolvedPath, maxBytes: number): Promise<TextRead> {
     const data = await this.readFile(resolved, maxBytes);
@@ -140,6 +151,21 @@ export class RootSandbox {
     let text = data.toString("utf8");
     if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
     return { kind: "text", text, bytes: data.length, generated_marker: GENERATED_MARKER.test(text.slice(0, 1024)) };
+  }
+
+  /** Opens a regular file without following a final symlink and without blocking on a FIFO. */
+  async #open(resolved: ResolvedPath): Promise<FileHandle> {
+    const handle = await open(resolved.real, constants.O_RDONLY | NOFOLLOW | NONBLOCK).catch((error: unknown) => {
+      // ELOOP: the final component became a symlink after resolution.
+      if ((error as NodeJS.ErrnoException).code === "ELOOP")
+        this.#deny(resolved.root, resolved.path, "symlink_outside_root");
+      throw error;
+    });
+    if (!(await handle.stat()).isFile()) {
+      await handle.close();
+      this.#deny(resolved.root, resolved.path, "not_regular_file");
+    }
+    return handle;
   }
 
   #segments(root: number, requested: string): string[] {
