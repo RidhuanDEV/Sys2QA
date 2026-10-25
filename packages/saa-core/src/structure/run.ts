@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   AdapterError,
   AdapterProcess,
@@ -5,6 +8,7 @@ import {
   type AdapterSpec,
   type InitializeResult,
 } from "@sys2qa/saa-adapters";
+import { writeFileAtomic } from "@sys2qa/platform";
 import type { InventoryEntry } from "../intake/inventory.js";
 import type { RootSandbox } from "../intake/sandbox.js";
 import { redactOutput } from "../intake/secrets.js";
@@ -36,6 +40,11 @@ export interface StructureOptions {
   catalog?: CatalogOptions;
   /** The analyzed revision (commit), recorded on claims; without it no claims are made. */
   revision?: string;
+  /**
+   * Adapter result cache (class E, NFR-005): a batch whose adapter version, boundary, files and fingerprints and whose
+   * root's file list are unchanged reuses the stored, already redacted result instead of being analyzed again.
+   */
+  cache?: { dir: string };
 }
 
 export interface StructureResult extends StructuralFacts {
@@ -55,6 +64,8 @@ export interface StructureResult extends StructuralFacts {
   failed_batches: Array<{ adapter: string; code: string; files: number }>;
   /** Strings in adapter output that still contained a secret and were redacted by the host. */
   redacted_strings: number;
+  /** Batches answered from the cache and batches analyzed (NFR-005: the hit rate is reported). */
+  cache: { hits: number; misses: number };
 }
 
 /**
@@ -70,6 +81,23 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
   const infos: InitializeResult[] = [];
   const failed: StructureResult["failed_batches"] = [];
   let redacted = 0;
+  const cache = { hits: 0, misses: 0 };
+  // The js-ts adapter resolves imports against the files that exist, so a cached result is valid only for the same tree.
+  const treeDigest = new Map<number, string>();
+  for (const entry of options.included) treeDigest.set(entry.root, "");
+  for (const root of treeDigest.keys())
+    treeDigest.set(
+      root,
+      createHash("sha256")
+        .update(
+          options.included
+            .filter((e) => e.root === root && e.status === "included")
+            .map((e) => e.path)
+            .sort()
+            .join("\0"),
+        )
+        .digest("hex"),
+    );
   const ordered = [...options.boundaries].sort((a, b) => b.path.length - a.path.length);
   const ownerOf = (entry: InventoryEntry) =>
     ordered.find(
@@ -130,6 +158,29 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
             }
             adapter = await start(group.root);
           }
+          const cacheFile = options.cache
+            ? join(
+                options.cache.dir,
+                `${createHash("sha256")
+                  .update(
+                    JSON.stringify([
+                      info.adapter_id,
+                      info.adapter_version,
+                      info.protocol_version,
+                      group.boundary,
+                      treeDigest.get(group.root),
+                      files,
+                    ]),
+                  )
+                  .digest("hex")}.json`,
+              )
+            : undefined;
+          const cached = cacheFile ? readCached(cacheFile) : undefined;
+          if (cached) {
+            cache.hits++;
+            batches.push(cached);
+            continue;
+          }
           const outcome = await analyzeBatch(
             adapter,
             { run_id: options.runId, root_id: group.boundary, files, budget },
@@ -139,6 +190,11 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
             const clean = redactOutput(outcome.result);
             redacted += clean.redacted;
             batches.push(clean.value);
+            if (cacheFile) {
+              cache.misses++;
+              mkdirSync(options.cache!.dir, { recursive: true });
+              writeFileAtomic(cacheFile, JSON.stringify(clean.value));
+            }
           } else {
             batches.push({ entities: [], relationships: [], evidence: [], coverage: outcome.coverage });
             failed.push({ adapter: spec.id, code: outcome.error.code, files: files.length });
@@ -206,7 +262,17 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     adapters: infos,
     failed_batches: failed,
     redacted_strings: redacted,
+    cache,
   };
+}
+
+/** A cached batch result, or undefined when it is missing or unreadable (then the batch is analyzed again). */
+function readCached(file: string): StructuralFacts | undefined {
+  try {
+    return JSON.parse(readFileSync(file, "utf8")) as StructuralFacts;
+  } catch {
+    return undefined;
+  }
 }
 
 function failedCoverage(adapter: string, files: Array<{ path: string }>, code: string): StructuralFacts {

@@ -124,6 +124,8 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `idx_claims(id, subject_id, status, run_id)` | Evidence drill-down |
 | `idx_evidence(id, source_type, path_or_url, run_id)` | Evidence navigation |
 
+Implementation (IMP-115, `packages/platform/src/skb/`): `writeSkbRun` writes canonical-JSON shards (`entities/<kind>/<nnn>.json`, `<collection>/<nnn>.json`, run documents `<name>.json`) atomically and `manifest.json` last with each file's record count and SHA-256; `readSkbRecords` verifies every file against the manifest; `indexSkbRun` validates each record against its contract schema and indexes the run in one transaction (counts must equal the manifest's); `rebuildIndex` clears the index and re-indexes every complete run, skipping and reporting a failing one; `queryEntities` (kind or quoted full-text terms), `queryEdges`, `queryWorkflows`. saa-core's `persistSkbRun` redacts the whole run (`redactOutput`) before handing it over. The adapter result cache (class E) lives in `<project>/cache/adapters/<key>.json`; the key hashes the adapter ID, version and protocol, the boundary, the batch's paths and fingerprints, and the root's list of included paths (import resolution depends on which files exist); `StructureResult.cache` reports hits and misses.
+
 Rebuild procedure: drop `idx_*` → stream every `skb/` and `observed/` partition through the contract validator → insert in batches inside one transaction per run → verify counts against `manifest.json`.
 
 ## 6. Writes, transactions and consistency
@@ -177,7 +179,7 @@ Implementation (IMP-019):
   - the least recently used cache files while a project's `cache/` exceeds `cache_max_bytes`.
 
   It never deletes audit events, packages or imported originals. Removal counts, without paths, are audited as `data.deleted`. Defaults are in the configuration (`retention`).
-- **Not yet covered:** SKB run retention (last 5 runs per project), which arrives with the SKB writer (Gate 1).
+- SKB run retention: `sweepSkbRuns` (IMP-115) keeps the newest 5 complete runs per project plus the runs it is told are protected, and removes run directories without a manifest and `*.tmp-*` files. **Not yet wired** into `runRetention`: the list of runs a package references arrives with the package exporter (IMP-117).
 
 ## 9. Recovery
 

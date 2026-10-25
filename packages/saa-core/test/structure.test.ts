@@ -3,6 +3,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateJsonSchema, type Entity, type Evidence } from "@sys2qa/contract";
+import {
+  indexSkbRun,
+  openStateDatabase,
+  queryEdges,
+  queryEntities,
+  queryWorkflows,
+  rebuildIndex,
+  runDirectory,
+} from "@sys2qa/platform";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { bundleAdapter } from "../../../scripts/adapter-bundle.mjs";
 import {
@@ -11,6 +20,7 @@ import {
   detectStack,
   findCycles,
   assignStatuses,
+  persistSkbRun,
   completenessReport,
   composeWorkflows,
   deepenWorkflow,
@@ -59,7 +69,7 @@ beforeAll(async () => {
 }, 60_000);
 afterAll(() => rmSync(base, { recursive: true, force: true }));
 
-async function analyze(root: string) {
+async function analyze(root: string, extra: { cache?: { dir: string } } = {}) {
   const sandbox = await RootSandbox.open([root]);
   const included: InventoryEntry[] = [];
   await scanInventory(sandbox, { budget: budgetFor("standard") }, (e) => {
@@ -80,6 +90,7 @@ async function analyze(root: string) {
     runId: "run:01JSTRUCTURE",
     revision: "0".repeat(40),
     batchSize: 5,
+    ...extra,
   });
 }
 
@@ -892,6 +903,45 @@ describe("completeness report [@req SAA-FR-045]", () => {
     expect(r.workflows_by_status).toEqual({ partially_reconstructed: 3, reconstructed: 5 });
     expect(r.improvement_suggestions.map((x) => x.evidence_kind).sort()).toEqual(["requirement", "runtime", "runtime"]);
   }, 60_000);
+});
+
+describe("SKB persistence and the adapter cache [@req SAA-FR-012] [@req NFR-005]", () => {
+  it("reuses every batch on an unchanged second run and stores the run for the index", async () => {
+    const cache = { dir: join(base, "cache-f1") };
+    const first = await analyze(F1, { cache });
+    expect(first.cache.hits).toBe(0);
+    expect(first.cache.misses).toBeGreaterThan(0);
+    const second = await analyze(F1, { cache });
+    expect(second.cache).toEqual({ hits: first.cache.misses, misses: 0 });
+    expect(second.entities.map((e) => e.id).sort()).toEqual(first.entities.map((e) => e.id).sort());
+    expect(second.catalog.workflows.map((w) => w.id)).toEqual(first.catalog.workflows.map((w) => w.id));
+
+    const home = join(base, "home");
+    const dir = runDirectory(home, "project:01JPROJECTF1", "run:01JSTRUCTURE");
+    const { manifest } = persistSkbRun(dir, {
+      runId: "run:01JSTRUCTURE",
+      revision: { kind: "git_commit", value: "0".repeat(40), worktree_dirty: false },
+      structure: second,
+    });
+    expect(manifest.counts.workflows).toBe(second.catalog.workflows.length);
+    const state = openStateDatabase({ path: ":memory:" });
+    try {
+      indexSkbRun(state.db, dir, manifest);
+      const answers = () => ({
+        workflows: queryWorkflows(state.db, "run:01JSTRUCTURE"),
+        rules: queryEntities(state.db, { run_id: "run:01JSTRUCTURE", kind: "business_rule" }),
+        search: queryEntities(state.db, { run_id: "run:01JSTRUCTURE", text: "password" }),
+        edges: queryEdges(state.db, "run:01JSTRUCTURE", "api:POST:/api/auth/register"),
+      });
+      const before = answers();
+      expect(before.workflows.map((w) => w.id)).toEqual(second.catalog.workflows.map((w) => w.id));
+      expect(before.search.map((e) => e.id)).toContain("business_rule:registration.password_min_12_characters");
+      expect(rebuildIndex(state.db, home)).toEqual({ runs: 1, failed: [] });
+      expect(answers()).toEqual(before);
+    } finally {
+      state.close();
+    }
+  }, 120_000);
 });
 
 describe("import cycles [@req SAA-FR-006]", () => {
