@@ -175,12 +175,15 @@ export function classifyFile(path: string): Classification {
   const withLanguage = (category: FileCategory): Classification =>
     language === undefined ? { category } : { category, language };
   if (LOCKFILES.has(lower)) return withLanguage("lockfile");
+  if (lower === "dockerfile" || lower.startsWith("dockerfile.") || lower.endsWith(".dockerfile"))
+    return { category: "manifest", language: "dockerfile", manifest: true };
   if (MANIFESTS.has(lower) || MANIFEST_SUFFIXES.some((s) => lower.endsWith(s)))
     return { ...withLanguage("manifest"), manifest: true };
   if (BINARY_EXTENSIONS.has(extension)) return { category: "binary" };
   if (GENERATED_FILE.test(lower)) return withLanguage("generated");
   if (language === undefined) {
-    if (lower === ".env" || lower.startsWith(".env.") || lower.endsWith(".env")) return { category: "config" };
+    if (lower === ".env" || lower.startsWith(".env.") || lower.endsWith(".env"))
+      return { category: "config", language: "dotenv" };
     return { category: "other" };
   }
   if (DOCUMENTATION.has(language)) return withLanguage("documentation");

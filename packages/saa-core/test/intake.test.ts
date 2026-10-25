@@ -63,7 +63,9 @@ describe("file classification [@req SAA-FR-001]", () => {
     expect(classifyFile("README.md")).toEqual({ category: "documentation", language: "markdown" });
     expect(classifyFile("public/app.min.js")).toEqual({ category: "generated", language: "javascript" });
     expect(classifyFile("assets/logo.PNG")).toEqual({ category: "binary" });
-    expect(classifyFile(".env.example")).toEqual({ category: "config" });
+    expect(classifyFile(".env.example")).toEqual({ category: "config", language: "dotenv" });
+    expect(classifyFile("deploy/Dockerfile")).toEqual({ category: "manifest", language: "dockerfile", manifest: true });
+    expect(classifyFile("api.Dockerfile")).toEqual({ category: "manifest", language: "dockerfile", manifest: true });
     expect(classifyFile("LICENSE")).toEqual({ category: "other" });
   });
 });

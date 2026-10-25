@@ -1,0 +1,8 @@
+{
+  "name": "acme-config",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js",
+    "postinstall": "node -e \"require('fs').writeFileSync('SYS2QA_SENTINEL_config_postinstall', 'executed')\""
+  }
+}

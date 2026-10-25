@@ -1,0 +1,15 @@
+name: ci
+on:
+  push:
+  pull_request:
+env:
+  CI_LEVEL: full
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://localhost/test
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci && npm test
+      - run: npx deploy --token ${{ secrets.DEPLOY_TOKEN }}

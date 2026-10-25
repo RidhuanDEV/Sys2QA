@@ -7,6 +7,8 @@ import ts from "typescript";
  * read, and anything computed is reported as dynamic.
  */
 export interface FrameworkFacts {
+  /** Environment variables the module reads; names only, never a fallback value (it may be a secret). */
+  env_reads?: Array<{ name: string; has_default: boolean; line: number; evidence: string }>;
   express?: ExpressFacts;
   react_router?: { routes: PageRoute[] };
   components?: ComponentFacts[];
@@ -83,6 +85,8 @@ type RangeOf = (node: ts.Node) => { start_line: number };
 
 export function frameworkFacts(source: ts.SourceFile, evidence: Evidence, rangeOf: RangeOf): FrameworkFacts {
   const facts: FrameworkFacts = {};
+  const env = envReads(source, evidence, rangeOf);
+  if (env.length > 0) facts.env_reads = env;
   const express = expressFacts(source, evidence, rangeOf);
   if (express) facts.express = express;
   const routes = reactRouterRoutes(source, evidence, rangeOf);
@@ -109,6 +113,65 @@ function calleeName(call: ts.CallExpression): string | undefined {
   if (ts.isIdentifier(e)) return e.text;
   if (ts.isPropertyAccessExpression(e)) return e.name.text;
   return undefined;
+}
+
+// ---------------------------------------------------------------- Environment variables
+
+/** `process.env.X`, `process.env["X"]`, `import.meta.env.X` and `const { X, Y } = process.env`. */
+function envReads(
+  source: ts.SourceFile,
+  evidence: Evidence,
+  rangeOf: RangeOf,
+): NonNullable<FrameworkFacts["env_reads"]> {
+  const reads: NonNullable<FrameworkFacts["env_reads"]> = [];
+  const isEnvObject = (node: ts.Expression): boolean => {
+    const text = node.getText(source).replace(/\s+/g, "");
+    return text === "process.env" || text === "import.meta.env" || text === "Deno.env";
+  };
+  const hasDefault = (node: ts.Node): boolean => {
+    const parent = node.parent;
+    return (
+      !!parent &&
+      ts.isBinaryExpression(parent) &&
+      parent.left === node &&
+      [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken].includes(parent.operatorToken.kind)
+    );
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isPropertyAccessExpression(node) && isEnvObject(node.expression))
+      reads.push({
+        name: node.name.text,
+        has_default: hasDefault(node),
+        line: rangeOf(node).start_line,
+        evidence: evidence(node),
+      });
+    else if (ts.isElementAccessExpression(node) && isEnvObject(node.expression) && literal(node.argumentExpression))
+      reads.push({
+        name: literal(node.argumentExpression)!,
+        has_default: hasDefault(node),
+        line: rangeOf(node).start_line,
+        evidence: evidence(node),
+      });
+    else if (
+      ts.isVariableDeclaration(node) &&
+      ts.isObjectBindingPattern(node.name) &&
+      node.initializer &&
+      isEnvObject(node.initializer)
+    )
+      for (const element of node.name.elements) {
+        const name = (element.propertyName ?? element.name).getText(source);
+        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+          reads.push({
+            name,
+            has_default: element.initializer !== undefined,
+            line: rangeOf(element).start_line,
+            evidence: evidence(element),
+          });
+      }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return reads;
 }
 
 // ---------------------------------------------------------------- Express

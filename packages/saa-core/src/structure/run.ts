@@ -10,6 +10,7 @@ import type { RootSandbox } from "../intake/sandbox.js";
 import { redactOutput } from "../intake/secrets.js";
 import type { ProjectBoundary } from "../stack/stack.js";
 import type { Gap } from "@sys2qa/contract";
+import { linkConfig } from "./config.js";
 import { linkDataModel } from "./datamodel.js";
 import { linkFrameworks } from "./frameworks.js";
 import { linkStructure, mergeFacts, type DependencyGraph, type StructuralFacts } from "./graph.js";
@@ -83,8 +84,9 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
       const languages = new Set(info.support_matrix.languages.map((l) => l.name));
       const groups = new Map<string, { root: number; boundary: string; files: InventoryEntry[] }>();
       for (const entry of options.included) {
-        if (entry.status !== "included" || entry.sensitive || !entry.language || !languages.has(entry.language))
-          continue;
+        // Lockfiles are dependency metadata, not configuration or code; sensitive files never leave the host.
+        if (entry.status !== "included" || entry.sensitive || entry.category === "lockfile") continue;
+        if (!entry.language || !languages.has(entry.language)) continue;
         const boundary = ownerOf(entry)?.id ?? (entry.root === 0 ? "project:." : `project:root${entry.root}/.`);
         const key = `${entry.root}\0${boundary}`;
         const group = groups.get(key) ?? { root: entry.root, boundary, files: [] };
@@ -135,16 +137,18 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
   const linked = linkStructure(facts, options.boundaries);
   const frameworks = linkFrameworks(facts, options.boundaries);
   const data = linkDataModel(facts);
+  const config = linkConfig(facts);
   return {
-    entities: [...facts.entities, ...frameworks.entities, ...data.entities],
+    entities: [...facts.entities, ...frameworks.entities, ...data.entities, ...config.entities],
     relationships: [
       ...facts.relationships,
       ...linked.relationships,
       ...frameworks.relationships,
       ...data.relationships,
+      ...config.relationships,
     ],
     evidence: facts.evidence,
-    coverage: [...facts.coverage, ...frameworks.coverage, ...data.coverage],
+    coverage: [...facts.coverage, ...frameworks.coverage, ...data.coverage, ...config.coverage],
     gaps: frameworks.gaps,
     graph: linked.graph,
     adapters: infos,

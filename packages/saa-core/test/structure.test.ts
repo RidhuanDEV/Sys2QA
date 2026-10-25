@@ -20,12 +20,14 @@ const fixture = (path: string) => fileURLToPath(new URL(`../../../fixtures/${pat
 const F1 = fixture("benchmarks/F1-repository-only/repo/");
 const MONOREPO = fixture("saa/monorepo/repo/");
 const NEXTJS = fixture("saa/nextjs/repo/");
+const CONFIG = fixture("saa/config/repo/");
 const ENTITY = { $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/entity" };
 const RELATIONSHIP = { $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/relationship" };
 
 let base: string;
 let entry: string;
 let sqlEntry: string;
+let configEntry: string;
 beforeAll(async () => {
   base = mkdtempSync(join(tmpdir(), "sys2qa-structure-"));
   entry = await bundleAdapter({
@@ -35,6 +37,10 @@ beforeAll(async () => {
   sqlEntry = await bundleAdapter({
     entry: fileURLToPath(new URL("../../saa-adapters/src/adapters/sql/main.ts", import.meta.url)),
     outfile: join(base, "bundle", "sql.mjs"),
+  });
+  configEntry = await bundleAdapter({
+    entry: fileURLToPath(new URL("../../saa-adapters/src/adapters/config/main.ts", import.meta.url)),
+    outfile: join(base, "bundle", "config.mjs"),
   });
 }, 60_000);
 afterAll(() => rmSync(base, { recursive: true, force: true }));
@@ -53,6 +59,7 @@ async function analyze(root: string) {
     adapters: [
       { id: "js-ts", entry },
       { id: "sql", entry: sqlEntry },
+      { id: "config", entry: configEntry },
     ],
     scratch: join(base, "scratch"),
     runId: "run:01JSTRUCTURE",
@@ -69,7 +76,7 @@ describe("structural extraction through the js-ts adapter [@req SAA-FR-005] [@re
     const ids = new Set(result.entities.map((e) => e.id));
     for (const expected of truth.entities.filter((e) => e.kind === "module"))
       expect(ids, expected.id).toContain(expected.id);
-    expect(result.adapters.map((a) => a.adapter_id)).toEqual(["js-ts", "sql"]);
+    expect(result.adapters.map((a) => a.adapter_id)).toEqual(["js-ts", "sql", "config"]);
     expect(result.failed_batches).toEqual([]);
     // Every fact is contract-valid.
     for (const e of result.entities) expect(validateJsonSchema(ENTITY, e).errors, e.id).toEqual([]);
@@ -271,6 +278,67 @@ describe("data model [@req SAA-FR-008]", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  }, 60_000);
+});
+
+describe("configuration and deployment [@req SAA-FR-020] [@req SEC-002]", () => {
+  it("extracts F1's configuration keys from code by name, never their fallback values", async () => {
+    const result = await analyze(F1);
+    const keys = result.entities.filter((e) => e.kind === "config_key");
+    expect(keys.map((k) => k.id)).toEqual([
+      "config_key:AWS_ACCESS_KEY_ID",
+      "config_key:EMAIL_API_URL",
+      "config_key:NODE_ENV",
+      "config_key:PORT",
+      "config_key:REPORT_PLUGINS",
+    ]);
+    expect(keys.find((k) => k.name === "AWS_ACCESS_KEY_ID")).toMatchObject({
+      sources: ["code"],
+      read_with_default: true,
+      documented: false,
+    });
+    expect(JSON.stringify(result)).not.toContain("AKIAIOSFODNN7EXAMPLE");
+    expect(
+      result.relationships.some(
+        (r) => r.type === "CONFIGURED_BY" && r.from === "module:server.config" && r.to === "config_key:PORT",
+      ),
+    ).toBe(true);
+    expect(result.coverage).toContainEqual({
+      area: "package.json",
+      status: "analyzed",
+      reason: 'script "postinstall" would run on package installation; Sys2QA records it and never runs it',
+    });
+  }, 60_000);
+
+  it("models deployment units and joins keys from templates, Compose, Dockerfiles, CI and code", async () => {
+    const result = await analyze(CONFIG);
+    const byId = new Map(result.entities.map((e) => [e.id, e]));
+    expect(byId.get("config_key:DATABASE_URL")).toMatchObject({
+      sources: ["ci", "code", "compose", "env_template"],
+      documented: true,
+    });
+    expect(byId.get("config_key:FEATURE_REPORTS")).toMatchObject({ read_with_default: true, documented: true });
+    expect(byId.get("deployment_unit:compose:api")).toMatchObject({ unit_type: "compose_service", builds: true });
+    expect(byId.get("deployment_unit:docker:Dockerfile")).toMatchObject({
+      base_images: ["node:22-alpine"],
+      exposed_ports: ["8080"],
+    });
+    expect(byId.get("deployment_unit:ci:.github/workflows/ci.yml#test")).toMatchObject({
+      unit_type: "ci_job",
+      triggers: ["push", "pull_request"],
+    });
+    expect(byId.get("secret_ref:DEPLOY_TOKEN")).toMatchObject({ kind: "secret_ref" });
+    const rel = result.relationships.map((r) => `${r.type} ${r.from} ${r.to}`);
+    expect(rel).toEqual(
+      expect.arrayContaining([
+        "DEPENDS_ON deployment_unit:compose:api deployment_unit:compose:db",
+        "CONFIGURED_BY deployment_unit:compose:api config_key:DB_PASSWORD",
+        "AUTHENTICATES_WITH deployment_unit:ci:.github/workflows/ci.yml#test secret_ref:DEPLOY_TOKEN",
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain("s3cr3t-db-pa55word-fixture");
+    for (const e of result.entities) expect(validateJsonSchema(ENTITY, e).errors, e.id).toEqual([]);
+    for (const r of result.relationships) expect(validateJsonSchema(RELATIONSHIP, r).errors, r.id).toEqual([]);
   }, 60_000);
 });
 

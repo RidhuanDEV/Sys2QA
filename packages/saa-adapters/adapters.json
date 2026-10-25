@@ -8,6 +8,10 @@
     {
       "id": "sql",
       "source": "src/adapters/sql/main.ts"
+    },
+    {
+      "id": "config",
+      "source": "src/adapters/config/main.ts"
     }
   ]
 }
