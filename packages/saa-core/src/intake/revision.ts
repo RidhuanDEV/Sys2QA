@@ -57,7 +57,7 @@ export async function identifyRevision(
   };
 }
 
-/** SHA-256 over the sorted `path NUL sha256(content)` lines of the given files (PRD §13.8 `content_fingerprint`). */
+/** `sha256:` + SHA-256 over the sorted `path NUL sha256(content)` lines of the given files (PRD §13.8 `content_fingerprint`). */
 export async function contentFingerprint(
   sandbox: RootSandbox,
   files: ReadonlyArray<Pick<InventoryEntry, "root" | "path">>,
@@ -68,7 +68,7 @@ export async function contentFingerprint(
     const { digest } = await sandbox.sha256(await sandbox.resolve(file.root, file.path));
     hash.update(`${file.root}:${file.path}\0${digest}\n`);
   }
-  return { kind: "content_fingerprint", value: hash.digest("hex") };
+  return { kind: "content_fingerprint", value: `sha256:${hash.digest("hex")}` };
 }
 
 /** Removes credentials from a remote URL; returns undefined when something secret-looking remains. */
@@ -236,7 +236,7 @@ async function dirtyFingerprint(
     }
     hash.update(`${path}\0${h}${w}${s}\0${digest}\n`);
   }
-  return hash.digest("hex");
+  return `sha256:${hash.digest("hex")}`;
 }
 
 type ReadOnlyFs = git.PromiseFsClient & { denied: () => boolean };

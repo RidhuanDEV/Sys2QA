@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { validateJsonSchema } from "@sys2qa/contract";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   budgetFor,
@@ -47,13 +48,18 @@ function write(path: string, content: string): void {
   writeFileSync(join(repo, path), content);
 }
 
+const SOURCE_REVISION = { $ref: "https://sys2qa.dev/schemas/common/1.0.json#/$defs/source_revision" };
+
 async function identify(root = repo) {
   const sandbox = await RootSandbox.open([root]);
   const included: InventoryEntry[] = [];
   await scanInventory(sandbox, { budget: budgetFor("standard") }, (e) => {
     if (e.status === "included") included.push(e);
   });
-  return identifyRevision(sandbox, 0, included);
+  const identity = await identifyRevision(sandbox, 0, included);
+  // Every revision must be valid contract data (PRD §13.8).
+  expect(validateJsonSchema(SOURCE_REVISION, identity.revision)).toEqual({ ok: true, errors: [] });
+  return identity;
 }
 
 function snapshot(root: string): string[] {
@@ -124,7 +130,7 @@ describe("revision identity [@req QAA-FR-004] [@req CON-006]", () => {
         kind: "git_commit",
         value: head,
         worktree_dirty: true,
-        dirty_fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+        dirty_fingerprint: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
       },
       changed_paths: 1,
       labels: ["dirty_worktree"],
@@ -161,7 +167,7 @@ describe("revision identity [@req QAA-FR-004] [@req CON-006]", () => {
     const plain = await identify();
     expect(plain).toMatchObject({
       provider: "filesystem",
-      revision: { kind: "content_fingerprint", value: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      revision: { kind: "content_fingerprint", value: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) },
       labels: ["non_git"],
     });
     expect((await identify()).revision).toEqual(plain.revision);

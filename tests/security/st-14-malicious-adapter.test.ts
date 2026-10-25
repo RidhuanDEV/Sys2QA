@@ -19,7 +19,7 @@ let options: LaunchOptions;
 const params = (budget = { max_ms: 10_000, max_output_bytes: 1_000_000 }): AnalyzeParams => ({
   run_id: "run:01JST14",
   root_id: "root:0",
-  files: [{ path: "src/a.ts", sha256: "0".repeat(64) }],
+  files: [{ path: "src/a.ts", sha256: `sha256:${"0".repeat(64)}` }],
   budget,
 });
 const hostile = (...args: string[]): AdapterSpec => ({ id: "hostile-adapter", entry: HOSTILE, args });
@@ -96,7 +96,23 @@ describe("ST-14 malicious adapter [@req OSS-005] [@req SEC-001] [@req SEC-002]",
       const { outcome } = await attempt(hostile("env"));
       expect(outcome.status).toBe("completed");
       const keys = outcome.status === "completed" ? (JSON.parse(outcome.result.coverage[0]!.reason!) as string[]) : [];
-      expect(keys.every((k) => ["LANG", "SYSTEMROOT", "TEMP", "TMP", "TMPDIR"].includes(k))).toBe(true);
+      expect(keys).not.toContain("SYS2QA_ST14_HOST_SECRET");
+      const allowed = new Set(["LANG", "SYSTEMROOT", "TEMP", "TMP", "TMPDIR"]);
+      // libuv copies these system variables into every Windows child process.
+      if (process.platform === "win32")
+        for (const k of [
+          "HOMEDRIVE",
+          "HOMEPATH",
+          "LOGONSERVER",
+          "PATH",
+          "SYSTEMDRIVE",
+          "USERDOMAIN",
+          "USERNAME",
+          "USERPROFILE",
+          "WINDIR",
+        ])
+          allowed.add(k);
+      expect(keys.filter((k) => !allowed.has(k.toUpperCase()))).toEqual([]);
     } finally {
       delete process.env.SYS2QA_ST14_HOST_SECRET;
     }

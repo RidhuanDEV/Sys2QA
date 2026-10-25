@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,7 @@ let base: string;
 let entry: string;
 let options: LaunchOptions;
 const spec = (mode = "normal"): AdapterSpec => ({ id: "test-adapter", entry, args: [mode] });
-const SHA = "0".repeat(64);
+const SHA = `sha256:${"0".repeat(64)}`;
 const params = (
   files = ["src/a.ts", "src/b.ts"],
   budget = { max_ms: 10_000, max_output_bytes: 1_000_000 },
@@ -133,6 +133,26 @@ describe("adapter protocol and host [@req SAA-FR-047] [@req OSS-004]", () => {
       await adapter.kill();
     }
   });
+});
+
+describe("paths behind links", () => {
+  // macOS keeps temp directories behind /var -> /private/var; Node.js resolves the entry through every directory.
+  it.skipIf(process.platform === "win32")(
+    "starts an adapter whose entry, root and scratch are reached through a link",
+    async () => {
+      const link = join(base, "link");
+      symlinkSync(base, link, "dir");
+      const adapter = await AdapterProcess.start(
+        { id: "test-adapter", entry: join(link, "bundle", "test-adapter.mjs"), args: ["normal"] },
+        { root: join(link, "root"), scratch: join(link, "scratch") },
+      );
+      try {
+        expect((await adapter.analyze(params(["src/a.ts"]))).coverage).toHaveLength(1);
+      } finally {
+        await adapter.close();
+      }
+    },
+  );
 });
 
 describe("support matrix [@req SAA-FR-047]", () => {

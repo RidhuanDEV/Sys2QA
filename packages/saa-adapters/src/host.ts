@@ -19,6 +19,7 @@ const SCHEMA = "https://sys2qa.dev/schemas/adapter-protocol/1.0.json";
 const MESSAGE_SCHEMA = { $ref: SCHEMA };
 const INITIALIZE_RESULT_SCHEMA = { $ref: `${SCHEMA}#/$defs/initialize_result` };
 const ANALYZE_RESULT_SCHEMA = { $ref: `${SCHEMA}#/$defs/analyze_result` };
+const ANALYZE_PARAMS_SCHEMA = { $ref: `${SCHEMA}#/$defs/analyze_params` };
 
 /** Preloaded into every adapter before its own code: disables sockets, DNS and fetch (ADR-009). */
 export const NETWORK_GUARD = fileURLToPath(new URL("../runtime/network-guard.mjs", import.meta.url));
@@ -87,18 +88,22 @@ export function sandboxFlags(spec: AdapterSpec, options: LaunchOptions, limits: 
     : "--experimental-permission";
   // Real paths: the permission model compares resolved paths, and a working directory is reported as its real path
   // (on macOS the temp directory lives behind the /var -> /private/var link).
-  const readable = [dirname(spec.entry), dirname(NETWORK_GUARD), options.root, options.scratch].map(real);
+  const readable = [dirname(real(spec.entry)), dirname(real(NETWORK_GUARD)), options.root, options.scratch].map(real);
   return [
     permission,
     ...readable.map((path) => `--allow-fs-read=${path}`),
     `--allow-fs-write=${real(options.scratch)}`,
     `--max-old-space-size=${limits.memory_mb}`,
     "--disallow-code-generation-from-strings",
-    `--import=${pathToFileURL(NETWORK_GUARD).href}`,
+    `--import=${pathToFileURL(real(NETWORK_GUARD)).href}`,
   ];
 }
 
-/** The adapter's whole environment: no host variables, so no credentials or `NODE_OPTIONS` reach it. */
+/**
+ * The adapter's whole environment: no host variables, so no credentials or `NODE_OPTIONS` reach it. On Windows, libuv
+ * adds a fixed set of system variables (PATH, SYSTEMDRIVE, SYSTEMROOT, TEMP, USERPROFILE, WINDIR and similar) that
+ * every Windows process needs; none of them carries credentials.
+ */
 function adapterEnvironment(scratch: string): Record<string, string> {
   const env: Record<string, string> = { TMPDIR: scratch, TMP: scratch, TEMP: scratch, LANG: "C.UTF-8" };
   if (process.platform === "win32" && process.env.SYSTEMROOT) env.SYSTEMROOT = process.env.SYSTEMROOT;
@@ -139,7 +144,8 @@ export class AdapterProcess {
     this.#log = options.log;
     this.#child = spawn(
       process.execPath,
-      [...sandboxFlags(spec, options, this.#limits), spec.entry, ...(spec.args ?? [])],
+      // The entry as a real path too: Node.js resolves the main module through every directory of the given path.
+      [...sandboxFlags(spec, options, this.#limits), real(spec.entry), ...(spec.args ?? [])],
       {
         cwd: real(options.root),
         env: adapterEnvironment(real(options.scratch)),
@@ -228,6 +234,8 @@ export class AdapterProcess {
     options: { signal?: AbortSignal; onProgress?: (progress: ProgressParams) => void } = {},
   ): Promise<AnalyzeResult> {
     if (this.#failure) throw this.#failure;
+    const request = validateJsonSchema(ANALYZE_PARAMS_SCHEMA, params);
+    if (!request.ok) throw new TypeError(`invalid analyze params: ${request.errors.join("; ")}`);
     this.#outputBytes = 0;
     this.#outputLimit = params.budget.max_output_bytes;
     this.#onProgress = options.onProgress;
