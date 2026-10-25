@@ -112,6 +112,8 @@ describe("ST-14 malicious adapter [@req OSS-005] [@req SEC-001] [@req SEC-002]",
           "WINDIR",
         ])
           allowed.add(k);
+      // macOS CoreFoundation sets the user's text encoding (a code page number) in every process.
+      if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");
       expect(keys.filter((k) => !allowed.has(k.toUpperCase()))).toEqual([]);
     } finally {
       delete process.env.SYS2QA_ST14_HOST_SECRET;

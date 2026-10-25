@@ -102,7 +102,7 @@ export function sandboxFlags(spec: AdapterSpec, options: LaunchOptions, limits: 
 /**
  * The adapter's whole environment: no host variables, so no credentials or `NODE_OPTIONS` reach it. On Windows, libuv
  * adds a fixed set of system variables (PATH, SYSTEMDRIVE, SYSTEMROOT, TEMP, USERPROFILE, WINDIR and similar) that
- * every Windows process needs; none of them carries credentials.
+ * every Windows process needs, and macOS adds `__CF_USER_TEXT_ENCODING`; none of them carries credentials.
  */
 function adapterEnvironment(scratch: string): Record<string, string> {
   const env: Record<string, string> = { TMPDIR: scratch, TMP: scratch, TEMP: scratch, LANG: "C.UTF-8" };
