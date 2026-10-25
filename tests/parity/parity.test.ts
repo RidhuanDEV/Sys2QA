@@ -145,7 +145,13 @@ describe("MCP tool registry [@req SEC-006]", () => {
     const runner = await mcpRunner();
     try {
       const { tools } = await runner.client.listTools();
-      expect(tools.map((t) => t.name).sort()).toEqual(OPERATIONS.map((o) => o.name).sort());
+      expect(tools.map((t) => t.name).sort()).toEqual(
+        OPERATIONS.filter((o) => !o.interfaces || o.interfaces.includes("mcp"))
+          .map((o) => o.name)
+          .sort(),
+      );
+      // Credential values never pass through an AI client's context (ADR-011).
+      expect(tools.map((t) => t.name)).not.toContain("secret.put");
       const validate = tools.find((t) => t.name === "package.validate")!;
       expect(validate._meta).toEqual({ "sys2qa/level": "L0", "sys2qa/effect": "read" });
       expect(validate.annotations).toMatchObject({ readOnlyHint: true, openWorldHint: false });

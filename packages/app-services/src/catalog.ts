@@ -319,6 +319,59 @@ const systemDoctor = defineOperation<Record<string, never>, unknown>({
   run: ({ host }) => runDoctor({ home: host.home }),
 });
 
+const secretPut = defineOperation<{ project_id: string; name: string; value: string }, unknown>({
+  name: "secret.put",
+  title: "Store a credential",
+  description:
+    "Stores a credential in the secret store and returns its `secretref:` reference; the value is never stored in state, logs or packages (SEC-011). Not available through MCP.",
+  level: "none",
+  effect: "write",
+  interfaces: ["cli", "api", "test"],
+  input: {
+    type: "object",
+    additionalProperties: false,
+    required: ["project_id", "name", "value"],
+    properties: {
+      project_id: ID,
+      name: { type: "string", pattern: "^[a-z0-9][a-z0-9._-]{0,63}$" },
+      value: { type: "string", minLength: 1, maxLength: 65536 },
+    },
+  },
+  run: async ({ host, caller }, input) =>
+    (await host.secrets()).put(input.project_id, input.name, input.value, caller.actor),
+});
+
+const secretList = defineOperation<{ project_id: string }, unknown>({
+  name: "secret.list",
+  title: "List credential references",
+  description: "References and names of a project's credentials; never values.",
+  level: "none",
+  effect: "read",
+  input: { type: "object", additionalProperties: false, required: ["project_id"], properties: { project_id: ID } },
+  run: ({ host }, input) =>
+    host.state.db
+      .prepare("SELECT ref, name, backend, created_at FROM secret_refs WHERE project_id = ? ORDER BY name")
+      .all(input.project_id),
+});
+
+const secretRemove = defineOperation<{ ref: string }, unknown>({
+  name: "secret.remove",
+  title: "Remove a credential",
+  description: "Deletes a credential from the secret store; audited.",
+  level: "none",
+  effect: "write",
+  input: {
+    type: "object",
+    additionalProperties: false,
+    required: ["ref"],
+    properties: { ref: { type: "string", pattern: "^secretref:" } },
+  },
+  run: async ({ host, caller }, input) => {
+    await (await host.secrets()).remove(input.ref, caller.actor);
+    return { removed: input.ref };
+  },
+});
+
 const MAX_PACKAGE_FILES = 10_000;
 const MAX_PACKAGE_BYTES = 256 * 1024 * 1024;
 
@@ -376,6 +429,9 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   systemSetSetting,
   systemConfig,
   systemDoctor,
+  secretPut,
+  secretList,
+  secretRemove,
   projectCreate,
   projectList,
   projectGet,

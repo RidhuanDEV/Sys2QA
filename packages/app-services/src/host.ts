@@ -12,6 +12,8 @@ import {
   openStateDatabase,
   ProjectService,
   Redactor,
+  SecretService,
+  selectSecretBackend,
   type HostLock,
   type LoadedConfig,
   type Logger,
@@ -30,6 +32,8 @@ export interface HostOptions {
   lock?: boolean;
   /** Environment for the `SYS2QA_*` configuration layer (defaults to none, so tests are not affected by the shell). */
   env?: Record<string, string | undefined>;
+  /** Overrides the OS credential-store probe (tests). */
+  osSecretStoreAvailable?: () => Promise<boolean>;
 }
 
 /** The composition root of one host process: the only writer of state.db (Data Model §6). */
@@ -41,6 +45,8 @@ export interface Host {
   readonly jobs: JobStore;
   readonly llm: LlmService;
   readonly glossary: GlossaryRegistry;
+  /** The secret store, selected on first use (ADR-011); rejects with SECRET_STORE_UNAVAILABLE when none is usable. */
+  secrets(): Promise<SecretService>;
   readonly redactor: Redactor;
   readonly logger: Logger;
   readonly now: () => Date;
@@ -63,6 +69,7 @@ export function openHost(options: HostOptions): Host {
     });
     const state = openStateDatabase({ path: join(options.home, "state.db"), now });
     const audit = { redactor, now };
+    let secrets: Promise<SecretService> | undefined;
     return {
       home: options.home,
       config,
@@ -78,6 +85,19 @@ export function openHost(options: HostOptions): Host {
         exclusions: config.config.llm_exclusions,
       }),
       glossary: new GlossaryRegistry(),
+      secrets: () =>
+        (secrets ??= selectSecretBackend({
+          mode: config.config.secrets.backend,
+          filePath: join(options.home, "secrets.enc"),
+          ...(options.env?.SYS2QA_SECRETS_PASSPHRASE ? { passphrase: options.env.SYS2QA_SECRETS_PASSPHRASE } : {}),
+          ...(options.osSecretStoreAvailable ? { osAvailable: options.osSecretStoreAvailable } : {}),
+        }).then(
+          (backend) => new SecretService(state.db, backend, audit),
+          (error: unknown) => {
+            secrets = undefined;
+            throw error;
+          },
+        )),
       redactor,
       logger,
       now,

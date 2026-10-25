@@ -11,6 +11,8 @@ export interface Sys2QaConfig {
   jobs: { max_concurrent: number; cancel_grace_ms: number; lease_ms: number };
   /** File patterns never sent to a model, in addition to the built-in exclusions (SEC-018). */
   llm_exclusions: string[];
+  /** Secret backend selection (ADR-011). */
+  secrets: { backend: "auto" | "os" | "file" };
 }
 
 export const DEFAULT_CONFIG: Sys2QaConfig = {
@@ -18,6 +20,7 @@ export const DEFAULT_CONFIG: Sys2QaConfig = {
   log_level: "info",
   jobs: { max_concurrent: 2, cancel_grace_ms: 10_000, lease_ms: 30_000 },
   llm_exclusions: [],
+  secrets: { backend: "auto" },
 };
 
 export const CONFIG_SCHEMA = {
@@ -57,6 +60,7 @@ export const CONFIG_SCHEMA = {
       },
     },
     llm_exclusions: { type: "array", items: { type: "string", minLength: 1 } },
+    secrets: { type: "object", additionalProperties: false, properties: { backend: { enum: ["auto", "os", "file"] } } },
   },
 } as const;
 
@@ -81,6 +85,7 @@ export class ConfigError extends Error {
 }
 
 type PartialConfig = { [K in keyof Sys2QaConfig]?: K extends "jobs" ? Partial<Sys2QaConfig["jobs"]> : Sys2QaConfig[K] };
+export type { PartialConfig };
 
 /** `SYS2QA_*` environment variables (the layer above the user file). */
 export function configFromEnv(env: Record<string, string | undefined>): PartialConfig {
@@ -99,6 +104,8 @@ export function configFromEnv(env: Record<string, string | undefined>): PartialC
   }
   if (env.SYS2QA_LOG_LEVEL) out.log_level = env.SYS2QA_LOG_LEVEL as LogLevel;
   if (env.SYS2QA_JOBS_MAX_CONCURRENT) out.jobs = { max_concurrent: Number(env.SYS2QA_JOBS_MAX_CONCURRENT) };
+  if (env.SYS2QA_SECRETS_BACKEND)
+    out.secrets = { backend: env.SYS2QA_SECRETS_BACKEND as Sys2QaConfig["secrets"]["backend"] };
   return out;
 }
 

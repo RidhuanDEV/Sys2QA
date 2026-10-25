@@ -1,5 +1,5 @@
 import { validateJsonSchema } from "@sys2qa/contract";
-import { ProjectError, StorageError } from "@sys2qa/platform";
+import { ConfigError, ProjectError, SecretAccessError, SecretStoreError, StorageError } from "@sys2qa/platform";
 import { OPERATIONS } from "./catalog.js";
 import { serviceError, ServiceError, SERVICE_ERRORS, type ServiceErrorDto } from "./errors.js";
 import type { Host } from "./host.js";
@@ -30,11 +30,15 @@ export class AppServices {
     this.#operations = new Map(operations.map((o) => [o.name, o]));
   }
 
-  /** The catalog, without L4 operations unless L4 is enabled in this installation (SEC-006). */
-  catalog(): OperationInfo[] {
+  /**
+   * The catalog for one interface: without L4 operations unless L4 is enabled (SEC-006), and without operations the
+   * interface may not call (e.g. secret values through MCP).
+   */
+  catalog(forInterface?: Caller["interface"]): OperationInfo[] {
     const l4 = this.host.projects.settings().l4_enabled;
     return [...this.#operations.values()]
       .filter((o) => o.level !== "L4" || l4)
+      .filter((o) => forInterface === undefined || o.interfaces === undefined || o.interfaces.includes(forInterface))
       .map((o) => ({
         name: o.name,
         title: o.title,
@@ -59,7 +63,9 @@ export class AppServices {
   }
 
   async #execute(name: string, input: unknown, caller: Caller): Promise<ServiceResult> {
-    const operation = this.catalog().some((o) => o.name === name) ? this.#operations.get(name) : undefined;
+    const operation = this.catalog(caller.interface).some((o) => o.name === name)
+      ? this.#operations.get(name)
+      : undefined;
     if (!operation) return { ok: false, error: serviceError("OPERATION_UNKNOWN", `unknown operation ${name}`).toDto() };
     const check = validateJsonSchema(operation.input, input);
     if (!check.ok)
@@ -84,6 +90,12 @@ function toServiceError(error: unknown, host: Host): ServiceError {
   }
   if (error instanceof StorageError && SERVICE_ERRORS[error.code])
     return new ServiceError(error.code, SERVICE_ERRORS[error.code]!.kind, error.message, error.remediation);
+  if (error instanceof SecretAccessError)
+    return serviceError(error.code === "INVALID" ? "INPUT_INVALID" : error.code, error.message);
+  if (error instanceof SecretStoreError)
+    return new ServiceError(error.code, "unavailable", error.message, error.remediation);
+  if (error instanceof ConfigError)
+    return new ServiceError(error.code, "invalid_input", error.message, error.remediation);
   const message = error instanceof Error ? error.message : String(error);
   if (/UNIQUE constraint failed/.test(message)) return serviceError("CONFLICT", "the record already exists");
   // Unexpected failures are logged (redacted) and reported without internals.

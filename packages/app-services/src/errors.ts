@@ -65,6 +65,11 @@ export const SERVICE_ERRORS: Record<string, { kind: ErrorKind; remediation: stri
     kind: "unavailable",
     remediation: "Restore state.db and projects/ from your latest backup.",
   },
+  SECRET_STORE_UNAVAILABLE: {
+    kind: "unavailable",
+    remediation:
+      "Unlock or install the OS credential store, or set SYS2QA_SECRETS_PASSPHRASE to use the encrypted file.",
+  },
   INTERNAL_ERROR: {
     kind: "internal",
     remediation: "Retry once; if it fails again, report it with the log file (it contains no secrets).",

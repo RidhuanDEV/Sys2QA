@@ -31,6 +31,8 @@ export interface CliIo {
   env: Record<string, string | undefined>;
   /** Overrides how the host is opened (tests). */
   host?: Omit<HostOptions, "home">;
+  /** Reads all of standard input (secret values are never taken from arguments). */
+  readStdin?: () => Promise<string>;
 }
 
 interface Command {
@@ -122,6 +124,18 @@ const COMMANDS: Record<string, Command> = {
       }),
     }),
   },
+  "secret put": {
+    usage: "secret put <project-id> <name>   (reads the value from standard input)",
+    build: ([project_id, name]) => ({ operation: "secret.put", input: defined({ project_id, name }) }),
+  },
+  "secret list": {
+    usage: "secret list <project-id>",
+    build: ([project_id]) => ({ operation: "secret.list", input: defined({ project_id }) }),
+  },
+  "secret remove": {
+    usage: "secret remove <secretref>",
+    build: ([ref]) => ({ operation: "secret.remove", input: defined({ ref }) }),
+  },
   "validate package": {
     usage: "validate package <path>",
     build: ([path], _v, cwd) => ({
@@ -204,6 +218,13 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
   } catch (error) {
     io.stderr(`${(error as Error).message}\n`);
     return EXIT_CODES.usage;
+  }
+  if (request.operation === "secret.put") {
+    if (!io.readStdin) {
+      io.stderr("secret put reads the value from standard input\n");
+      return EXIT_CODES.usage;
+    }
+    request.input.value = (await io.readStdin()).replace(/\r?\n$/, "");
   }
   const home = str(values.home) ?? defaultHome(io.env);
   // doctor runs without a host so that it can diagnose a host that cannot start; same report as system.doctor.

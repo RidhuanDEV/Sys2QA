@@ -20,7 +20,7 @@
 | C. Index | SQLite `idx` tables | ✗ | ✓ | Entity and claim search, graph adjacency, package catalog |
 | D. Evidence blobs | Files | ✓ | — | Screenshots, traces, manual attachments |
 | E. Caches | Files | ✗ | ✓ | Parser caches, adapter result cache keyed by fingerprint |
-| F. Secrets | OS credential store or encrypted file | ✓ | ✗ | Credential values behind `secretref:` IDs |
+| F. Secrets | OS credential store or encrypted file (ADR-011) | ✓ | ✗ | Credential values behind `secretref:` IDs |
 
 Rules:
 - Classes A, B, D and F must be backed up together for a consistent restore.
@@ -83,6 +83,7 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `environments` | `id` (= its `environment` evidence source), `project_id`, `base_url`, `classification`, `state`, `local_owner_mode`, `scope_json` | `classification = production` ⇒ refused by policy. `scope_json` (allowed hosts, path prefixes; migration 0003) is the input the scope policy is derived from; configuration requires a declaration, and the base URL must be inside the scope (QAA-FR-002) |
 | `scope_policies` | `environment_id`, `version`, `project_id`, `policy_json` | **Append-only** versions. The policy combines the environment scope with the latest declaration (level ceiling, state-changing permission, prohibitions); a new version is written only when that combination changes |
 | `credential_profiles` | `id`, `environment_id`, `role_name`, `secret_ref` | Values live in class F |
+| `secret_refs` | `ref`, `project_id`, `name`, `backend` | Owner of each `secretref:` (migration 0005); no values. Deleting a project deletes the values in class F first (ADR-011, IMP-019) |
 | `jobs` | `id`, `type`, `project_id?`, `state ∈ {queued, running, cancelling, completed, failed, cancelled}`, `priority`, `payload_json`, `budget_json`, `attempt`, `max_attempts`, `idempotency_key UNIQUE`, `lease_owner`, `lease_expires_at`, `cancel_requested_at`, `run_after?`, `last_progress_at?`, `error_json` | Queue and history; see Operational notes §7. `run_after` and `last_progress_at` added by migration 0002 |
 | `job_events` | `job_id`, `seq`, `at`, `event`, `data_json` | **Append-only** progress and state changes |
 | `analysis_runs` | `id`, `project_id`, `producer`, `status`, `artifact_path`, `revision_json`, `coverage_json` | |

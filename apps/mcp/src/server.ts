@@ -11,7 +11,7 @@ export function createMcpServer(services: AppServices, options: { actor?: string
   const server = new Server({ name: "sys2qa", version: PRODUCT_VERSION }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, () => ({
-    tools: services.catalog().map((op) => ({
+    tools: services.catalog("mcp").map((op) => ({
       name: op.name,
       title: op.title,
       description: `${op.description} Permission level: ${op.level}; effect: ${op.effect}.`,

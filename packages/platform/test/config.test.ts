@@ -51,7 +51,13 @@ describe("configuration layers [@req QAA-FR-100]", () => {
       jobs: { max_concurrent: 4, cancel_grace_ms: 2000, lease_ms: 30_000 },
       llm: { model: "llama", api_key_ref: "secretref:llm" },
     });
-    expect(loaded.sources).toEqual({ llm: "user_file", log_level: "env", jobs: "override", llm_exclusions: "default" });
+    expect(loaded.sources).toEqual({
+      llm: "user_file",
+      log_level: "env",
+      jobs: "override",
+      llm_exclusions: "default",
+      secrets: "default",
+    });
   });
 
   it("refuses a configuration file that contains a secret instead of a reference [@req SEC-004]", () => {

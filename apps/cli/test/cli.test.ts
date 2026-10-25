@@ -144,3 +144,29 @@ describe("doctor and configuration [@req NFR-007] [@req SEC-018]", () => {
     expect(out).toContain("overall: fail");
   });
 });
+
+describe("credentials from the CLI [@req SEC-011]", () => {
+  it("reads the value from standard input and never prints it", async () => {
+    const env = { SYS2QA_SECRETS_PASSPHRASE: "correct horse battery staple" };
+    const withSecrets = (): CliIo => ({
+      ...io(),
+      env,
+      host: { logSink: () => {}, osSecretStoreAvailable: async () => false },
+      readStdin: async () => "Applicant!Fixture#2026\n",
+    });
+    expect(await main(["project", "create", "Acme", "--home", home, "--json"], withSecrets())).toBe(EXIT_CODES.ok);
+    const projectId = (JSON.parse(out) as { data: { id: string } }).data.id;
+    out = "";
+    expect(await main(["secret", "put", projectId, "staging-login", "--home", home, "--json"], withSecrets())).toBe(
+      EXIT_CODES.ok,
+    );
+    expect(out).not.toContain("Applicant!Fixture#2026");
+    expect((JSON.parse(out) as { data: { ref: string } }).data.ref).toMatch(/^secretref:/);
+    const { readStdin: _stdin, ...noStdin } = withSecrets();
+    expect(await main(["secret", "put", projectId, "x", "--home", home], noStdin)).toBe(EXIT_CODES.usage);
+    expect(await main(["secret", "put", projectId, "y", "--home", home], { ...withSecrets(), env: {} }), err).toBe(
+      EXIT_CODES.unavailable,
+    );
+    expect(err).toContain("SECRET_STORE_UNAVAILABLE");
+  });
+});
