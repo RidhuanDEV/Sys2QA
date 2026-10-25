@@ -25,14 +25,41 @@ void serveAdapter({
         { name: "javascript", versions: "ES2024 and JSX" },
       ],
       scanned_only_languages: [],
-      // Framework conventions (routes, pages, forms) arrive with the framework layer (IMP-107).
-      frameworks: [],
+      // Each claim names the fixture that proves it (SAA-FR-047); the host links routes, mounts and pages (IMP-107).
+      frameworks: [
+        {
+          name: "express",
+          versions: "4.x and 5.x",
+          entities: ["api"],
+          relations: ["EXPOSES"],
+          workflow_tracing: "partial",
+          fixtures: ["fixtures/benchmarks/F1-repository-only"],
+        },
+        {
+          name: "react-router",
+          versions: "6.x and 7.x (createBrowserRouter objects and <Route> elements)",
+          entities: ["page", "form", "field"],
+          relations: ["CONTAINS", "SUBMITS_TO", "NAVIGATES_TO"],
+          workflow_tracing: "partial",
+          fixtures: ["fixtures/benchmarks/F1-repository-only"],
+        },
+        {
+          name: "nextjs",
+          versions: "13+ (app and pages directories)",
+          entities: ["page", "api"],
+          relations: ["EXPOSES"],
+          workflow_tracing: "partial",
+          fixtures: ["fixtures/saa/nextjs"],
+        },
+      ],
       prerequisites: ["none: files are parsed without installing dependencies or running a build"],
       limitations: [
         "imports are resolved by path only: tsconfig `paths`, bundler aliases and package `exports` maps are not applied",
         "imports of other workspace packages are recorded as package imports and linked by the host",
         "computed `require()` and `import()` arguments are reported as unresolved",
         "no type checking: references are linked by imported name, not by inferred type",
+        "routes with computed paths, routers passed between functions and mounts through computed values are reported as unresolved",
+        "form submissions are recognized through literal fetch() calls in the form's action or onSubmit handler",
       ],
     },
   }),

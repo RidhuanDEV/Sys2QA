@@ -9,6 +9,8 @@ import type { InventoryEntry } from "../intake/inventory.js";
 import type { RootSandbox } from "../intake/sandbox.js";
 import { redactOutput } from "../intake/secrets.js";
 import type { ProjectBoundary } from "../stack/stack.js";
+import type { Gap } from "@sys2qa/contract";
+import { linkFrameworks } from "./frameworks.js";
 import { linkStructure, mergeFacts, type DependencyGraph, type StructuralFacts } from "./graph.js";
 
 export interface StructureOptions {
@@ -28,6 +30,8 @@ export interface StructureOptions {
 
 export interface StructureResult extends StructuralFacts {
   graph: DependencyGraph;
+  /** What could not be established (dynamic routes, requests to endpoints no analyzed route defines). */
+  gaps: Gap[];
   adapters: InitializeResult[];
   /** Batches that failed, by adapter and error code; their files are `failed` in `coverage`. */
   failed_batches: Array<{ adapter: string; code: string; files: number }>;
@@ -128,9 +132,13 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
   }
   const facts = mergeFacts(batches);
   const linked = linkStructure(facts, options.boundaries);
+  const frameworks = linkFrameworks(facts, options.boundaries);
   return {
-    ...facts,
-    relationships: [...facts.relationships, ...linked.relationships],
+    entities: [...facts.entities, ...frameworks.entities],
+    relationships: [...facts.relationships, ...linked.relationships, ...frameworks.relationships],
+    evidence: facts.evidence,
+    coverage: [...facts.coverage, ...frameworks.coverage],
+    gaps: frameworks.gaps,
     graph: linked.graph,
     adapters: infos,
     failed_batches: failed,

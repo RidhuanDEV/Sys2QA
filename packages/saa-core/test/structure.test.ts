@@ -10,6 +10,7 @@ import {
   budgetFor,
   detectStack,
   findCycles,
+  normalizeRoutePath,
   RootSandbox,
   scanInventory,
   type InventoryEntry,
@@ -18,6 +19,7 @@ import {
 const fixture = (path: string) => fileURLToPath(new URL(`../../../fixtures/${path}`, import.meta.url));
 const F1 = fixture("benchmarks/F1-repository-only/repo/");
 const MONOREPO = fixture("saa/monorepo/repo/");
+const NEXTJS = fixture("saa/nextjs/repo/");
 const ENTITY = { $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/entity" };
 const RELATIONSHIP = { $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/relationship" };
 
@@ -94,6 +96,88 @@ describe("structural extraction through the js-ts adapter [@req SAA-FR-005] [@re
     // Python is not sent to the js-ts adapter.
     expect(result.coverage.some((c) => c.area.endsWith(".py"))).toBe(false);
   }, 60_000);
+});
+
+describe("framework layer [@req SAA-FR-007] [@req SAA-FR-031]", () => {
+  it("matches F1's route, page and form ground truth, and reports what it cannot see", async () => {
+    const truth = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "entities.json"), "utf8")) as {
+      entities: Array<{ id: string; kind: string }>;
+    };
+    const gaps = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "gaps.json"), "utf8")) as {
+      gaps: Array<{ key: string; type: string; related: string[] }>;
+    };
+    const result = await analyze(F1);
+    const byId = new Map(result.entities.map((e) => [e.id, e]));
+    const expected = truth.entities.filter((e) => ["api", "page", "form"].includes(e.kind)).map((e) => e.id);
+    expect(expected.filter((id) => !byId.has(id))).toEqual([]);
+    // Nothing beyond the ground truth: the never-mounted legacy export is not an endpoint (forbidden claim).
+    const produced = result.entities
+      .filter((e) => ["api", "page", "form"].includes(e.kind))
+      .map((e) => e.id)
+      .sort();
+    expect(produced).toEqual([...expected].sort());
+    expect(result.coverage).toContainEqual({
+      area: "src/server/legacy/export.ts",
+      status: "analyzed",
+      reason: "router legacyExportRouter is never mounted on an application; its 1 route(s) are not part of the API",
+    });
+    // The dynamic report routes are a gap on the plugins module, as the ground truth requires.
+    const dynamicTruth = gaps.gaps.find((g) => g.key === "dynamic-report-routes")!;
+    expect(result.gaps).toContainEqual(
+      expect.objectContaining({
+        type: dynamicTruth.type,
+        related_entity_ids: dynamicTruth.related,
+        status: "unresolved",
+      }),
+    );
+    expect(result.entities.some((e) => e.id.startsWith("api:GET:/api/reports"))).toBe(false);
+    // Forms carry their endpoint and field constraints; middleware is kept for the rules layer.
+    expect(byId.get("form:web:/register#register")).toMatchObject({
+      page_id: "page:web:/register",
+      submits_to: "api:POST:/api/auth/register",
+    });
+    expect(byId.get("field:web:/register#register.nib")).toMatchObject({
+      constraints: { required: true, pattern: "[0-9]{13}", max_length: 13 },
+    });
+    expect(byId.get("field:web:/orders/new#new-order.amount")).toMatchObject({
+      constraints: { required: true, min: 1, max: 10000, input_type: "number" },
+    });
+    expect(byId.get("api:POST:/api/orders/{id}/decision")).toMatchObject({
+      middleware: [{ name: "requireRole", args: ["ADMIN"] }],
+    });
+    const submits = result.relationships.filter((r) => r.type === "SUBMITS_TO").map((r) => `${r.from} -> ${r.to}`);
+    expect(submits).toContain("form:web:/reset-password#reset-confirm -> api:POST:/api/auth/password-reset/confirm");
+    expect(result.gaps.filter((g) => g.id.startsWith("gap:endpoint:"))).toEqual([]);
+    for (const e of result.entities) expect(validateJsonSchema(ENTITY, e).errors, e.id).toEqual([]);
+    for (const g of result.gaps)
+      expect(
+        validateJsonSchema({ $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/$defs/gap" }, g).errors,
+      ).toEqual([]);
+  }, 60_000);
+
+  it("derives Next.js pages and route handlers from the app and pages directories", async () => {
+    const result = await analyze(NEXTJS);
+    const ids = result.entities
+      .filter((e) => e.kind === "page" || e.kind === "api")
+      .map((e) => e.id)
+      .sort();
+    expect(ids).toEqual([
+      "api:ANY:/api/health",
+      "api:GET:/api/orders",
+      "api:POST:/api/orders",
+      "page:app:/",
+      "page:app:/legacy",
+      "page:app:/orders/{id}",
+    ]);
+  }, 60_000);
+
+  it("normalizes route parameters of Express, React Router and Next.js alike", () => {
+    expect(normalizeRoutePath("/orders/:id/")).toBe("/orders/{id}");
+    expect(normalizeRoutePath("/orders/[id]")).toBe("/orders/{id}");
+    expect(normalizeRoutePath("/docs/[...slug]")).toBe("/docs/{slug}");
+    expect(normalizeRoutePath("/search?q=1")).toBe("/search");
+    expect(normalizeRoutePath("")).toBe("/");
+  });
 });
 
 describe("import cycles [@req SAA-FR-006]", () => {

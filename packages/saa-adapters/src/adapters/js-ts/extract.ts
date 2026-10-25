@@ -4,6 +4,7 @@ import { posix } from "node:path";
 import ts from "typescript";
 import type { CoverageItem, Entity, Evidence, Relationship } from "@sys2qa/contract";
 import type { AnalyzeResult } from "../../protocol.js";
+import { frameworkFacts } from "./frameworks.js";
 
 export const ADAPTER_ID = "js-ts";
 export const ADAPTER_VERSION = "0.1.0";
@@ -55,6 +56,8 @@ export interface ImportRecord {
   target?: string;
   /** Names imported (`default`, `*` for a namespace import). */
   names: string[];
+  /** Local name of each imported binding, so the host can follow identifiers across modules. */
+  bindings?: Array<{ local: string; imported: string }>;
   type_only: boolean;
   kind: "static" | "re_export" | "dynamic" | "require";
   line: number;
@@ -185,6 +188,7 @@ export function extractFiles(files: readonly FileInput[], context: ExtractContex
           {
             specifier: statement.moduleSpecifier.text,
             names: importedNames(statement.importClause),
+            bindings: importBindings(statement.importClause),
             type_only: statement.importClause?.isTypeOnly ?? false,
             kind: "static",
             line,
@@ -294,6 +298,7 @@ export function extractFiles(files: readonly FileInput[], context: ExtractContex
       language: /\.(ts|tsx|mts|cts)$/.test(file.path) ? "typescript" : "javascript",
       exports: [...new Set(exported)].sort(),
       imports,
+      ...frameworkFacts(source, (node) => evidence(rangeOf(node), node.getText(source)), rangeOf),
     } as Entity);
 
     const errors = diagnostics.get(file.path) ?? [];
@@ -365,7 +370,18 @@ function importedNames(clause: ts.ImportClause | undefined): string[] {
   return names;
 }
 
-function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
+function importBindings(clause: ts.ImportClause | undefined): Array<{ local: string; imported: string }> {
+  if (!clause) return [];
+  const bindings: Array<{ local: string; imported: string }> = [];
+  if (clause.name) bindings.push({ local: clause.name.text, imported: "default" });
+  const named = clause.namedBindings;
+  if (named && ts.isNamespaceImport(named)) bindings.push({ local: named.name.text, imported: "*" });
+  if (named && ts.isNamedImports(named))
+    for (const e of named.elements) bindings.push({ local: e.name.text, imported: (e.propertyName ?? e.name).text });
+  return bindings;
+}
+
+export function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
   return ts.canHaveModifiers(node) && (ts.getModifiers(node)?.some((m) => m.kind === kind) ?? false);
 }
 
