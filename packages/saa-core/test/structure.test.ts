@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,11 +25,16 @@ const RELATIONSHIP = { $ref: "https://sys2qa.dev/schemas/system-model/1.0.json#/
 
 let base: string;
 let entry: string;
+let sqlEntry: string;
 beforeAll(async () => {
   base = mkdtempSync(join(tmpdir(), "sys2qa-structure-"));
   entry = await bundleAdapter({
     entry: fileURLToPath(new URL("../../saa-adapters/src/adapters/js-ts/main.ts", import.meta.url)),
     outfile: join(base, "bundle", "js-ts.mjs"),
+  });
+  sqlEntry = await bundleAdapter({
+    entry: fileURLToPath(new URL("../../saa-adapters/src/adapters/sql/main.ts", import.meta.url)),
+    outfile: join(base, "bundle", "sql.mjs"),
   });
 }, 60_000);
 afterAll(() => rmSync(base, { recursive: true, force: true }));
@@ -45,7 +50,10 @@ async function analyze(root: string) {
     sandbox,
     included,
     boundaries: stack.boundaries,
-    adapters: [{ id: "js-ts", entry }],
+    adapters: [
+      { id: "js-ts", entry },
+      { id: "sql", entry: sqlEntry },
+    ],
     scratch: join(base, "scratch"),
     runId: "run:01JSTRUCTURE",
     batchSize: 5,
@@ -61,7 +69,7 @@ describe("structural extraction through the js-ts adapter [@req SAA-FR-005] [@re
     const ids = new Set(result.entities.map((e) => e.id));
     for (const expected of truth.entities.filter((e) => e.kind === "module"))
       expect(ids, expected.id).toContain(expected.id);
-    expect(result.adapters.map((a) => a.adapter_id)).toEqual(["js-ts"]);
+    expect(result.adapters.map((a) => a.adapter_id)).toEqual(["js-ts", "sql"]);
     expect(result.failed_batches).toEqual([]);
     // Every fact is contract-valid.
     for (const e of result.entities) expect(validateJsonSchema(ENTITY, e).errors, e.id).toEqual([]);
@@ -178,6 +186,92 @@ describe("framework layer [@req SAA-FR-007] [@req SAA-FR-031]", () => {
     expect(normalizeRoutePath("/search?q=1")).toBe("/search");
     expect(normalizeRoutePath("")).toBe("/");
   });
+});
+
+describe("data model [@req SAA-FR-008]", () => {
+  it("matches F1's data-model ground truth with declared mappings, keys, checks and enum values", async () => {
+    const truth = JSON.parse(readFileSync(join(F1, "..", "ground-truth", "entities.json"), "utf8")) as {
+      entities: Array<{ id: string; kind: string }>;
+    };
+    const result = await analyze(F1);
+    const expected = truth.entities
+      .filter((e) => e.kind === "entity" || e.kind === "table")
+      .map((e) => e.id)
+      .sort();
+    const produced = result.entities
+      .filter((e) => e.kind === "entity" || e.kind === "table")
+      .map((e) => e.id)
+      .sort();
+    expect(produced).toEqual(expected);
+    const byId = new Map(result.entities.map((e) => [e.id, e]));
+    expect(byId.get("entity:order")).toMatchObject({ status: "source_verified", name: "Order" });
+    expect(byId.get("orm_model:Order")).toMatchObject({ mapping: "declared_default_name", table_id: "table:Order" });
+    expect(byId.get("column:Order.amount")).toMatchObject({
+      checks: [`"amount" BETWEEN 1 AND 10000`],
+      constraints: { required: true },
+    });
+    expect(byId.get("column:Order.status")).toMatchObject({
+      default: "'DRAFT'",
+      enum_type: "OrderStatus",
+      allowed_values: ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "SHIPPED"],
+    });
+    expect(byId.get("column:User.nib")).toMatchObject({ unique: true, data_type: "CHAR(13)" });
+    const rel = result.relationships.map((r) => `${r.type} ${r.from} ${r.to} ${r.status}`);
+    expect(rel).toEqual(
+      expect.arrayContaining([
+        "USES_SCHEMA entity:user table:User source_verified",
+        "REFERENCES table:Order table:User source_verified",
+        "REFERENCES table:PasswordResetToken table:User source_verified",
+        "REFERENCES entity:order entity:user source_verified",
+      ]),
+    );
+    for (const e of result.entities) expect(validateJsonSchema(ENTITY, e).errors, e.id).toEqual([]);
+    for (const r of result.relationships) expect(validateJsonSchema(RELATIONSHIP, r).errors, r.id).toEqual([]);
+  }, 60_000);
+
+  it("applies migrations in order and infers an entity for a table no ORM model declares", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "sys2qa-migrations-"));
+    try {
+      mkdirSync(join(dir, "db", "migrations"), { recursive: true });
+      const write = (name: string, sql: string) => writeFileSync(join(dir, "db", "migrations", name), sql);
+      write(
+        "2_add_status.sql",
+        "ALTER TABLE invoices ADD COLUMN status TEXT NOT NULL DEFAULT 'OPEN';\nALTER TABLE invoices RENAME COLUMN total TO amount;\n",
+      );
+      write(
+        "10_drop_legacy.sql",
+        "DROP TABLE legacy_invoices;\nALTER TABLE invoices ADD CONSTRAINT amount_ok CHECK (amount > 0);\n",
+      );
+      write(
+        "1_init.sql",
+        "CREATE TABLE invoices (id INT PRIMARY KEY, total INT);\nCREATE TABLE legacy_invoices (id INT);\n",
+      );
+      const result = await analyze(dir);
+      const ids = result.entities
+        .filter((e) => ["table", "column", "entity"].includes(e.kind))
+        .map((e) => e.id)
+        .sort();
+      expect(ids).toEqual([
+        "column:invoices.amount",
+        "column:invoices.id",
+        "column:invoices.status",
+        "entity:invoices",
+        "table:invoices",
+      ]);
+      expect(result.entities.find((e) => e.id === "table:invoices")).toMatchObject({ checks: ["amount > 0"] });
+      expect(result.entities.find((e) => e.id === "entity:invoices")).toMatchObject({
+        status: "inferred",
+        confidence_rationale: expect.stringContaining("no ORM model"),
+      });
+      expect(result.coverage).toContainEqual({
+        area: "db/migrations/10_drop_legacy.sql",
+        status: "analyzed",
+        reason: "table legacy_invoices is dropped by a later migration and is not modeled",
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
 });
 
 describe("import cycles [@req SAA-FR-006]", () => {

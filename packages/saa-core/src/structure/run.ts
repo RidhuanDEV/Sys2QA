@@ -10,6 +10,7 @@ import type { RootSandbox } from "../intake/sandbox.js";
 import { redactOutput } from "../intake/secrets.js";
 import type { ProjectBoundary } from "../stack/stack.js";
 import type { Gap } from "@sys2qa/contract";
+import { linkDataModel } from "./datamodel.js";
 import { linkFrameworks } from "./frameworks.js";
 import { linkStructure, mergeFacts, type DependencyGraph, type StructuralFacts } from "./graph.js";
 
@@ -133,11 +134,17 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
   const facts = mergeFacts(batches);
   const linked = linkStructure(facts, options.boundaries);
   const frameworks = linkFrameworks(facts, options.boundaries);
+  const data = linkDataModel(facts);
   return {
-    entities: [...facts.entities, ...frameworks.entities],
-    relationships: [...facts.relationships, ...linked.relationships, ...frameworks.relationships],
+    entities: [...facts.entities, ...frameworks.entities, ...data.entities],
+    relationships: [
+      ...facts.relationships,
+      ...linked.relationships,
+      ...frameworks.relationships,
+      ...data.relationships,
+    ],
     evidence: facts.evidence,
-    coverage: [...facts.coverage, ...frameworks.coverage],
+    coverage: [...facts.coverage, ...frameworks.coverage, ...data.coverage],
     gaps: frameworks.gaps,
     graph: linked.graph,
     adapters: infos,

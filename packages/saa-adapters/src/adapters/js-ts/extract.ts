@@ -4,7 +4,10 @@ import { posix } from "node:path";
 import ts from "typescript";
 import type { CoverageItem, Entity, Evidence, Relationship } from "@sys2qa/contract";
 import type { AnalyzeResult } from "../../protocol.js";
+import { boundaryPathOf } from "../shared.js";
 import { frameworkFacts } from "./frameworks.js";
+
+export { boundaryPathOf };
 
 export const ADAPTER_ID = "js-ts";
 export const ADAPTER_VERSION = "0.1.0";
@@ -61,13 +64,6 @@ export interface ImportRecord {
   type_only: boolean;
   kind: "static" | "re_export" | "dynamic" | "require";
   line: number;
-}
-
-/** `project:.` → `""`; `project:apps/web` → `apps/web`; `project:root1/apps/web` → `apps/web` (the cwd is that root). */
-export function boundaryPathOf(rootId: string): string {
-  const local = rootId.startsWith("project:") ? rootId.slice("project:".length) : rootId;
-  const path = local.replace(/^root\d+\//, "");
-  return path === "." || path === "root" ? "" : path.replace(/^\.\//, "");
 }
 
 /**
