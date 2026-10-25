@@ -99,6 +99,8 @@ Numeric targets are set after the first baseline run. Until then, metrics are re
 | Scenario acceptance rate, duplicate rate, false-failure rate, automation reliability, evidence completeness, time to first useful suite, cost per accepted scenario | PRD §18.3 definitions | Reported |
 | Runtime discovery | Page and form recall within scope; forms correctly withheld from submission | ✓ withheld-form errors must be **0** |
 
+Implementation (IMP-014): `tests/benchmark/harness/` with `pnpm bench`. The ground truth refers to entities by semantic ID, which is deterministic from kind, boundary and natural key (Data Model §3), so matching never depends on generated IDs. Step sequences are compared by longest common subsequence. A metric that cannot be measured yet (no scenarios, no runtime discovery) is reported as not measured and does not fail a gate. Results: `reports/benchmarks/<fixture>/<producer>.{json,md}` and `reports/benchmarks/trend.jsonl`. Until the producers exist, the harness measures a stub producer that echoes the ground truth.
+
 ## 6. Security testing
 
 The ST-01–ST-20 suite is defined in Threat Model §6. Rules:
