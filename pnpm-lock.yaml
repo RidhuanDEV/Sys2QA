@@ -20,6 +20,9 @@ importers:
       dependency-cruiser:
         specifier: ^18.7.0
         version: 18.7.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       eslint:
         specifier: ^10.13.0
         version: 10.13.0
@@ -73,6 +76,9 @@ importers:
       '@sys2qa/runtime-observer':
         specifier: workspace:*
         version: link:../runtime-observer
+      '@sys2qa/saa-core':
+        specifier: workspace:*
+        version: link:../saa-core
       fastify:
         specifier: ^5.12.7
         version: 5.12.7
@@ -115,7 +121,11 @@ importers:
 
   packages/runtime-observer: {}
 
-  packages/saa-adapters: {}
+  packages/saa-adapters:
+    dependencies:
+      '@sys2qa/contract':
+        specifier: workspace:*
+        version: link:../contract
 
   packages/saa-core:
     dependencies:
@@ -125,6 +135,9 @@ importers:
       '@sys2qa/platform':
         specifier: workspace:*
         version: link:../platform
+      '@sys2qa/saa-adapters':
+        specifier: workspace:*
+        version: link:../saa-adapters
       ignore:
         specifier: ^7.0.13
         version: 7.0.13

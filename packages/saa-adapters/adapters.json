@@ -1,0 +1,4 @@
+{
+  "$comment": "Built-in analyzer adapters (ADR-009, OD-06). Each source is bundled by scripts/build-adapters.mjs into dist/adapters/<id>.mjs.",
+  "adapters": []
+}

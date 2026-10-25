@@ -105,6 +105,13 @@ describe("observability commands [@req QAA-FR-103] [@req OBS-001] [@req OBS-004]
   });
 });
 
+describe("adapters [@req SAA-FR-047]", () => {
+  it("prints the support matrix of the installed adapters", async () => {
+    expect(await main(["adapters", "--home", home], io())).toBe(EXIT_CODES.ok);
+    expect(out).toBe("No analyzer adapters are installed.\n");
+  });
+});
+
 describe("doctor and configuration [@req NFR-007] [@req SEC-018]", () => {
   it("reports every prerequisite with remediation and shows the model provider disclosure", async () => {
     expect(await main(["doctor", "--home", home, "--json"], io())).toBe(EXIT_CODES.ok);

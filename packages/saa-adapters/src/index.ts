@@ -1,3 +1,6 @@
 // SAA adapter host and analyzer adapters (ADR-009)
-// Scaffold only (IMP-001). Implementation arrives with later IMP tasks.
-export {};
+export * from "./host.js";
+export * from "./matrix.js";
+export * from "./protocol.js";
+export * from "./registry.js";
+export * from "./sdk.js";

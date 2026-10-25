@@ -12,6 +12,7 @@ import {
   runRetention,
   type Operation as PolicyOperation,
 } from "@sys2qa/platform";
+import { adapterMatrixText, describeAdapters } from "@sys2qa/saa-core";
 import { runDoctor } from "./doctor.js";
 import { serviceError } from "./errors.js";
 import { defineOperation, type Operation } from "./operations.js";
@@ -322,6 +323,20 @@ const systemDoctor = defineOperation<Record<string, never>, unknown>({
   run: ({ host }) => runDoctor({ home: host.home }),
 });
 
+const saaAdapters = defineOperation<Record<string, never>, unknown>({
+  name: "saa.adapters",
+  title: "List analyzer adapters",
+  description:
+    "Installed analyzer adapters and their declared support matrix: languages analyzed in depth, languages only scanned, frameworks with workflow-tracing level and proving fixtures, prerequisites and limitations (SAA-FR-047).",
+  level: "none",
+  effect: "read",
+  input: { type: "object", additionalProperties: false },
+  run: async ({ host }) => {
+    const inventory = await describeAdapters(join(host.home, "tmp"));
+    return { format: "support_matrix", text: adapterMatrixText(inventory), ...inventory };
+  },
+});
+
 const secretPut = defineOperation<{ project_id: string; name: string; value: string }, unknown>({
   name: "secret.put",
   title: "Store a credential",
@@ -496,6 +511,7 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   systemSetSetting,
   systemConfig,
   systemDoctor,
+  saaAdapters,
   secretPut,
   secretList,
   secretRemove,

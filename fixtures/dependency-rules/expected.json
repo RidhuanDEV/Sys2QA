@@ -12,7 +12,9 @@
     "packages/platform/src/browser.ts": ["browser-only-in-runtime-observer-and-test-runner", "not-to-unresolvable"],
     "packages/test-runner/src/browser.ts": ["not-to-unresolvable"],
     "packages/saa-core/src/validator.ts": ["contract-validation-only-in-contract", "not-to-unresolvable"],
-    "packages/saa-core/src/spawn.ts": ["no-process-spawn-in-analysis"]
+    "packages/saa-core/src/spawn.ts": ["no-process-spawn-in-analysis"],
+    "packages/saa-adapters/runtime/network-guard.mjs": [],
+    "packages/saa-adapters/src/socket.ts": ["network-only-in-runtime-observer"]
   },
   "cycles": [["packages/system-model/src/cycle-a.ts", "packages/system-model/src/cycle-b.ts"]]
 }

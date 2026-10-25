@@ -16,6 +16,7 @@
     "@sys2qa/contract": "workspace:*",
     "@sys2qa/platform": "workspace:*",
     "@sys2qa/runtime-observer": "workspace:*",
+    "@sys2qa/saa-core": "workspace:*",
     "fastify": "^5.12.7"
   }
 }

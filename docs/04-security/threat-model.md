@@ -118,7 +118,7 @@ The shared harness (IMP-015) is `tests/security/harness/` with fixtures in `fixt
 | ST-11 | Credential isolation | Two projects with different credentials; assert no cross-access to storage state or secrets | G4, G5 |
 | ST-12 | Local API hardening | Requests without a token, with a foreign `Origin`, or via a DNS-rebound hostname to localhost; assert rejection | G2 |
 | ST-13 | Malicious package | Zip-slip, oversized, checksum mismatch, secret-bearing, cross-producer packages; assert specific error codes | G2 |
-| ST-14 | Malicious adapter | Test adapter tries to open sockets, write outside scratch, or exceed memory; assert kill, `partial` run and coverage record | G1 |
+| ST-14 | Malicious adapter | Test adapter tries to open sockets, write outside scratch, or exceed memory; assert kill, `partial` run and coverage record (`tests/security/st-14-malicious-adapter.test.ts` with `fixtures/security/adapters/hostile-adapter.mjs`: eight network routes including `process.binding`, writes outside scratch, reads outside the root, child processes, workers, host environment, memory and time) | G1 |
 | ST-15 | Resource exhaustion | Crawler-trap site; 100k-file repository fixture; assert budgets honored and unvisited scope reported | G1, G4 |
 | ST-16 | Audit integrity | Modify an audit row; assert hash-chain verification fails; approvals are immutable | G2 |
 | ST-17 | Output warnings | First export shows the warning; default path is outside the repository | G1 |

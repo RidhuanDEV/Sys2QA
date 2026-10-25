@@ -28,6 +28,7 @@ export default tseslint.config(
         URL: "readonly",
         Buffer: "readonly",
         structuredClone: "readonly",
+        fetch: "readonly",
         setInterval: "readonly",
         setTimeout: "readonly",
         clearInterval: "readonly",

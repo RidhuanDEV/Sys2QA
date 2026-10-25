@@ -2,7 +2,7 @@
   "name": "sys2qa-monorepo",
   "private": true,
   "type": "module",
-  "description": "Sys2QA — evidence-based system analysis (SAA) and quality assurance (QAA) platform",
+  "description": "Sys2QA \u2014 evidence-based system analysis (SAA) and quality assurance (QAA) platform",
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.28.0",
   "engines": {
@@ -24,13 +24,15 @@
     "trace:check": "node scripts/traceability.mjs",
     "bench": "node --conditions=source --import tsx tests/benchmark/run.ts",
     "sys2qa": "node --conditions=source --import tsx apps/cli/src/bin.ts",
-    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm fixtures:check && pnpm deps:check && pnpm trace:check && pnpm docs:links && pnpm test"
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm fixtures:check && pnpm deps:check && pnpm trace:check && pnpm docs:links && pnpm test",
+    "build:adapters": "node scripts/build-adapters.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/node": "^22.20.5",
     "dependency-cruiser": "^18.7.0",
+    "esbuild": "0.28.2",
     "eslint": "^10.13.0",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",

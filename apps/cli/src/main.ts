@@ -59,6 +59,7 @@ const COMMANDS: Record<string, Command> = {
   },
   health: { usage: "health", build: () => ({ operation: "system.health", input: {} }) },
   doctor: { usage: "doctor", build: () => ({ operation: "system.doctor", input: {} }) },
+  adapters: { usage: "adapters", build: () => ({ operation: "saa.adapters", input: {} }) },
   "config show": { usage: "config show", build: () => ({ operation: "system.config", input: {} }) },
   "settings set": {
     usage: "settings set <l4_enabled|local_owner_mode_enabled|telemetry_enabled> <on|off>",
@@ -294,7 +295,7 @@ function human(data: unknown): string {
       `overall: ${report.status}`,
     ].join("\n");
   }
-  if ("format" in data && (data as { format: string }).format === "prometheus")
+  if ("format" in data && ["prometheus", "support_matrix"].includes((data as { format: string }).format))
     return (data as unknown as { text: string }).text.trimEnd();
   return JSON.stringify(data, null, 2);
 }

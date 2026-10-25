@@ -87,7 +87,11 @@ export function dependencyRules(root = "") {
       name: "network-only-in-runtime-observer",
       comment: "Only runtime-observer opens connections toward targets (SEC-025)",
       severity: "error",
-      from: { path: `^${r}(apps|packages)/`, pathNot: `^${r}packages/runtime-observer/` },
+      from: {
+        path: `^${r}(apps|packages)/`,
+        // The adapter network guard imports network modules only to disable them (ADR-009).
+        pathNot: [`^${r}packages/runtime-observer/`, `^${r}packages/saa-adapters/runtime/network-guard\\.mjs$`],
+      },
       to: { path: [core(NETWORK_CORE), npm(NETWORK_NPM)] },
     },
     {
