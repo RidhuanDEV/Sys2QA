@@ -51,7 +51,8 @@ async function runScript(runner: Runner & { home: string }) {
   // Homes differ per runner and package bytes carry capture times; everything else must be identical.
   const normalized = JSON.parse(
     JSON.stringify(results)
-      .split(runner.home)
+      // The home as it appears inside JSON (backslashes escaped on Windows).
+      .split(JSON.stringify(runner.home).slice(1, -1))
       .join("<home>")
       .replace(/"manifest_sha256":"sha256:[0-9a-f]{64}"/g, '"manifest_sha256":"<sha>"'),
   ) as ServiceResult[];
