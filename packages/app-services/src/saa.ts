@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import {
   appendAudit,
@@ -213,7 +213,9 @@ const saaAnalyze = defineOperation<{ source_id: string; profile?: AnalysisProfil
       });
       indexSkbRun(host.state.db, dir, manifest);
       const status =
-        structure.gaps.some((g) => g.status === "unresolved") || structure.coverage.some((c) => c.status !== "analyzed")
+        structure.gaps.some((g) => g.status === "unresolved") ||
+        structure.coverage.some((c) => c.status !== "analyzed") ||
+        completeness.unavailable_adapters.length > 0
           ? "completed_with_limitations"
           : "completed";
       host.state.db
@@ -419,7 +421,7 @@ const saaExport = defineOperation<{ run_id: string; output_dir?: string; allow_i
       { v: number | null } | undefined;
     const identity = JSON.parse(row.revision_json ?? "null") as RevisionIdentity;
     const outputDir = input.output_dir ?? defaultPackagesDirectory(host.home, localIdPart(project.id));
-    mkdirSync(outputDir, { recursive: true });
+    // The exporter creates the directory only after its refusal checks: a refused export writes nothing.
     const completeness = loadSkbView(skbDir).completeness;
     const result = exportPackage({
       skbDir,

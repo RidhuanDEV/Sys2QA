@@ -8,3 +8,13 @@ A pnpm workspace used to check project boundary detection (SAA-FR-002) and the s
 - `services/worker`: a Python project outside the declared members, also nested and inferred.
 - The root: a workspace root that also owns the loose files (`docs/`, `infra/`).
 - `infra/terraform/main.tf` has no known format and must be reported as unknown (`.tf`), not mislabeled.
+- Dependencies: `apps/api` and `apps/web` import `@acme/shared`, so each depends on `packages/shared` (`DEPENDS_ON` between
+  boundaries); `packages/legacy-billing` is imported by nothing.
+- `services/worker/app/main.py` has no analyzer adapter: the run is `completed_with_limitations`, the file is listed as
+  unexplored and `modules` coverage is `partial` (Gate 1 acceptance, IMP-121).
+
+## Review
+
+| Reviewer | Date | Result |
+|---|---|---|
+| _pending second-person review (IMP-013)_ | | |

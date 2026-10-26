@@ -139,6 +139,8 @@ The only items accepted with manual evidence are:
 
 A gate passes only when every checklist item has passing evidence and the traceability report shows no P0 requirement of that gate without a passing tagged test.
 
+Implementation (IMP-121): `tests/acceptance/gate-<n>.test.ts` holds one `describe` per checklist item (`Gate <n> item <k>: …`), tagged with the item's requirements. `pnpm gate <n>` (`scripts/gate-report.mjs`) runs the whole suite and the benchmarks and writes `reports/gates/gate-<n>/<date>/` with the test results, the traceability report, the benchmark results and `report.md`, which maps each checklist item to its tests and lists the gate's requirements (PRD §27.2 and, for Gate 1, the L0–L1 security gate of §27.4), deferring those whose acceptance criterion a later gate's backlog owns, the earlier gates' uncovered P0 requirements, the manual evidence and any quarantined test. The verdict is `PASSED`, `PASSED on automated evidence; manual evidence pending` or `FAILED`; the script exits 1 only on a failure. The `gate` workflow (manual dispatch) runs it on all three operating systems and archives the reports as artifacts; each gate's record is kept in `docs/05-quality/gates/`.
+
 ## 9. Release-candidate criteria
 
 All of the following:

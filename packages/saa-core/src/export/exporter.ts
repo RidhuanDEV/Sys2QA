@@ -176,7 +176,9 @@ export function exportPackage(options: ExportOptions): ExportResult {
   // Coverage summary; a category with nothing found is `absent` and explained by a gap (CR-030).
   const coverageSummary: Record<string, string> = {};
   const gaps: Gap[] = [...view.gaps];
-  const partialFiles = view.coverage.some((c) => c.status !== "analyzed");
+  // Modules are complete only when every file was analyzed and no inventoried language lacked an adapter.
+  const partialFiles =
+    view.coverage.some((c) => c.status !== "analyzed") || (view.completeness?.unavailable_adapters.length ?? 0) > 0;
   for (const [category, present] of Object.entries(COVERAGE)) {
     if (present(view)) coverageSummary[category] = category === "modules" && !partialFiles ? "complete" : "partial";
     else {

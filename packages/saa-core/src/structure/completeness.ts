@@ -63,9 +63,12 @@ export function completenessReport(input: CompletenessInput): CompletenessReport
   // Languages present in the inventory that no adapter declares, and adapters whose batches failed.
   const declared = new Set(structure.adapters.flatMap((a) => a.support_matrix.languages.map((l) => l.name)));
   const missing = new Map<string, number>();
+  const notAnalyzed: Array<{ path: string; language: string }> = [];
   for (const e of input.inventory)
-    if (e.status === "included" && e.language && !declared.has(e.language) && !NOT_ANALYZED.has(e.language))
+    if (e.status === "included" && e.language && !declared.has(e.language) && !NOT_ANALYZED.has(e.language)) {
       missing.set(e.language, (missing.get(e.language) ?? 0) + 1);
+      notAnalyzed.push({ path: e.path, language: e.language });
+    }
   const unavailable: CompletenessReport["unavailable_adapters"] = [
     ...[...missing].sort().map(([language, files]) => ({
       adapter: language,
@@ -94,6 +97,8 @@ export function completenessReport(input: CompletenessInput): CompletenessReport
   for (const c of structure.coverage)
     if (c.status === "unsupported" || c.status === "failed" || c.status === "partial")
       addUnexplored(c.area, `${c.status}${c.reason ? `: ${c.reason}` : ""}`);
+  // Files no adapter could read are named, not only counted under unavailable adapters.
+  for (const f of notAnalyzed) addUnexplored(f.path, `unsupported: no analyzer adapter for ${f.language}`);
   for (const g of structure.gaps.filter((x) => x.type !== "contradiction"))
     for (const related of (g.related_entity_ids ?? []).slice(0, 1)) addUnexplored(related, g.description);
   for (const id of structure.catalog.not_deepened)

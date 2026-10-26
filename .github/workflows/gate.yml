@@ -1,0 +1,38 @@
+# CI stage 5 of the Test Strategy (§7): the acceptance run of one gate, on all three operating systems, with the
+# gate report and its evidence archived as artifacts (IMP-121). Started by hand when a gate's backlog is done.
+name: gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      gate:
+        description: Gate number
+        required: true
+        default: "1"
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: Gate ${{ inputs.gate }} acceptance (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/gate-report.mjs --gate ${{ inputs.gate }} --out reports/gates/gate-${{ inputs.gate }}/${{ matrix.os }}
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-${{ inputs.gate }}-${{ matrix.os }}
+          path: reports/gates/
+          if-no-files-found: error

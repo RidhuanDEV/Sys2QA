@@ -49,5 +49,20 @@
       "frameworks": ["fastapi"]
     }
   ],
-  "unknown": { ".tf": 1 }
+  "unknown": {
+    ".tf": 1
+  },
+  "dependencies": [
+    {
+      "from": "project:apps/api",
+      "to": "project:packages/shared",
+      "type": "DEPENDS_ON"
+    },
+    {
+      "from": "project:apps/web",
+      "to": "project:packages/shared",
+      "type": "DEPENDS_ON"
+    }
+  ],
+  "unexplored": ["services/worker/app/main.py"]
 }

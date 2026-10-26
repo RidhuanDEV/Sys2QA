@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -93,6 +93,10 @@ describe("SAA command parity [@req SAA-FR-014] [@req SYS-005]", () => {
   afterAll(async () => {
     for (const r of runners) await r.close();
     rmSync(work, { recursive: true, force: true });
+  });
+
+  it("writes nothing into the analyzed repository when an export there is refused [@req SAA-FR-036]", () => {
+    expect(existsSync(join(F1, ".saa"))).toBe(false);
   });
 
   it("covers start, analyze, status, workflows, trace, export and validate with refusals and errors", () => {
