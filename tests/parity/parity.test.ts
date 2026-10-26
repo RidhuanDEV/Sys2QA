@@ -9,13 +9,16 @@ const ROOT = resolve("/work/acme-portal");
 const PACKAGE = fileURLToPath(new URL("../../fixtures/contract/packages/valid/mode-a-saa/", import.meta.url));
 const data = (r: ServiceResult) => (r.ok ? (r.data as Record<string, unknown>) : {});
 
-/** One onboarding script (Modes A then C), with failures, run through every interface (SYS-005, IMP-902 grows it). */
-type Step = [operation: string, input: (results: ServiceResult[]) => unknown];
+/**
+ * One onboarding script (Modes A then C), with failures, run through every interface (SYS-005, IMP-902 grows it).
+ * Steps marked `human` register local paths, which a person does (MCP clients may not add new roots, SAA-FR-017).
+ */
+type Step = [operation: string, input: (results: ServiceResult[]) => unknown, human?: "human"];
 const SCRIPT: Step[] = [
   ["system.info", () => ({})],
   ["project.create", () => ({ name: "Acme portal", languages: ["en", "id"] })],
   ["project.create", () => ({ name: "" })],
-  ["project.add_source", (r) => ({ project_id: data(r[1]!).id, kind: "source_root", ref: ROOT })],
+  ["project.add_source", (r) => ({ project_id: data(r[1]!).id, kind: "source_root", ref: ROOT }), "human"],
   [
     "policy.check",
     (r) => ({ source_id: data(r[3]!).id, operation: "static_read", target_path: join(ROOT, "src", "app.ts") }),
@@ -63,6 +66,7 @@ const SCRIPT: Step[] = [
   ["project.get", (r) => ({ project_id: data(r[1]!).id })],
   ["project.get", () => ({ project_id: "project:missing" })],
   ["project.list", () => ({})],
+  ["project.add_source", (r) => ({ project_id: data(r[1]!).id, kind: "package", ref: PACKAGE }), "human"],
   ["package.validate", () => ({ path: PACKAGE })],
   ["no.such.operation", () => ({})],
 ];
@@ -70,8 +74,10 @@ const SCRIPT: Step[] = [
 async function runScript(runner: Runner) {
   const results: ServiceResult[] = [];
   const exitCodes: Array<number | undefined> = [];
-  for (const [operation, input] of SCRIPT) {
-    const { result, exitCode } = await runner.run(operation, input(results));
+  for (const [operation, input, human] of SCRIPT) {
+    const { result, exitCode } = await (human
+      ? runner.human(operation, input(results))
+      : runner.run(operation, input(results)));
     results.push(result);
     exitCodes.push(exitCode);
   }
@@ -112,6 +118,7 @@ describe("interface parity [@req SYS-005] [@req NFR-010]", () => {
       "NOT_FOUND",
       "ok",
       "ok",
+      "ok",
       "OPERATION_UNKNOWN",
     ]);
     expect((runs.api!.results[4] as { data: { allowed: boolean; reason: string } }).data).toMatchObject({
@@ -122,7 +129,7 @@ describe("interface parity [@req SYS-005] [@req NFR-010]", () => {
       allowed: false,
       reason: "level_not_declared",
     });
-    expect((runs.api!.results[16] as { data: { ok: boolean } }).data.ok).toBe(true);
+    expect((runs.api!.results[17] as { data: { ok: boolean } }).data.ok).toBe(true);
   });
 
   it("CLI, HTTP API and MCP return identical decisions, states and errors", () => {

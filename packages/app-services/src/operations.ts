@@ -28,6 +28,11 @@ export interface Operation<I = Record<string, unknown>, O = unknown> {
   destructive?: boolean;
   /** Restricts the interfaces that may call it (e.g. secret values never through MCP). All when absent. */
   interfaces?: ReadonlyArray<Caller["interface"]>;
+  /**
+   * The filesystem paths in an input. Through MCP each must lie inside the Sys2QA home or a registered source root or
+   * package (SAA-FR-017); other interfaces are used by a person, who may name any path.
+   */
+  paths?: (input: I) => ReadonlyArray<string | undefined>;
   run(context: OperationContext, input: I): O | Promise<O>;
 }
 

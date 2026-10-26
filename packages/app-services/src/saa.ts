@@ -6,6 +6,7 @@ import {
   indexSkbRun,
   localIdPart,
   projectDirectory,
+  queryEntities,
   queryWorkflows,
   readSkbManifest,
   runDirectory,
@@ -31,6 +32,7 @@ import {
   type AnalysisProfile,
   type InventoryEntry,
   type RevisionIdentity,
+  type SkbView,
 } from "@sys2qa/saa-core";
 import { serviceError, ServiceError, SERVICE_ERRORS } from "./errors.js";
 import type { Host } from "./host.js";
@@ -77,6 +79,7 @@ const saaStart = defineOperation<{ name: string; root: string; languages?: strin
     "Guided start (SAA-FR-014): creates a project for a local repository path and registers it as a source root. Nothing about the system is asked. Analysis needs a scoped authorization declaration for the root first; the result lists the next commands.",
   level: "none",
   effect: "write",
+  paths: (input) => [input.root],
   input: {
     type: "object",
     additionalProperties: false,
@@ -388,6 +391,7 @@ const saaExport = defineOperation<{ run_id: string; output_dir?: string; allow_i
     "Exports an analysis run as a validated, immutable Documentation Package (SAA-FR-029): by default under the Sys2QA home, never inside the analyzed repository unless allowed (SAA-FR-036). The first export returns a warning about what the package reveals (SEC-016).",
   level: "none",
   effect: "write",
+  paths: (input) => [input.output_dir],
   input: {
     type: "object",
     additionalProperties: false,
@@ -488,4 +492,276 @@ const saaExport = defineOperation<{ run_id: string; output_dir?: string; allow_i
   },
 });
 
-export const SAA_OPERATIONS = [saaStart, saaAnalyze, saaStatus, workflowsList, workflowsShow, saaTrace, saaExport];
+// ---------------------------------------------------------------- query tools (SAA §4.4, SAA-FR-015/017)
+
+const RUN = { type: "object", additionalProperties: false, required: ["run_id"], properties: { run_id: ID } } as const;
+const withRun = (properties: Record<string, object>, required: string[] = []) => ({
+  type: "object",
+  additionalProperties: false,
+  required: ["run_id", ...required],
+  properties: { run_id: ID, ...properties },
+});
+const relsOf = (view: SkbView, id: string) => ({
+  outgoing: view.relationships.filter((r) => r.from === id).map((r) => ({ type: r.type, to: r.to, status: r.status })),
+  incoming: view.relationships
+    .filter((r) => r.to === id)
+    .map((r) => ({ type: r.type, from: r.from, status: r.status })),
+});
+
+const saaOverview = defineOperation<{ run_id: string }, unknown>({
+  name: "saa.overview",
+  title: "System overview",
+  description:
+    "What an analysis run found within the examined scope: boundaries, entity counts by kind, evidence profile, workflows by status, the best-ranked workflows and the open questions.",
+  level: "none",
+  effect: "read",
+  input: RUN,
+  run: ({ host }, input) => {
+    const view = loadSkbView(skbOf(host, input.run_id));
+    const counts: Record<string, number> = {};
+    for (const e of view.entities) counts[e.kind] = (counts[e.kind] ?? 0) + 1;
+    return {
+      run_id: input.run_id,
+      count_scope: "within_examined_scope",
+      revision: view.manifest.revision,
+      boundaries: (view.stack?.boundaries ?? []).map((b) => ({
+        id: b.id,
+        kind: b.kind,
+        frameworks: b.frameworks.map((f) => f.name),
+      })),
+      entities_by_kind: Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b))),
+      evidence_profile: { source_analysis: "available", runtime_observation: "unavailable" },
+      workflows_by_status: view.completeness?.workflows_by_status ?? {},
+      top_workflows: view.workflows
+        .slice(0, 10)
+        .map((w) => ({ id: w.id, category: w.category, discovery_status: w.discovery_status })),
+      open_questions: view.gaps.filter((g) => g.requires_human_clarification).map((g) => g.id),
+    };
+  },
+});
+
+const saaSearch = defineOperation<{ run_id: string; query: string; kind?: string; limit?: number }, unknown>({
+  name: "saa.search",
+  title: "Search the system model",
+  description: "Full-text search over entity names and descriptions of an analysis run, optionally one kind.",
+  level: "none",
+  effect: "read",
+  input: withRun(
+    {
+      query: { type: "string", minLength: 1, maxLength: 200 },
+      kind: { type: "string", pattern: "^[a-z][a-z_]{1,40}$" },
+      limit: { type: "integer", minimum: 1, maximum: 200 },
+    },
+    ["query"],
+  ),
+  run: ({ host }, input) => {
+    skbOf(host, input.run_id);
+    return {
+      run_id: input.run_id,
+      results: queryEntities(host.state.db, {
+        run_id: input.run_id,
+        text: input.query,
+        ...(input.kind ? { kind: input.kind } : {}),
+        limit: input.limit ?? 50,
+      }),
+    };
+  },
+});
+
+const saaEntity = defineOperation<{ run_id: string; entity_id: string }, unknown>({
+  name: "saa.entity",
+  title: "Get an entity",
+  description: "One entity of the system model with its relationships in both directions and the claims about it.",
+  level: "none",
+  effect: "read",
+  input: withRun({ entity_id: ID }, ["entity_id"]),
+  run: ({ host }, input) => {
+    const view = loadSkbView(skbOf(host, input.run_id));
+    const entity = view.entities.find((e) => e.id === input.entity_id);
+    if (!entity) throw serviceError("NOT_FOUND", `no entity ${input.entity_id} in run ${input.run_id}`);
+    return { entity, ...relsOf(view, entity.id), claims: view.claims.filter((c) => c.subject_entity_id === entity.id) };
+  },
+});
+
+const saaEvidence = defineOperation<{ run_id: string; id: string }, unknown>({
+  name: "saa.evidence",
+  title: "Get evidence",
+  description:
+    "The evidence records an entity, relationship, claim, workflow or gap cites: source type, path and line range, file fingerprint and digest (excerpts are never stored).",
+  level: "none",
+  effect: "read",
+  input: withRun({ id: ID }, ["id"]),
+  run: ({ host }, input) => {
+    const view = loadSkbView(skbOf(host, input.run_id));
+    const subject =
+      view.entities.find((e) => e.id === input.id) ??
+      view.relationships.find((r) => r.id === input.id) ??
+      view.claims.find((c) => c.id === input.id) ??
+      view.workflows.find((w) => w.id === input.id) ??
+      view.gaps.find((g) => g.id === input.id);
+    if (!subject) throw serviceError("NOT_FOUND", `no record ${input.id} in run ${input.run_id}`);
+    const ids = new Set((subject as { evidence_ids?: string[] }).evidence_ids ?? []);
+    return {
+      id: input.id,
+      status: (subject as { status?: string }).status ?? null,
+      evidence: view.evidence.filter((e) => ids.has(e.id)),
+    };
+  },
+});
+
+const saaApiContracts = defineOperation<{ run_id: string; api_id?: string }, unknown>({
+  name: "saa.api_contracts",
+  title: "API contracts",
+  description: "Endpoints with their authentication and authorization checks, validating rules and error responses.",
+  level: "none",
+  effect: "read",
+  input: withRun({ api_id: ID }),
+  run: ({ host }, input) => {
+    const view = loadSkbView(skbOf(host, input.run_id));
+    const apis = view.entities.filter((e) => e.kind === "api" && (input.api_id === undefined || e.id === input.api_id));
+    if (input.api_id && apis.length === 0) throw serviceError("NOT_FOUND", `no endpoint ${input.api_id}`);
+    const to = (id: string, type: string) =>
+      view.relationships.filter((r) => r.from === id && r.type === type).map((r) => r.to);
+    return {
+      run_id: input.run_id,
+      endpoints: apis.map((a) => ({
+        id: a.id,
+        authenticates_with: to(a.id, "AUTHENTICATES_WITH"),
+        authorizes_with: to(a.id, "AUTHORIZES_WITH"),
+        validated_by: view.relationships.filter((r) => r.to === a.id && r.type === "VALIDATES").map((r) => r.from),
+        error_responses: (a as { error_responses?: unknown[] }).error_responses ?? [],
+        reads: to(a.id, "READS_FROM"),
+        writes: to(a.id, "WRITES_TO"),
+      })),
+    };
+  },
+});
+
+const saaDataModel = defineOperation<{ run_id: string }, unknown>({
+  name: "saa.data_model",
+  title: "Data model",
+  description:
+    "Tables, columns with constraints, domain entities, state machines and which code reads and writes them.",
+  level: "none",
+  effect: "read",
+  input: RUN,
+  run: ({ host }, input) => {
+    const view = loadSkbView(skbOf(host, input.run_id));
+    const of = (kind: string) => view.entities.filter((e) => e.kind === kind);
+    return {
+      run_id: input.run_id,
+      tables: of("table").map((t) => t.id),
+      columns: of("column"),
+      entities: of("entity").map((e) => ({ id: e.id, ...relsOf(view, e.id) })),
+      state_machines: of("state_machine"),
+    };
+  },
+});
+
+const saaDependencies = defineOperation<
+  { run_id: string; entity_id: string; direction?: "out" | "in"; depth?: number },
+  unknown
+>({
+  name: "saa.dependencies",
+  title: "Dependencies and impact",
+  description:
+    "Modules and functions an entity depends on (`out`) or that depend on it (`in`, impact), following imports and calls up to a bounded depth.",
+  level: "none",
+  effect: "read",
+  input: withRun(
+    { entity_id: ID, direction: { enum: ["out", "in"] }, depth: { type: "integer", minimum: 1, maximum: 5 } },
+    ["entity_id"],
+  ),
+  run: ({ host }, input) => {
+    const view = loadSkbView(skbOf(host, input.run_id));
+    if (!view.entities.some((e) => e.id === input.entity_id))
+      throw serviceError("NOT_FOUND", `no entity ${input.entity_id}`);
+    const out = (input.direction ?? "out") === "out";
+    const edges = view.relationships.filter((r) => r.type === "IMPORTS" || r.type === "CALLS");
+    const levels: Array<{ depth: number; ids: string[] }> = [];
+    const seen = new Set([input.entity_id]);
+    let frontier = [input.entity_id];
+    for (let depth = 1; depth <= (input.depth ?? 1) && frontier.length > 0; depth++) {
+      const next = [
+        ...new Set(edges.filter((r) => frontier.includes(out ? r.from : r.to)).map((r) => (out ? r.to : r.from))),
+      ]
+        .filter((id) => !seen.has(id))
+        .sort();
+      next.forEach((id) => seen.add(id));
+      if (next.length > 0) levels.push({ depth, ids: next });
+      frontier = next;
+    }
+    return { entity_id: input.entity_id, direction: out ? "out" : "in", levels };
+  },
+});
+
+const saaTestsFor = defineOperation<{ run_id: string; entity_id: string }, unknown>({
+  name: "saa.tests_for",
+  title: "Tests for an entity",
+  description:
+    "Test definitions that exercise an entity (and, for an endpoint, the rules that validate it). Test definitions show intent; no test result is examined.",
+  level: "none",
+  effect: "read",
+  input: withRun({ entity_id: ID }, ["entity_id"]),
+  run: ({ host }, input) => {
+    const view = loadSkbView(skbOf(host, input.run_id));
+    if (!view.entities.some((e) => e.id === input.entity_id))
+      throw serviceError("NOT_FOUND", `no entity ${input.entity_id}`);
+    const targets = new Set([
+      input.entity_id,
+      ...view.relationships.filter((r) => r.type === "VALIDATES" && r.to === input.entity_id).map((r) => r.from),
+    ]);
+    return {
+      entity_id: input.entity_id,
+      execution_status: "not_run",
+      tests: view.relationships
+        .filter((r) => r.type === "TESTS" && targets.has(r.to))
+        .map((r) => ({ test: r.from, exercises: r.to, status: r.status })),
+    };
+  },
+});
+
+const saaUnknowns = defineOperation<{ run_id: string }, unknown>({
+  name: "saa.unknowns",
+  title: "Unknowns and contradictions",
+  description:
+    "What the run could not establish: open gaps by type, contradictions between documentation and code, questions needing a person, and the evidence that would help.",
+  level: "none",
+  effect: "read",
+  input: RUN,
+  run: ({ host }, input) => {
+    const view = loadSkbView(skbOf(host, input.run_id));
+    const open = view.gaps.filter((g) => g.status === "unresolved");
+    return {
+      run_id: input.run_id,
+      gaps: open.map((g) => ({
+        id: g.id,
+        type: g.type,
+        description: g.description,
+        related: g.related_entity_ids ?? [],
+      })),
+      contradictions: open.filter((g) => g.type === "contradiction").map((g) => g.id),
+      questions: open.filter((g) => g.requires_human_clarification).map((g) => g.id),
+      improvement_suggestions: view.completeness?.improvement_suggestions ?? [],
+    };
+  },
+});
+
+export const SAA_OPERATIONS = [
+  saaStart,
+  saaAnalyze,
+  saaStatus,
+  workflowsList,
+  workflowsShow,
+  saaTrace,
+  saaExport,
+  saaOverview,
+  saaSearch,
+  saaEntity,
+  saaEvidence,
+  saaApiContracts,
+  saaDataModel,
+  saaDependencies,
+  saaTestsFor,
+  saaUnknowns,
+];

@@ -30,26 +30,33 @@ type Adapters = ReadonlyArray<{ id: string; entry: string }>;
 export interface Runner {
   name: "cli" | "api" | "mcp";
   run(operation: string, input: unknown): Promise<{ result: ServiceResult; exitCode?: number }>;
+  /**
+   * What a person does outside the interface under test (registering a source root or package): through the CLI or
+   * API runner itself, and for MCP through the same host as a CLI call, because MCP clients may not add new roots.
+   */
+  human(operation: string, input: unknown): Promise<{ result: ServiceResult; exitCode?: number }>;
   close(): Promise<void>;
 }
 
 export async function cliRunner(adapters?: Adapters): Promise<Runner & { home: string }> {
   const home = mkdtempSync(join(tmpdir(), "sys2qa-parity-cli-"));
   const host = deterministic(adapters);
+  const run: Runner["run"] = async (operation, input) => {
+    let out = "";
+    const exitCode = await main(["call", operation, "--input", JSON.stringify(input), "--json", "--home", home], {
+      stdout: (t) => (out += t),
+      stderr: () => {},
+      cwd: home,
+      env: {},
+      host,
+    });
+    return { result: JSON.parse(out) as ServiceResult, exitCode };
+  };
   return {
     name: "cli",
     home,
-    async run(operation, input) {
-      let out = "";
-      const exitCode = await main(["call", operation, "--input", JSON.stringify(input), "--json", "--home", home], {
-        stdout: (t) => (out += t),
-        stderr: () => {},
-        cwd: home,
-        env: {},
-        host,
-      });
-      return { result: JSON.parse(out) as ServiceResult, exitCode };
-    },
+    run,
+    human: run,
     close: async () => rmSync(home, { recursive: true, force: true }),
   };
 }
@@ -63,6 +70,7 @@ export async function apiRunner(adapters?: Adapters): Promise<Runner & { home: s
     name: "api",
     home,
     run: async (operation, input) => ({ result: await client.execute(operation, input) }),
+    human: async (operation, input) => ({ result: await client.execute(operation, input) }),
     close: async () => {
       await server.close();
       host.close();
@@ -74,7 +82,8 @@ export async function apiRunner(adapters?: Adapters): Promise<Runner & { home: s
 export async function mcpRunner(adapters?: Adapters): Promise<Runner & { client: Client; home: string }> {
   const home = mkdtempSync(join(tmpdir(), "sys2qa-parity-mcp-"));
   const host = openHost({ home, ...deterministic(adapters) });
-  const server = createMcpServer(new AppServices(host));
+  const services = new AppServices(host);
+  const server = createMcpServer(services);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "parity", version: "0.0.0" });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -86,6 +95,9 @@ export async function mcpRunner(adapters?: Adapters): Promise<Runner & { client:
       const response = await client.callTool({ name: operation, arguments: input as Record<string, unknown> });
       return { result: response.structuredContent as ServiceResult };
     },
+    human: async (operation, input) => ({
+      result: await services.execute(operation, input, { interface: "cli", actor: "owner" }),
+    }),
     close: async () => {
       await client.close();
       await server.close();

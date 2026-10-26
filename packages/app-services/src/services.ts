@@ -4,6 +4,7 @@ import { OPERATIONS } from "./catalog.js";
 import { serviceError, ServiceError, SERVICE_ERRORS, type ServiceErrorDto } from "./errors.js";
 import type { Host } from "./host.js";
 import type { Caller, Operation } from "./operations.js";
+import { pathOutsideApprovedRoots } from "./paths.js";
 
 export type ServiceResult = { ok: true; data: unknown } | { ok: false; error: ServiceErrorDto };
 
@@ -75,6 +76,21 @@ export class AppServices {
         ok: false,
         error: serviceError("INPUT_INVALID", `invalid input for ${name}`, { problems: check.errors }).toDto(),
       };
+    if (caller.interface === "mcp" && operation.paths) {
+      const paths = operation.paths(input as never).filter((p): p is string => typeof p === "string");
+      const outside = pathOutsideApprovedRoots(this.host, paths);
+      if (outside !== undefined)
+        return {
+          ok: false,
+          error: new ServiceError(
+            "SCOPE_DENIED",
+            "denied",
+            `${outside} is outside the Sys2QA home and every registered source`,
+            "MCP clients may use only paths inside the Sys2QA home or a registered source root or package; register new sources from the CLI.",
+            { field: "path" },
+          ).toDto(),
+        };
+    }
     try {
       const data = await operation.run({ host: this.host, caller }, input as never);
       return { ok: true, data: JSON.parse(JSON.stringify(data ?? null)) as unknown };

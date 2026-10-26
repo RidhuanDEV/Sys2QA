@@ -103,6 +103,7 @@ const projectAddSource = defineOperation<
   description: "Adds a local source directory, an environment URL or a package to a project (SYS-001).",
   level: "none",
   effect: "write",
+  paths: (input) => (input.kind === "environment" ? [] : [input.ref]),
   input: {
     type: "object",
     additionalProperties: false,
@@ -137,6 +138,7 @@ const projectDeclare = defineOperation<
     "Records who declares, what is in scope, the operation level and prohibitions (SEC-005). Self-declared; not verified (MD-3).",
   level: "none",
   effect: "write",
+  paths: (input) => input.source_roots ?? [],
   input: {
     type: "object",
     additionalProperties: false,
@@ -464,6 +466,7 @@ const packageValidate = defineOperation<{ path: string }, unknown>({
   description: "Runs the contract's package validation (PRD §13.10) on a package directory and reports every finding.",
   level: "L0",
   effect: "read",
+  paths: (input) => [input.path],
   input: {
     type: "object",
     additionalProperties: false,
