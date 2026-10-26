@@ -58,6 +58,7 @@ Coverage targets (line and branch) are not used as gates; requirement traceabili
 - **Deterministic-only mode** (ADR-008) runs all of CT, IT, ST and most of E2E without any model.
 - **LLM-assisted paths** run in CI against **recorded responses** (record/replay keyed by a hash of the exact messages sent, which include the template and its input; `fixtures/llm/cassettes/`, `ReplayBackend`). Changing a template invalidates its recordings, and CI fails with `LLM_REPLAY_MISSING` until they are re-recorded (`SYS2QA_RECORD_LLM=1`) and reviewed.
 - **Live provider conformance** runs nightly per configured backend and checks schema-valid output, refusal handling, timeouts and usage accounting. Live results never gate a push, but they are reviewed before a release candidate.
+- **Live Skill conformance** (`pnpm skill:conformance`) runs the Analyst Skill in headless Claude Code against F1 and scores the session; the static Skill checks run on every push. Records: [Analyst Skill conformance](skill-conformance.md).
 - Assertions on LLM output check **structure and rules**: basis, oracle, objective consistency, no over-claiming. They never check wording.
 
 ## 4. Benchmark fixtures (OD-20)

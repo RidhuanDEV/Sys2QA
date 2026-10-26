@@ -13,6 +13,7 @@ import {
   type Operation as PolicyOperation,
 } from "@sys2qa/platform";
 import { adapterMatrixText, describeAdapters } from "@sys2qa/saa-core";
+import { CAPABILITY_VERSION, checkCompatibility, type CapabilityRequirements } from "./capabilities.js";
 import { runDoctor } from "./doctor.js";
 import { SAA_OPERATIONS } from "./saa.js";
 import { serviceError } from "./errors.js";
@@ -33,12 +34,63 @@ const systemInfo = defineOperation<Record<string, never>, unknown>({
   run: ({ host }) => ({
     product: "sys2qa",
     version: PRODUCT_VERSION,
+    capability_version: CAPABILITY_VERSION,
     contract_version: CONTRACT_VERSION,
     locales: host.glossary.locales(),
     glossaries: host.glossary.locales().map((l) => host.glossary.reference(l)),
     llm: host.llm.disclosure(),
     settings: host.projects.settings(),
   }),
+});
+
+const systemCapabilities = defineOperation<{ requires?: CapabilityRequirements }, unknown>({
+  name: "system.capabilities",
+  title: "Capabilities and compatibility",
+  description:
+    "The capability version and the operations this interface offers, with their permission level and effect. Given what a client (for example the Analyst Skill) requires, it lists every incompatibility (SAA-FR-016).",
+  level: "none",
+  effect: "read",
+  input: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      requires: {
+        type: "object",
+        additionalProperties: false,
+        required: ["capability_version", "operations"],
+        properties: {
+          capability_version: { type: "integer", minimum: 1, maximum: 1000 },
+          operations: {
+            type: "array",
+            maxItems: 300,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["name", "level", "effect"],
+              properties: {
+                name: { type: "string", pattern: "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*){1,3}$", maxLength: 100 },
+                level: { enum: ["none", ...PERMISSION_LEVELS] },
+                effect: { enum: ["read", "write"] },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  run: ({ caller, catalog }, input) => {
+    const operations = catalog().map((o) => ({ name: o.name, title: o.title, level: o.level, effect: o.effect }));
+    const incompatibilities = input.requires ? checkCompatibility(operations, input.requires) : [];
+    return {
+      product: "sys2qa",
+      version: PRODUCT_VERSION,
+      capability_version: CAPABILITY_VERSION,
+      interface: caller.interface,
+      operations,
+      compatible: input.requires ? incompatibilities.length === 0 : null,
+      incompatibilities,
+    };
+  },
 });
 
 const projectCreate = defineOperation<{ name: string; languages?: string[] }, unknown>({
@@ -510,6 +562,7 @@ const packageValidate = defineOperation<{ path: string }, unknown>({
 
 export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   systemInfo,
+  systemCapabilities,
   systemMetrics,
   systemHealth,
   systemSetSetting,

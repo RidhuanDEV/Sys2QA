@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -53,6 +54,18 @@ const defined = (o: Record<string, unknown>) =>
 /** Commands take paths, URLs and generated IDs, never names the user must already know (PRD §23.4). */
 const COMMANDS: Record<string, Command> = {
   info: { usage: "info", build: () => ({ operation: "system.info", input: {} }) },
+  capabilities: {
+    usage: "capabilities [--skill <skill-directory>]",
+    // With --skill, the Skill's declared requirements (capabilities.json) are checked against this host (SAA-FR-016).
+    build: (_p, v, cwd) => {
+      const dir = str(v.skill);
+      if (!dir) return { operation: "system.capabilities", input: {} };
+      const manifest = JSON.parse(readFileSync(join(resolve(cwd, dir), "capabilities.json"), "utf8")) as {
+        requires?: unknown;
+      };
+      return { operation: "system.capabilities", input: defined({ requires: manifest.requires }) };
+    },
+  },
   metrics: {
     usage: "metrics [--prometheus]",
     build: (_p, v) => ({ operation: "system.metrics", input: v.prometheus === true ? { format: "prometheus" } : {} }),
@@ -237,6 +250,7 @@ const OPTIONS = {
   deepen: { type: "boolean" },
   output: { type: "string" },
   "allow-in-repository": { type: "boolean" },
+  skill: { type: "string" },
 } as const;
 
 function safeUser(): string {
@@ -262,6 +276,29 @@ function usage(): string {
   ].join("\n");
 }
 
+const commandKey = (positionals: string[]) =>
+  [positionals.slice(0, 2).join(" "), positionals[0] ?? ""].find((k) => COMMANDS[k]);
+
+const buildRequest = (key: string, positionals: string[], values: object, cwd: string) =>
+  COMMANDS[key]!.build(
+    positionals.slice(key.split(" ").length),
+    values as Record<string, string | boolean | string[] | undefined>,
+    cwd,
+  );
+
+/**
+ * The operation and input a command line maps to, without running it (the Skill conformance test checks its examples
+ * with this); undefined when the arguments name no command.
+ */
+export function resolveCommand(
+  argv: string[],
+  cwd: string,
+): { operation: string; input: Record<string, unknown> } | undefined {
+  const { values, positionals } = parseArgs({ args: argv, options: OPTIONS, allowPositionals: true, strict: true });
+  const key = commandKey(positionals);
+  return key ? buildRequest(key, positionals, values, cwd) : undefined;
+}
+
 /** Runs one CLI invocation and returns its exit code. Every command is exactly one application-service call. */
 export async function main(argv: string[], io: CliIo): Promise<number> {
   let parsed: ReturnType<typeof parseArgs<{ options: typeof OPTIONS; allowPositionals: true; strict: true }>>;
@@ -272,18 +309,14 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
     return EXIT_CODES.usage;
   }
   const { values, positionals } = parsed;
-  const key = [positionals.slice(0, 2).join(" "), positionals[0] ?? ""].find((k) => COMMANDS[k]);
+  const key = commandKey(positionals);
   if (values.help || !key) {
     (values.help ? io.stdout : io.stderr)(`${usage()}\n`);
     return values.help ? EXIT_CODES.ok : EXIT_CODES.usage;
   }
   let request: { operation: string; input: Record<string, unknown> };
   try {
-    request = COMMANDS[key]!.build(
-      positionals.slice(key.split(" ").length),
-      values as Record<string, string | boolean | string[] | undefined>,
-      io.cwd,
-    );
+    request = buildRequest(key, positionals, values, io.cwd);
   } catch (error) {
     io.stderr(`${(error as Error).message}\n`);
     return EXIT_CODES.usage;
@@ -305,6 +338,8 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
   else if (result.ok) io.stdout(`${human(result.data)}\n`);
   else io.stderr(`error ${result.error.code}: ${result.error.message}\n  next: ${result.error.remediation}\n`);
   if (key === "doctor" && result.ok && (result.data as { status: string }).status === "fail")
+    return EXIT_CODES.unavailable;
+  if (key === "capabilities" && result.ok && (result.data as { compatible: boolean | null }).compatible === false)
     return EXIT_CODES.unavailable;
   return result.ok ? EXIT_CODES.ok : EXIT_CODES[result.error.kind];
 }
@@ -375,6 +410,29 @@ function human(data: unknown): string {
         (w) =>
           `  ${String(w.rank ?? "-").padStart(3)}  ${w.id}  [${w.category}] ${w.discovery_status}, ${w.completion}`,
       ),
+    ].join("\n");
+  }
+  if ("capability_version" in data && "incompatibilities" in data) {
+    const caps = data as unknown as {
+      capability_version: number;
+      operations: Array<{ name: string; level: string; effect: string }>;
+      compatible: boolean | null;
+      incompatibilities: Array<{ reason: string; operation?: string; expected: unknown; actual: unknown }>;
+    };
+    return [
+      `capability version ${caps.capability_version}; ${caps.operations.length} operation(s)`,
+      ...caps.operations.map((o) => `  ${o.name}  [${o.level}, ${o.effect}]`),
+      ...(caps.compatible === null
+        ? []
+        : caps.compatible
+          ? ["compatible: yes"]
+          : [
+              "compatible: no",
+              ...caps.incompatibilities.map(
+                (i) =>
+                  `  ${i.reason}${i.operation ? ` ${i.operation}` : ""}: expected ${String(i.expected)}, found ${String(i.actual)}`,
+              ),
+            ]),
     ].join("\n");
   }
   if ("warning" in data && "path" in data) {

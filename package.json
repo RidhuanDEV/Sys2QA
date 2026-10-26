@@ -25,7 +25,8 @@
     "bench": "node --conditions=source --import tsx tests/benchmark/run.ts",
     "sys2qa": "node scripts/build-adapters.mjs && node --conditions=source --import tsx apps/cli/src/bin.ts",
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schemas:check && pnpm fixtures:check && pnpm deps:check && pnpm trace:check && pnpm docs:links && pnpm test",
-    "build:adapters": "node scripts/build-adapters.mjs"
+    "build:adapters": "node scripts/build-adapters.mjs",
+    "skill:conformance": "node scripts/skill-conformance.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

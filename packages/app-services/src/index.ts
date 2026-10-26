@@ -1,4 +1,5 @@
 // Application services shared by every interface (SYS-005)
+export * from "./capabilities.js";
 export * from "./catalog.js";
 export * from "./doctor.js";
 export * from "./errors.js";

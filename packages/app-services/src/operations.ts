@@ -9,6 +9,8 @@ export interface Caller {
 export interface OperationContext {
   host: Host;
   caller: Caller;
+  /** The operations the caller's interface may call (what `catalog(caller.interface)` lists). */
+  catalog(): ReadonlyArray<Pick<Operation, "name" | "title" | "level" | "effect">>;
 }
 
 /**

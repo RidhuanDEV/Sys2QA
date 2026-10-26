@@ -1,0 +1,128 @@
+{
+  "skill": "sys2qa-analyst",
+  "skill_version": "0.1.0",
+  "conformance": {
+    "primary": "claude-code",
+    "smoke_tested": ["mcp-reference-client"]
+  },
+  "requires": {
+    "capability_version": 1,
+    "operations": [
+      {
+        "name": "system.capabilities",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "system.info",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.adapters",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "project.list",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "project.get",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.status",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.analyze",
+        "level": "L1",
+        "effect": "write"
+      },
+      {
+        "name": "saa.overview",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.workflows.list",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.workflows.show",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.trace",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.search",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.entity",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.evidence",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.api_contracts",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.data_model",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.dependencies",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.tests_for",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.unknowns",
+        "level": "none",
+        "effect": "read"
+      },
+      {
+        "name": "saa.export",
+        "level": "none",
+        "effect": "write"
+      },
+      {
+        "name": "package.validate",
+        "level": "L0",
+        "effect": "read"
+      }
+    ]
+  },
+  "person_steps": [
+    {
+      "operation": "saa.start",
+      "cli": "sys2qa start <project-name> <repository-path>"
+    },
+    {
+      "operation": "project.declare",
+      "cli": "sys2qa declare <source-id> --level L1 --by <name>"
+    }
+  ]
+}

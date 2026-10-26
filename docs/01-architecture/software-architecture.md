@@ -224,7 +224,7 @@ Checks happen at enqueue time **and** inside the worker before the first action 
 - **Local HTTP API:** Fastify on loopback with a random port and a per-session token; used by the web UI only; CORS locked to the served origin.
 - **Web UI:** React SPA; no domain logic; all decisions come from the API.
 - **MCP:** tools mirror application services with narrow typed inputs; side-effect level declared per tool; L3 tools require an approval ID created through the review workflow.
-- **Skill:** instructions that call the CLI/MCP; it declares its expected capability version (SAA-FR-016).
+- **Skill:** instructions that call the CLI/MCP; it declares its expected capability version (SAA-FR-016). `skills/sys2qa-analyst/` holds `SKILL.md` (Claude Code Skill format), `reference/commands.md` and `capabilities.json` (capability version and the operations it calls, with level and effect). `system.capabilities` (CLI `capabilities [--skill <dir>]`, exit 6 when incompatible) returns `CAPABILITY_VERSION` and the interface's operations, and lists every incompatibility with a client's requirements: version mismatch, missing operation, changed level or effect. The version changes only when an operation is removed or renamed, or its level, effect or input changes incompatibly. Conformance: [Analyst Skill conformance](../05-quality/skill-conformance.md).
 
 Parity is verified by running the same scripted scenarios through CLI, HTTP API and MCP and comparing decisions, states and error codes (SYS-005, IMP-902).
 

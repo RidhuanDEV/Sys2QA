@@ -92,7 +92,10 @@ export class AppServices {
         };
     }
     try {
-      const data = await operation.run({ host: this.host, caller }, input as never);
+      const data = await operation.run(
+        { host: this.host, caller, catalog: () => this.catalog(caller.interface) },
+        input as never,
+      );
       return { ok: true, data: JSON.parse(JSON.stringify(data ?? null)) as unknown };
     } catch (error) {
       return { ok: false, error: toServiceError(error, this.host).toDto() };

@@ -14,6 +14,7 @@ Each type of information has **one** source of truth (ADR-010). Documents link t
 | [Data Model & Storage](03-design/data-model.md) | How is data stored, identified and recovered? | On-disk layout, SQLite schema, identity, transactions, retention, recovery | Baseline 1.0 |
 | [Threat Model & Security Architecture](04-security/threat-model.md) | What can go wrong and what stops it? | Assets, trust boundaries, threats, controls, security tests ST-xx | Baseline 1.0 |
 | [Test Strategy & Verification Plan](05-quality/test-strategy.md) | How do we prove it works? | Traceability, test levels, fixtures, metrics, CI, gate acceptance | Baseline 1.0 |
+| [Analyst Skill conformance](05-quality/skill-conformance.md) | Does the Skill work in its target clients? | Skill conformance checks and live Claude Code run records (IMP-120) | Record |
 
 ### Planned (written when there is real content to put in them)
 
