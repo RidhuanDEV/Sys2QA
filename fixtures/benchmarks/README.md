@@ -12,3 +12,10 @@ Each fixture has `ground-truth/` in the format of Test Strategy §4.1 and a `REA
 These directories imitate third-party code: they are excluded from linting and formatting, contain a planted fake secret and injected instructions on purpose, and must never be executed except through the harness (`postinstall` scripts must never run, ST-02).
 
 **Status:** ground truth is a first version. Test Strategy §4 requires a second person to review every ground-truth file; each fixture README has a review table that is still empty.
+
+## Dependency manifests in fixtures
+
+The `package.json` (and `pyproject.toml`) files inside fixture repositories are analysis input only: they are never
+installed or run (SEC-002), and they are outside the pnpm workspace. GitHub's dependency scanning still reads them, so
+their version ranges are kept on releases without known advisories (checked with the npm advisory database); bumping
+a range changes no ground truth.
