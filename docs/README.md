@@ -15,6 +15,7 @@ Each type of information has **one** source of truth (ADR-010). Documents link t
 | [Threat Model & Security Architecture](04-security/threat-model.md) | What can go wrong and what stops it? | Assets, trust boundaries, threats, controls, security tests ST-xx | Baseline 1.0 |
 | [Test Strategy & Verification Plan](05-quality/test-strategy.md) | How do we prove it works? | Traceability, test levels, fixtures, metrics, CI, gate acceptance | Baseline 1.0 |
 | [Analyst Skill conformance](05-quality/skill-conformance.md) | Does the Skill work in its target clients? | Skill conformance checks and live Claude Code run records (IMP-120) | Record |
+| [Gate 1 record](05-quality/gates/gate-1.md) | Did Gate 1 pass, on what evidence? | Archived gate acceptance report (IMP-121) | Passed on automated evidence; ground-truth review pending |
 
 ### Planned (written when there is real content to put in them)
 
