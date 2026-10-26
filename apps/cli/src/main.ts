@@ -152,6 +152,60 @@ const COMMANDS: Record<string, Command> = {
       input: defined({ path: path && resolve(cwd, path) }),
     }),
   },
+  start: {
+    usage: "start <project-name> <repository-path> [--language <code>]...",
+    build: ([name, root], v, cwd) => ({
+      operation: "saa.start",
+      input: defined({ name, root: root && resolve(cwd, root), languages: list(v.language) }),
+    }),
+  },
+  analyze: {
+    usage: "analyze <source-id> [--profile <overview|standard|deep>]",
+    build: ([source_id], v) => ({ operation: "saa.analyze", input: defined({ source_id, profile: str(v.profile) }) }),
+  },
+  status: {
+    usage: "status <project-id>",
+    build: ([project_id]) => ({ operation: "saa.status", input: defined({ project_id }) }),
+  },
+  "workflows list": {
+    usage: "workflows list <run-id> [--category <category>]",
+    build: ([run_id], v) => ({
+      operation: "saa.workflows.list",
+      input: defined({ run_id, category: str(v.category) }),
+    }),
+  },
+  "workflows show": {
+    usage: "workflows show <run-id> <workflow-id> [--language <en|id>]",
+    build: ([run_id, workflow_id], v) => ({
+      operation: "saa.workflows.show",
+      input: defined({ run_id, workflow_id, language: list(v.language)?.[0] }),
+    }),
+  },
+  trace: {
+    usage: "trace <run-id> <workflow-id> [--deepen]",
+    build: ([run_id, workflow_id], v) => ({
+      operation: "saa.trace",
+      input: defined({ run_id, workflow_id, deepen: v.deepen === true ? true : undefined }),
+    }),
+  },
+  validate: {
+    usage: "validate <package-path>",
+    build: ([path], _v, cwd) => ({
+      operation: "package.validate",
+      input: defined({ path: path && resolve(cwd, path) }),
+    }),
+  },
+  export: {
+    usage: "export <run-id> [--output <directory>] [--allow-in-repository]",
+    build: ([run_id], v, cwd) => ({
+      operation: "saa.export",
+      input: defined({
+        run_id,
+        output_dir: str(v.output) && resolve(cwd, str(v.output)!),
+        allow_in_repository: v["allow-in-repository"] === true ? true : undefined,
+      }),
+    }),
+  },
   call: {
     usage: "call <operation> [--input <json>]",
     build: ([operation], v) => {
@@ -178,6 +232,11 @@ const OPTIONS = {
   input: { type: "string" },
   prometheus: { type: "boolean" },
   confirm: { type: "string" },
+  profile: { type: "string" },
+  category: { type: "string" },
+  deepen: { type: "boolean" },
+  output: { type: "string" },
+  "allow-in-repository": { type: "boolean" },
 } as const;
 
 function safeUser(): string {
@@ -297,5 +356,30 @@ function human(data: unknown): string {
   }
   if ("format" in data && ["prometheus", "support_matrix"].includes((data as { format: string }).format))
     return (data as unknown as { text: string }).text.trimEnd();
+  // A workflow document is shown as written; the catalog as one line per workflow.
+  if ("document" in data && typeof (data as { document: unknown }).document === "string")
+    return (data as unknown as { document: string }).document.trimEnd();
+  if ("workflows" in data && "count_scope" in data) {
+    const list = data as unknown as {
+      workflows: Array<{
+        rank: number | null;
+        id: string;
+        category: string;
+        discovery_status: string;
+        completion: string;
+      }>;
+    };
+    return [
+      `${list.workflows.length} workflow(s) within the examined scope:`,
+      ...list.workflows.map(
+        (w) =>
+          `  ${String(w.rank ?? "-").padStart(3)}  ${w.id}  [${w.category}] ${w.discovery_status}, ${w.completion}`,
+      ),
+    ].join("\n");
+  }
+  if ("warning" in data && "path" in data) {
+    const exported = data as unknown as { path: string; warning: { en: string } };
+    return `warning: ${exported.warning.en}\n${JSON.stringify({ ...data, warning: undefined }, null, 2)}`;
+  }
   return JSON.stringify(data, null, 2);
 }

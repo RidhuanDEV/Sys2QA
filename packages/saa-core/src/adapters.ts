@@ -65,3 +65,6 @@ export function supportFromAdapters(inventory: AdapterInventory): SupportLookup 
 export function adapterMatrixText(inventory: AdapterInventory): string {
   return formatSupportMatrix(inventory.adapters, inventory.failures);
 }
+
+/** The built-in adapters and their spec type, for the host that runs analyses (app-services may not import adapters). */
+export { builtinAdapters, type AdapterSpec } from "@sys2qa/saa-adapters";

@@ -70,6 +70,23 @@ export const SERVICE_ERRORS: Record<string, { kind: ErrorKind; remediation: stri
     remediation:
       "Unlock or install the OS credential store, or set SYS2QA_SECRETS_PASSPHRASE to use the encrypted file.",
   },
+  ADAPTERS_UNAVAILABLE: {
+    kind: "unavailable",
+    remediation: "Build the analyzer adapters with `pnpm build:adapters` (`pnpm sys2qa` builds them before it starts).",
+  },
+  RUN_NOT_FOUND: {
+    kind: "not_found",
+    remediation: "List the project's analysis runs with `sys2qa status <project-id>` and use one of their IDs.",
+  },
+  EXPORT_REFUSED: {
+    kind: "conflict",
+    remediation:
+      "Choose an output directory outside the analyzed repository, or allow in-repository output explicitly; a package version is never overwritten.",
+  },
+  PACKAGE_INVALID: {
+    kind: "internal",
+    remediation: "The analysis produced a package the contract rejects; report it with the listed issues.",
+  },
   INTERNAL_ERROR: {
     kind: "internal",
     remediation: "Retry once; if it fails again, report it with the log file (it contains no secrets).",

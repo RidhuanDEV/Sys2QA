@@ -15,10 +15,17 @@ import {
 import { createIdGenerator, memorySink } from "../../packages/platform/src/index.js";
 
 /** Every runner starts from an empty home with the same clock and ID sequence, so equal behavior means equal output. */
-export function deterministic() {
+export function deterministic(adapters?: ReadonlyArray<{ id: string; entry: string }>) {
   const now = () => new Date("2026-10-22T10:00:00.000Z");
-  return { now, newId: createIdGenerator(now, (n) => new Uint8Array(n)), logSink: memorySink() };
+  return {
+    now,
+    newId: createIdGenerator(now, (n) => new Uint8Array(n)),
+    logSink: memorySink(),
+    ...(adapters ? { adapters } : {}),
+  };
 }
+
+type Adapters = ReadonlyArray<{ id: string; entry: string }>;
 
 export interface Runner {
   name: "cli" | "api" | "mcp";
@@ -26,11 +33,12 @@ export interface Runner {
   close(): Promise<void>;
 }
 
-export async function cliRunner(): Promise<Runner> {
+export async function cliRunner(adapters?: Adapters): Promise<Runner & { home: string }> {
   const home = mkdtempSync(join(tmpdir(), "sys2qa-parity-cli-"));
-  const host = deterministic();
+  const host = deterministic(adapters);
   return {
     name: "cli",
+    home,
     async run(operation, input) {
       let out = "";
       const exitCode = await main(["call", operation, "--input", JSON.stringify(input), "--json", "--home", home], {
@@ -46,13 +54,14 @@ export async function cliRunner(): Promise<Runner> {
   };
 }
 
-export async function apiRunner(): Promise<Runner> {
+export async function apiRunner(adapters?: Adapters): Promise<Runner & { home: string }> {
   const home = mkdtempSync(join(tmpdir(), "sys2qa-parity-api-"));
-  const host = openHost({ home, ...deterministic() });
+  const host = openHost({ home, ...deterministic(adapters) });
   const server = await startApiServer(new AppServices(host));
   const client = new ApiClient(server.url, server.token);
   return {
     name: "api",
+    home,
     run: async (operation, input) => ({ result: await client.execute(operation, input) }),
     close: async () => {
       await server.close();
@@ -62,9 +71,9 @@ export async function apiRunner(): Promise<Runner> {
   };
 }
 
-export async function mcpRunner(): Promise<Runner & { client: Client }> {
+export async function mcpRunner(adapters?: Adapters): Promise<Runner & { client: Client; home: string }> {
   const home = mkdtempSync(join(tmpdir(), "sys2qa-parity-mcp-"));
-  const host = openHost({ home, ...deterministic() });
+  const host = openHost({ home, ...deterministic(adapters) });
   const server = createMcpServer(new AppServices(host));
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "parity", version: "0.0.0" });
@@ -72,6 +81,7 @@ export async function mcpRunner(): Promise<Runner & { client: Client }> {
   return {
     name: "mcp",
     client,
+    home,
     async run(operation, input) {
       const response = await client.callTool({ name: operation, arguments: input as Record<string, unknown> });
       return { result: response.structuredContent as ServiceResult };

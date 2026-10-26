@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { builtinAdapters, type AdapterSpec } from "@sys2qa/saa-core";
 import {
   acquireHostLock,
   createIdGenerator,
@@ -34,6 +35,8 @@ export interface HostOptions {
   env?: Record<string, string | undefined>;
   /** Overrides the OS credential-store probe (tests). */
   osSecretStoreAvailable?: () => Promise<boolean>;
+  /** Analyzer adapters to run; defaults to the built-in bundles (`pnpm build:adapters`). Tests pass their own. */
+  adapters?: ReadonlyArray<AdapterSpec>;
 }
 
 /** The composition root of one host process: the only writer of state.db (Data Model §6). */
@@ -51,6 +54,8 @@ export interface Host {
   readonly logger: Logger;
   readonly now: () => Date;
   readonly newId: (kind: string) => string;
+  /** The analyzer adapters available to this host: the given ones, or the built-in bundles that exist. */
+  adapters(): AdapterSpec[];
   close(): void;
 }
 
@@ -102,6 +107,12 @@ export function openHost(options: HostOptions): Host {
       logger,
       now,
       newId,
+      adapters: () =>
+        options.adapters
+          ? [...options.adapters]
+          : builtinAdapters()
+              .filter((a) => a.built)
+              .map(({ id, entry }) => ({ id, entry })),
       close: () => {
         state.close();
         lock?.release();
