@@ -6,6 +6,8 @@ same report with its evidence (test results, traceability, benchmarks) as artifa
 
 ## Summary
 
+- **Multi-OS gate run #1 on main (`841f19a`): passed on Linux, macOS and Windows** (`gate` workflow, run
+  40268034560; reports and evidence archived as the `gate-1-<os>` artifacts).
 - **Automated evidence: every checklist item passes** (23 acceptance tests in `tests/acceptance/gate-1.test.ts`, on
   F1, F4 and the monorepo fixture), no requirement of the gate is a blocker, and the benchmark gate rules hold
   (over-claiming 0, evidence traceability 100%).
