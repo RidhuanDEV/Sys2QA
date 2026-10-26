@@ -30,7 +30,7 @@ export interface SkbView {
     projects: Array<{ from: string; to: string; packages: string[] }>;
     unanalyzed_targets: number;
   };
-  run?: { profile: string; adapters: Array<{ id: string; version: string }> };
+  run?: { profile: string; adapters: Array<{ id: string; version: string; support_level?: number }> };
 }
 
 /** Reads a complete SKB run, verifying every file against its manifest. */

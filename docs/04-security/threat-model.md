@@ -121,7 +121,7 @@ The shared harness (IMP-015) is `tests/security/harness/` with fixtures in `fixt
 | ST-14 | Malicious adapter | Test adapter tries to open sockets, write outside scratch, or exceed memory; assert kill, `partial` run and coverage record (`tests/security/st-14-malicious-adapter.test.ts` with `fixtures/security/adapters/hostile-adapter.mjs`: eight network routes including `process.binding`, writes outside scratch, reads outside the root, child processes, workers, host environment, memory and time) | G1 |
 | ST-15 | Resource exhaustion | Crawler-trap site; 100k-file repository fixture; assert budgets honored and unvisited scope reported | G1, G4 |
 | ST-16 | Audit integrity | Modify an audit row; assert hash-chain verification fails; approvals are immutable | G2 |
-| ST-17 | Output warnings | First export shows the warning; default path is outside the repository | G1 |
+| ST-17 | Output warnings | First export shows the warning; default path is outside the repository (`tests/security/st-17-output-warnings.test.ts`, IMP-117: also refuses output inside an analyzed root, directly or through a link, unless opted in) | G1 |
 | ST-18 | Retention | Blobs past retention are removed; referenced ones are kept | G3 |
 | ST-19 | Container hardening | Inside the container, attempt host network, metadata IP, Docker socket and privileged operations; assert failure | G5 |
 | ST-20 | Over-claiming | Runtime-only fixture attempting `WRITES_TO` claims; scenario with `requirement_conformance` on `observed` basis; assert CR errors | G1, G2, G4 |

@@ -13,7 +13,7 @@ import type { InventoryEntry } from "../intake/inventory.js";
 import type { RootSandbox } from "../intake/sandbox.js";
 import { redactOutput } from "../intake/secrets.js";
 import type { ProjectBoundary } from "../stack/stack.js";
-import type { Claim, ComponentTrace, Gap } from "@sys2qa/contract";
+import type { Claim, ComponentTrace, Entity, Evidence, Gap } from "@sys2qa/contract";
 import { linkConfig } from "./config.js";
 import { assignStatuses, crossValidate, materialClaims } from "./crossvalidate.js";
 import { linkDataModel } from "./datamodel.js";
@@ -206,6 +206,7 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     }
   }
   const facts = mergeFacts(batches);
+  await addProjectEntities(facts, options);
   const linked = linkStructure(facts, options.boundaries);
   const frameworks = linkFrameworks(facts, options.boundaries);
   const data = linkDataModel(facts);
@@ -231,8 +232,11 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     ...traces.entities,
     ...rules.entities,
   ];
+  // An import of a module that was not analyzed (excluded or generated) has no entity to point to; it is recorded in
+  // graph.unanalyzed_targets instead of as a dangling relationship (CR-010).
+  const known = new Set(entities.map((e) => e.id));
   const relationships = [
-    ...facts.relationships,
+    ...facts.relationships.filter((r) => r.type !== "IMPORTS" || known.has(r.to)),
     ...linked.relationships,
     ...frameworks.relationships,
     ...data.relationships,
@@ -264,6 +268,61 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
     redacted_strings: redacted,
     cache,
   };
+}
+
+/**
+ * One `project` entity per boundary (SAA-FR-002), cited by every `project_boundary`. Its evidence is its manifests,
+ * recorded by the host as `manifest` evidence (digest only); a boundary without a readable manifest is `inferred`
+ * from the directory layout and cites the evidence of the files it contains.
+ */
+async function addProjectEntities(facts: StructuralFacts, options: StructureOptions): Promise<void> {
+  const capturedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  for (const boundary of options.boundaries) {
+    const evidence: string[] = [];
+    for (const manifest of boundary.manifests.slice(0, 5)) {
+      try {
+        const resolved = await options.sandbox.resolve(boundary.root, manifest);
+        const read = await options.sandbox.readText(resolved, 1024 * 1024);
+        if (read.kind !== "text") continue;
+        const fingerprint = `sha256:${createHash("sha256").update(read.text).digest("hex")}`;
+        const id = `evidence:${createHash("sha256").update(["manifest", manifest, fingerprint, "saa-core", "stack-detection"].join("\0")).digest("hex").slice(0, 16)}`;
+        if (!facts.evidence.some((e) => e.id === id))
+          facts.evidence.push({
+            id,
+            source_type: "manifest",
+            captured_at: capturedAt,
+            extractor: { adapter: "saa-core", version: "0.1.0", method: "stack-detection" },
+            path: manifest,
+            range: { start_line: 1, end_line: Math.max(1, read.text.split("\n").length) },
+            file_fingerprint: fingerprint,
+            excerpt_policy: "digest_only",
+            excerpt_digest: fingerprint,
+          } as Evidence);
+        evidence.push(id);
+      } catch {
+        // An unreadable manifest leaves the boundary inferred.
+      }
+    }
+    const fallback = facts.entities
+      .filter((e) => e.project_boundary === boundary.id && e.evidence_ids.length > 0)
+      .slice(0, 1)
+      .flatMap((e) => e.evidence_ids.slice(0, 1));
+    if (evidence.length === 0 && fallback.length === 0) continue;
+    facts.entities.push({
+      id: boundary.id,
+      kind: "project",
+      name: boundary.name,
+      project_boundary: boundary.id,
+      path: boundary.path,
+      boundary_kind: boundary.kind,
+      status: evidence.length > 0 ? "source_verified" : "inferred",
+      ...(evidence.length > 0
+        ? {}
+        : { confidence_rationale: boundary.confidence_rationale ?? "boundary inferred from the directory layout" }),
+      origin: "source",
+      evidence_ids: evidence.length > 0 ? evidence : fallback,
+    } as Entity);
+  }
 }
 
 /** A cached batch result, or undefined when it is missing or unreadable (then the batch is analyzed again). */

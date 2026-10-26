@@ -144,6 +144,9 @@ importers:
       '@sys2qa/saa-adapters':
         specifier: workspace:*
         version: link:../saa-adapters
+      '@sys2qa/system-model':
+        specifier: workspace:*
+        version: link:../system-model
       ignore:
         specifier: ^7.0.13
         version: 7.0.13
@@ -151,7 +154,11 @@ importers:
         specifier: ~1.43.3
         version: 1.43.3
 
-  packages/system-model: {}
+  packages/system-model:
+    dependencies:
+      '@sys2qa/contract':
+        specifier: workspace:*
+        version: link:../contract
 
   packages/test-runner: {}
 

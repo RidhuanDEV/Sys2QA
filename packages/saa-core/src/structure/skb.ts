@@ -44,7 +44,12 @@ export function persistSkbRun(
       },
       run: {
         profile: input.profile ?? "standard",
-        adapters: s.adapters.map((a) => ({ id: a.adapter_id, version: a.adapter_version })),
+        adapters: s.adapters.map((a) => ({
+          id: a.adapter_id,
+          version: a.adapter_version,
+          // PRD §11.2: framework-aware (3) when the adapter models frameworks, structural (2) otherwise.
+          support_level: a.support_matrix.frameworks.length > 0 ? 3 : a.support_matrix.languages.length > 0 ? 2 : 0,
+        })),
       },
       ...(input.completeness ? { completeness: input.completeness } : {}),
       ...(input.stack ? { stack: input.stack } : {}),

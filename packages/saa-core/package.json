@@ -16,6 +16,7 @@
     "@sys2qa/contract": "workspace:*",
     "@sys2qa/platform": "workspace:*",
     "@sys2qa/saa-adapters": "workspace:*",
+    "@sys2qa/system-model": "workspace:*",
     "ignore": "^7.0.13",
     "isomorphic-git": "~1.43.3"
   }
