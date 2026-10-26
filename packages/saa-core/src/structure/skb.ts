@@ -1,6 +1,7 @@
 import type { CompletenessReport } from "@sys2qa/contract";
 import { writeSkbRun, type SkbManifest } from "@sys2qa/platform";
 import { redactOutput } from "../intake/secrets.js";
+import type { StackReport } from "../stack/stack.js";
 import type { StructureResult } from "./run.js";
 
 /**
@@ -10,7 +11,16 @@ import type { StructureResult } from "./run.js";
  */
 export function persistSkbRun(
   dir: string,
-  input: { runId: string; revision: unknown; structure: StructureResult; completeness?: CompletenessReport },
+  input: {
+    runId: string;
+    revision: unknown;
+    structure: StructureResult;
+    completeness?: CompletenessReport;
+    /** The stack report, so documentation can be rendered from the SKB alone (IMP-116). */
+    stack?: StackReport;
+    /** Analysis profile, recorded for the documents. */
+    profile?: string;
+  },
   now?: () => Date,
 ): { manifest: SkbManifest; redacted: number } {
   const s = input.structure;
@@ -27,7 +37,17 @@ export function persistSkbRun(
       coverage: s.coverage,
       gaps: s.gaps,
       catalog: { count_scope: s.catalog.count_scope, groups: s.catalog.groups, not_deepened: s.catalog.not_deepened },
+      graph: {
+        cycles: s.graph.cycles,
+        projects: s.graph.projects,
+        unanalyzed_targets: s.graph.unanalyzed_targets.length,
+      },
+      run: {
+        profile: input.profile ?? "standard",
+        adapters: s.adapters.map((a) => ({ id: a.adapter_id, version: a.adapter_version })),
+      },
       ...(input.completeness ? { completeness: input.completeness } : {}),
+      ...(input.stack ? { stack: input.stack } : {}),
     },
   });
   const manifest = writeSkbRun(dir, { run_id: input.runId, producer: "SAA", revision: input.revision, ...value }, now);

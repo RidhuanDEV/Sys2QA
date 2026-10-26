@@ -9,7 +9,9 @@ import {
   budgetFor,
   completenessReport,
   detectStack,
+  loadSkbView,
   persistSkbRun,
+  renderDocumentation,
   RootSandbox,
   scanInventory,
   type InventoryEntry,
@@ -28,10 +30,11 @@ function filesUnder(dir: string): string[] {
   });
 }
 
-describe("ST-04 secret leakage: SKB partitions and the adapter cache [@req SEC-004] [@req SAA-FR-012]", () => {
-  it("no SKB or cache file contains a planted secret", async () => {
+describe("ST-04 secret leakage: SKB partitions, the adapter cache and rendered documents [@req SEC-004] [@req SAA-FR-012] [@req SAA-FR-013]", () => {
+  it("no SKB file, cache file or rendered document contains a planted secret", async () => {
     const adapters = await bundleSaaAdapters(join(work, "adapters"));
     const home = join(work, "home");
+    const documents: Array<[string, string]> = [];
     for (const [i, root] of [INJECTION_REPO, F1].entries()) {
       const sandbox = await RootSandbox.open([root]);
       const inventory: InventoryEntry[] = [];
@@ -58,18 +61,23 @@ describe("ST-04 secret leakage: SKB partitions and the adapter cache [@req SEC-0
         boundaries: stack.boundaries,
         structure,
       });
-      persistSkbRun(runDirectory(home, "project:01JPROJECTST04", runId), {
+      const dir = runDirectory(home, "project:01JPROJECTST04", runId);
+      persistSkbRun(dir, {
         runId,
         revision: { kind: "git_commit", value: "0".repeat(40), worktree_dirty: false },
         structure,
         completeness,
+        stack,
       });
+      for (const doc of renderDocumentation(loadSkbView(dir))) documents.push([doc.path, doc.markdown]);
     }
     const files = filesUnder(home);
     expect(files.some((f) => f.endsWith("manifest.json"))).toBe(true);
     expect(files.some((f) => f.includes(join("cache", "adapters")))).toBe(true);
     const leaks = files.flatMap((f) => scanText(readFileSync(f, "utf8"), f));
     expect(leaks).toEqual([]);
+    expect(documents.length).toBeGreaterThan(40);
+    expect(documents.flatMap(([path, text]) => scanText(text, path))).toEqual([]);
     // The files holding planted secrets were analyzed and stored (as facts and digests), not skipped.
     const stored = files.map((f) => readFileSync(f, "utf8")).join("\n");
     expect(stored).toContain("src/registration.ts");
