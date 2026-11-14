@@ -35,3 +35,11 @@ OD-05 chose a TypeScript monorepo. OD-10 chose npm distribution. Tooling must ke
 
 ## Verification
 CI runs on Linux, macOS and Windows; clean-machine install tests (IMP-901).
+
+## Amendment 2026-11-14 (IMP-211)
+- **Web UI build:** esbuild (already used to bundle adapters) bundles the React SPA into static files; Vite is not
+  added. The UI is served by the host and needs no development server or plugin pipeline; switching to Vite later
+  changes only `scripts/web-bundle.mjs`.
+- **Browser-level tests:** the Playwright library (Chromium) driven from Vitest (`vitest.e2e.config.ts`) instead of the
+  Playwright Test runner. One runner and one JSON report feed the traceability report and the gate report; the
+  browser engine and its automation API are the same.

@@ -53,7 +53,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - if: ${{ !(matrix.os == 'ubuntu-latest' && matrix.node == '24') }}
         run: pnpm test
-      # One matrix cell also produces the traceability report from its test results (Test Strategy §1).
+      # One matrix cell also produces the traceability report from its test results (Test Strategy §1), including the
+      # browser end-to-end suite of the web UI, which needs Chromium.
+      - if: ${{ matrix.os == 'ubuntu-latest' && matrix.node == '24' }}
+        run: pnpm exec playwright install --with-deps chromium
       - if: ${{ matrix.os == 'ubuntu-latest' && matrix.node == '24' }}
         run: pnpm trace
       - if: ${{ always() && matrix.os == 'ubuntu-latest' && matrix.node == '24' }}

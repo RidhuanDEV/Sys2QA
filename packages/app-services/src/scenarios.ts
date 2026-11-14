@@ -234,20 +234,29 @@ const scenariosGenerate = defineOperation<
   },
 });
 
-const scenariosList = defineOperation<{ project_id: string; status?: string }, unknown>({
+const scenariosList = defineOperation<{ project_id: string; status?: string; plan_id?: string }, unknown>({
   name: "scenarios.list",
   title: "List scenarios",
-  description: "The project's scenarios at their latest version, optionally of one status.",
+  description:
+    "The project's scenarios at their latest version, optionally of one status and of one plan (scenarios testing that plan's conditions).",
   level: "none",
   effect: "read",
   input: {
     type: "object",
     additionalProperties: false,
     required: ["project_id"],
-    properties: { project_id: ID, status: { type: "string", pattern: "^[a-z_]{3,30}$" } },
+    properties: { project_id: ID, status: { type: "string", pattern: "^[a-z_]{3,30}$" }, plan_id: ID },
   },
   run: ({ host }, input) => {
     const project = host.projects.getProject(input.project_id);
+    let ofPlan: Set<string> | undefined;
+    if (input.plan_id) {
+      const plan = host.state.db.prepare("SELECT project_id FROM test_plans WHERE id = ?").get(input.plan_id) as
+        { project_id: string } | undefined;
+      if (!plan || plan.project_id !== project.id)
+        throw serviceError("NOT_FOUND", `no test plan ${input.plan_id} in this project`);
+      ofPlan = new Set(storedConditions(host, input.plan_id).map((c) => c.condition_id));
+    }
     const rows = host.state.db
       .prepare(
         `SELECT s.scenario_id, s.display_key, v.version, v.status, v.freshness, v.doc_json FROM scenarios s
@@ -266,8 +275,9 @@ const scenariosList = defineOperation<{ project_id: string; status?: string }, u
       project_id: project.id,
       scenarios: rows
         .filter((r) => !input.status || r.status === input.status)
-        .map((r) => {
-          const doc = JSON.parse(r.doc_json) as Scenario;
+        .map((r) => ({ row: r, doc: JSON.parse(r.doc_json) as Scenario }))
+        .filter(({ doc }) => !ofPlan || doc.test_condition_ids.some((id) => ofPlan.has(id)))
+        .map(({ row: r, doc }) => {
           return {
             scenario_id: r.scenario_id,
             display_key: r.display_key,

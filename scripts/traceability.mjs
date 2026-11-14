@@ -1,6 +1,6 @@
 // Traceability report (Test Strategy §1, IMP-017): PRD requirement IDs ↔ `[@req ID]` test tags.
 // Usage:
-//   node scripts/traceability.mjs [--results <vitest-json>] [--out <file>]
+//   node scripts/traceability.mjs [--results <vitest-json>[,<vitest-json>…]] [--out <file>]
 // Writes the report (default reports/traceability.md). Exits 1 when a tag references an unknown ID.
 // With --results (Vitest JSON reporter output) a requirement counts as covered only by passing tests;
 // without it, tagged tests are listed as "not run".
@@ -119,6 +119,14 @@ export function scanTags(repoRoot, roots) {
   return tags;
 }
 
+/** Several Vitest JSON reports (the main suite and the browser end-to-end suite) as one. */
+export function mergeResults(list) {
+  return {
+    numFailedTests: list.reduce((n, r) => n + (r.numFailedTests ?? 0), 0),
+    testResults: list.flatMap((r) => r.testResults ?? []),
+  };
+}
+
 /** Test outcomes per tagged ID from Vitest's JSON reporter (tags may sit on a describe block or on the test). */
 export function outcomesFromResults(results) {
   const outcomes = new Map();
@@ -230,7 +238,9 @@ function main(argv) {
     gateOwner: parseGateOwnership(read("docs/00-project/implementation-plan.md")),
     tags: scanTags(repoRoot, ["apps", "packages", "tests"]),
     outcomes: resultsPath
-      ? outcomesFromResults(JSON.parse(readFileSync(resolve(repoRoot, resultsPath), "utf8")))
+      ? outcomesFromResults(
+          mergeResults(resultsPath.split(",").map((p) => JSON.parse(readFileSync(resolve(repoRoot, p), "utf8")))),
+        )
       : undefined,
   });
   mkdirSync(dirname(out), { recursive: true });

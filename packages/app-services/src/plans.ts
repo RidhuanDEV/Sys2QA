@@ -118,7 +118,7 @@ const planShow = defineOperation<{ plan_id: string }, unknown>({
   effect: "read",
   input: { type: "object", additionalProperties: false, required: ["plan_id"], properties: { plan_id: ID } },
   run: ({ host }, input) => {
-    const { plan } = stored(host, input.plan_id);
+    const { project_id, plan } = stored(host, input.plan_id);
     const history = (
       host.state.db
         .prepare(
@@ -126,7 +126,7 @@ const planShow = defineOperation<{ plan_id: string }, unknown>({
         )
         .all(input.plan_id) as Array<{ at: string; actor: string; details_json: string }>
     ).map((r) => ({ at: r.at, actor: r.actor, ...(JSON.parse(r.details_json) as Record<string, unknown>) }));
-    return { plan, risks: prioritizedRisks(plan.risks), risk_history: history };
+    return { project_id, plan, risks: prioritizedRisks(plan.risks), risk_history: history };
   },
 });
 

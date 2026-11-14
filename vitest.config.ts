@@ -7,6 +7,8 @@ export default defineConfig({
   ssr: { resolve: { conditions: ["source"] } },
   test: {
     include: ["apps/*/test/**/*.test.ts", "packages/*/test/**/*.test.ts", "tests/**/*.test.ts"],
+    // Browser end-to-end tests need Chromium; they run with `pnpm e2e` (vitest.e2e.config.ts).
+    exclude: ["**/node_modules/**", "tests/e2e/**"],
     passWithNoTests: false,
   },
 });

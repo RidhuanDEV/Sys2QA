@@ -1,4 +1,6 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { extname, join } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { ErrorKind } from "../errors.js";
 import type { AppServices } from "../services.js";
@@ -18,6 +20,41 @@ export interface ApiServerOptions {
   /** Fixed token (tests); a random 256-bit token otherwise. */
   token?: string;
   port?: number;
+  /**
+   * Serves the built web UI from this directory (its files are read once, at start; nothing else on disk is reachable).
+   * The UI's own origin is then allowed; it receives the session token in the URL fragment, which no request carries.
+   */
+  webUi?: { root: string };
+}
+
+const CONTENT_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".json": "application/json",
+};
+/** The UI loads only its own files and talks only to this API (no inline script, no third-party origin). */
+const UI_HEADERS = {
+  "content-security-policy":
+    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+  "cache-control": "no-store",
+};
+
+/** The UI's files by URL path, read once; `/` is index.html. */
+function uiAssets(root: string): Map<string, { type: string; body: Buffer }> {
+  const assets = new Map<string, { type: string; body: Buffer }>();
+  for (const name of readdirSync(root)) {
+    const file = join(root, name);
+    const type = CONTENT_TYPES[extname(name)];
+    if (type && statSync(file).isFile()) assets.set(`/${name}`, { type, body: readFileSync(file) });
+  }
+  const index = assets.get("/index.html");
+  if (!index) throw new Error(`no index.html in the web UI directory ${root}`);
+  assets.set("/", index);
+  return assets;
 }
 
 export interface ApiServer {
@@ -38,6 +75,7 @@ export async function startApiServer(services: AppServices, options: ApiServerOp
   const app: FastifyInstance = Fastify({ logger: false, bodyLimit: 1024 * 1024 });
   let port = 0;
   const allowedOrigins = new Set(options.allowedOrigins ?? []);
+  const assets = options.webUi ? uiAssets(options.webUi.root) : new Map<string, { type: string; body: Buffer }>();
 
   app.addHook("onRequest", async (request, reply) => {
     const host = request.headers.host ?? "";
@@ -48,6 +86,8 @@ export async function startApiServer(services: AppServices, options: ApiServerOp
     if (origin !== undefined && !allowedOrigins.has(origin)) {
       return reply.code(403).send(denied("ORIGIN_REJECTED", "requests from this origin are not allowed"));
     }
+    // The UI's static files hold no data; everything they read goes through the token-checked API.
+    if (request.method === "GET" && assets.has(request.url)) return undefined;
     const auth = Buffer.from(request.headers.authorization ?? "");
     if (auth.length !== expected.length || !timingSafeEqual(auth, expected)) {
       return reply.code(401).send(denied("TOKEN_REQUIRED", "a valid session token is required"));
@@ -55,6 +95,9 @@ export async function startApiServer(services: AppServices, options: ApiServerOp
     if (origin !== undefined) reply.header("access-control-allow-origin", origin).header("vary", "Origin");
     return undefined;
   });
+
+  for (const [path, asset] of assets)
+    app.get(path, async (_request, reply) => reply.headers(UI_HEADERS).type(asset.type).send(asset.body));
 
   app.get("/api/v1/operations", async () => ({ ok: true, data: services.catalog() }));
   // Scrape-friendly views of system.metrics and system.health (same token rules as every other route).
@@ -83,6 +126,7 @@ export async function startApiServer(services: AppServices, options: ApiServerOp
   await app.listen({ host: "127.0.0.1", port: options.port ?? 0 });
   const address = app.server.address();
   port = typeof address === "object" && address ? address.port : 0;
+  if (options.webUi) for (const name of ["127.0.0.1", "localhost"]) allowedOrigins.add(`http://${name}:${port}`);
   return { url: `http://127.0.0.1:${port}`, token, port, close: () => app.close() };
 }
 

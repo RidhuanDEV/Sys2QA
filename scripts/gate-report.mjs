@@ -1,7 +1,7 @@
 // Gate acceptance report (Test Strategy §7 stage 5 and §8, IMP-121).
 // Usage:
-//   node scripts/gate-report.mjs --gate 1 [--results <vitest-json>] [--out <dir>]
-// Without --results it runs the whole test suite with the JSON reporter. It runs the benchmarks, then writes
+//   node scripts/gate-report.mjs --gate 1 [--results <vitest-json>[,<vitest-json>…]] [--out <dir>]
+// Without --results it runs the whole test suite and the browser end-to-end suite with the JSON reporter. It runs the benchmarks, then writes
 // reports/gates/gate-<n>/<date>/ (or --out): test-results.json, traceability.md, benchmarks/ and report.md, which maps
 // every checklist item of PRD §29.1 to its acceptance tests (tests/acceptance/gate-<n>.test.ts, one `describe` per item
 // named "Gate <n> item <k>: …") and lists the gate's requirements (PRD §27.2 and §27.4), benchmark gate rules and
@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   buildReport,
+  mergeResults,
   outcomesFromResults,
   parseContractRules,
   parseGateOwnership,
@@ -37,18 +38,24 @@ mkdirSync(out, { recursive: true });
 const read = (p) => readFileSync(join(REPO, p), "utf8");
 const node = (args) => spawnSync(process.execPath, args, { cwd: REPO, stdio: "inherit" }).status;
 
-// 1. Test results.
-const resultsPath = values.results ? resolve(values.results) : join(out, "test-results.json");
-if (!values.results)
+// 1. Test results: the main suite and the browser end-to-end suite (vitest.e2e.config.ts).
+const vitest = (config, file) =>
   node([
     join(REPO, "node_modules", "vitest", "vitest.mjs"),
     "run",
+    ...(config ? ["--config", config] : []),
     "--reporter=default",
     "--reporter=json",
-    `--outputFile.json=${resultsPath}`,
+    `--outputFile.json=${file}`,
   ]);
-else cpSync(resultsPath, join(out, "test-results.json"));
-const results = JSON.parse(readFileSync(resultsPath, "utf8"));
+const resultFiles = values.results
+  ? values.results.split(",").map((p) => resolve(p))
+  : [join(out, "test-results.json"), join(out, "e2e-results.json")];
+if (!values.results) {
+  vitest(undefined, resultFiles[0]);
+  vitest("vitest.e2e.config.ts", resultFiles[1]);
+} else resultFiles.forEach((f, i) => cpSync(f, join(out, i === 0 ? "test-results.json" : `test-results-${i}.json`)));
+const results = mergeResults(resultFiles.map((f) => JSON.parse(readFileSync(f, "utf8"))));
 
 // 2. Benchmarks.
 const benchStatus = node(["--conditions=source", "--import", "tsx", join(REPO, "tests", "benchmark", "run.ts")]);

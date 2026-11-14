@@ -1,0 +1,236 @@
+/* Sys2QA web UI. Contrast meets WCAG AA; focus is always visible; status color only repeats words (NFR-009). */
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #555555;
+  --line: #c4c4c4;
+  --accent: #0b4f9c;
+  --good-bg: #e6f4ea;
+  --good-fg: #1e5b2c;
+  --warn-bg: #fff4d6;
+  --warn-fg: #6b4a00;
+  --bad-bg: #fde7e7;
+  --bad-fg: #8a1c1c;
+  --neutral-bg: #eeeeee;
+  --neutral-fg: #333333;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+  color: var(--fg);
+  background: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161616;
+    --fg: #f0f0f0;
+    --muted: #b8b8b8;
+    --line: #555555;
+    --accent: #8cc2ff;
+    --good-bg: #173d22;
+    --good-fg: #c9f0d3;
+    --warn-bg: #4a3800;
+    --warn-fg: #ffe9a8;
+    --bad-bg: #4d1515;
+    --bad-fg: #ffd3d3;
+    --neutral-bg: #333333;
+    --neutral-fg: #eeeeee;
+  }
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+header {
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 1rem;
+}
+nav {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.brand {
+  font-weight: 700;
+}
+main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+a,
+.link {
+  color: var(--accent);
+}
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+h1:focus,
+h3:focus,
+main:focus {
+  outline: none;
+}
+.skip {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--bg);
+  padding: 0.5rem;
+}
+.skip:focus {
+  left: 0.5rem;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+}
+caption {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.25rem 0;
+}
+th,
+td {
+  border: 1px solid var(--line);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+tr[aria-current="true"] {
+  outline: 2px solid var(--accent);
+}
+button,
+.button {
+  font: inherit;
+  padding: 0.4rem 0.9rem;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+button.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.field {
+  margin: 0.75rem 0;
+}
+.field label {
+  display: block;
+  font-weight: 600;
+}
+input[type="text"],
+input[type="url"],
+select {
+  font: inherit;
+  padding: 0.3rem;
+  min-width: 20rem;
+  max-width: 100%;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--fg);
+}
+fieldset {
+  border: 1px solid var(--line);
+}
+.choice {
+  margin: 0.5rem 0;
+}
+.hint,
+.muted {
+  color: var(--muted);
+  margin: 0.1rem 0;
+}
+.badge {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 0.35rem;
+  font-size: 0.9em;
+}
+.badge-good {
+  background: var(--good-bg);
+  color: var(--good-fg);
+}
+.badge-warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.badge-bad {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
+.badge-neutral {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.inline {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.error {
+  border: 2px solid var(--bad-fg);
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+  padding: 0.5rem 0.75rem;
+  margin: 0.75rem 0;
+}
+.panel {
+  border: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+details {
+  margin: 0.4rem 0;
+}
+.announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+dt {
+  font-weight: 600;
+}
+dd {
+  margin: 0;
+}

@@ -1,13 +1,17 @@
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   ApiClient,
   AppServices,
   openHost,
   readHostEndpoint,
+  removeHostEndpoint,
   runDoctor,
+  startApiServer,
+  writeHostEndpoint,
   type ErrorKind,
   type HostOptions,
   type ServiceResult,
@@ -34,6 +38,10 @@ export interface CliIo {
   host?: Omit<HostOptions, "home">;
   /** Reads all of standard input (secret values are never taken from arguments). */
   readStdin?: () => Promise<string>;
+  /** Stops `sys2qa ui` (tests); otherwise it runs until SIGINT or SIGTERM. */
+  signal?: AbortSignal;
+  /** The built web UI (tests); apps/web/dist otherwise. */
+  webRoot?: string;
 }
 
 interface Command {
@@ -341,6 +349,13 @@ const COMMANDS: Record<string, Command> = {
       }),
     }),
   },
+  "package catalog": {
+    usage: "package catalog <project-id> <package-id> <version>",
+    build: ([project_id, package_id, version]) => ({
+      operation: "package.catalog",
+      input: defined({ project_id, package_id, version: version === undefined ? undefined : Number(version) }),
+    }),
+  },
   coverage: {
     usage: "coverage <plan-id>",
     build: ([plan_id]) => ({ operation: "coverage.report", input: defined({ plan_id }) }),
@@ -485,6 +500,7 @@ const OPTIONS = {
   "test-data-profile": { type: "string" },
   token: { type: "string" },
   "state-changing-ack": { type: "boolean" },
+  port: { type: "string" },
   status: { type: "string" },
   version: { type: "string" },
 } as const;
@@ -509,6 +525,7 @@ function usage(): string {
     "Usage: sys2qa <command> [options] [--json]",
     "",
     ...Object.values(COMMANDS).map((c) => `  sys2qa ${c.usage}`),
+    "  sys2qa ui [--port <port>]   (serves the web UI on this computer until stopped)",
   ].join("\n");
 }
 
@@ -545,6 +562,8 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
     return EXIT_CODES.usage;
   }
   const { values, positionals } = parsed;
+  if (positionals[0] === "ui" && positionals.length === 1 && !values.help)
+    return serveUi(str(values.home) ?? defaultHome(io.env), io, str(values.port));
   const key = commandKey(positionals);
   if (values.help || !key) {
     (values.help ? io.stdout : io.stderr)(`${usage()}\n`);
@@ -578,6 +597,56 @@ export async function main(argv: string[], io: CliIo): Promise<number> {
   if (key === "capabilities" && result.ok && (result.data as { compatible: boolean | null }).compatible === false)
     return EXIT_CODES.unavailable;
   return result.ok ? EXIT_CODES.ok : EXIT_CODES[result.error.kind];
+}
+
+/**
+ * `sys2qa ui`: opens the host, serves the local API and the web UI on loopback, and prints the session link (the
+ * token travels in the URL fragment, which the browser never sends). Other CLI calls use this host while it runs.
+ */
+async function serveUi(home: string, io: CliIo, port: string | undefined): Promise<number> {
+  const root = io.webRoot ?? fileURLToPath(new URL("../../web/dist/", import.meta.url));
+  if (!existsSync(join(root, "index.html"))) {
+    io.stderr(`error WEB_UI_NOT_BUILT: no web UI in ${root}\n  next: run \`pnpm build:web\`, then start it again.\n`);
+    return EXIT_CODES.unavailable;
+  }
+  const running = readHostEndpoint(home);
+  if (running) {
+    io.stderr(
+      `error HOST_RUNNING: a Sys2QA host already serves this home at ${running.url}\n  next: use it, or stop it first.\n`,
+    );
+    return EXIT_CODES.conflict;
+  }
+  if (port !== undefined && !/^\d{1,5}$/.test(port)) {
+    io.stderr("error INPUT_INVALID: --port takes a port number\n");
+    return EXIT_CODES.usage;
+  }
+  mkdirSync(home, { recursive: true });
+  const host = openHost({ home, env: io.env, ...io.host });
+  try {
+    const server = await startApiServer(new AppServices(host), {
+      webUi: { root },
+      ...(port !== undefined ? { port: Number(port) } : {}),
+    });
+    writeHostEndpoint(home, { pid: process.pid, url: server.url, token: server.token });
+    io.stdout(
+      `Sys2QA is running on this computer only. Open this link in your browser; it carries your session token, so do not share it:\n  ${server.url}/#token=${server.token}\nPress Ctrl+C to stop.\n`,
+    );
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        process.off("SIGINT", done);
+        process.off("SIGTERM", done);
+        resolve();
+      };
+      process.once("SIGINT", done);
+      process.once("SIGTERM", done);
+      io.signal?.addEventListener("abort", done, { once: true });
+    });
+    removeHostEndpoint(home);
+    await server.close();
+    return EXIT_CODES.ok;
+  } finally {
+    host.close();
+  }
 }
 
 /** Uses a running host's local API when one exists (it holds state.db); otherwise opens the host in this process. */
