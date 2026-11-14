@@ -153,6 +153,12 @@ export class PackageQuery {
   claimsAbout(entityId: string): ModelClaim[] {
     return this.claims.filter((c) => c.subject_entity_id === entityId);
   }
+  /** Claims that are not established facts: inferred, unresolved or stale (QAA-FR-018 low-confidence claims). */
+  lowConfidenceClaims(): ModelClaim[] {
+    return this.claims
+      .filter((c) => c.status === "inferred" || c.status === "unresolved" || c.status === "stale")
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }
   /** What the package does not know: unresolved gaps, and the open questions among them. */
   unknowns(): { gaps: Gap[]; questions: Gap[] } {
     const gaps = this.gaps.filter((g) => g.status === "unresolved").sort((a, b) => a.id.localeCompare(b.id));

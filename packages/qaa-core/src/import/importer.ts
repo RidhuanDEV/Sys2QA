@@ -3,6 +3,7 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync
 import { basename, dirname, join } from "node:path";
 import { validatePackage, type ContractIssue, type PackageStage } from "@sys2qa/contract";
 import { syncDirectory, writeFileAtomic } from "@sys2qa/platform";
+import { PackageQuery } from "@sys2qa/system-model";
 import { DEFAULT_IMPORT_LIMITS, FileCollector, ImportRefusal, readZip, type ImportLimits } from "./archive.js";
 
 const sha256 = (bytes: Uint8Array | string) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
@@ -271,4 +272,9 @@ export function storeImport(
     rmSync(staging, { recursive: true, force: true });
   }
   return { status: "imported", packagePath, originalPath };
+}
+
+/** The structured model of an accepted package for queries; none for a Markdown-only package (CON-016). */
+export function packageModel(prepared: PreparedImport): PackageQuery | undefined {
+  return prepared.markdownOnly ? undefined : new PackageQuery(prepared.files);
 }

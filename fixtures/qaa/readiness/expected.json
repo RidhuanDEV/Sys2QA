@@ -1,0 +1,83 @@
+{
+  "mode-a-f1": {
+    "setup": "F1 analyzed and exported by SAA in the same project (Mode A); non-Git working tree, no baseline confirmation, no environment.",
+    "activities": {
+      "scenario_design": "review_only",
+      "manual_preparation": "review_only",
+      "automated_execution": "blocked"
+    },
+    "freshness": "current"
+  },
+  "mode-a-f1-confirmed-login-admin": {
+    "setup": "Mode A F1 after a baseline confirmation, scope: login and admin user list (no contradiction on their path).",
+    "activities": {
+      "scenario_design": "ready_with_gaps",
+      "manual_preparation": "ready_with_gaps",
+      "automated_execution": "blocked"
+    },
+    "freshness": "current",
+    "flows": { "workflow:page:web:/login": "ready", "workflow:page:web:/admin/users": "ready" }
+  },
+  "mode-a-f1-checkout-changed": {
+    "setup": "Mode A F1 (copy) after a baseline confirmation; the local checkout changed after the analysis.",
+    "activities": {
+      "scenario_design": "review_only",
+      "manual_preparation": "review_only",
+      "automated_execution": "blocked"
+    },
+    "freshness": "mismatched"
+  },
+  "mode-a-f4-confirmed": {
+    "setup": "F4 analyzed and exported (Mode A) after a baseline confirmation; all flows selected.",
+    "activities": {
+      "scenario_design": "ready_with_gaps",
+      "manual_preparation": "ready_with_gaps",
+      "automated_execution": "blocked"
+    },
+    "freshness": "current",
+    "flows": { "workflow:page:app:/cart": "ready_with_gaps", "workflow:page:app:/loyalty": "blocked" }
+  },
+  "mode-a-f4-loyalty-only": {
+    "setup": "Mode A F4 after a baseline confirmation, scope: the loyalty page only (its route condition is a material gap).",
+    "activities": { "scenario_design": "blocked", "manual_preparation": "blocked", "automated_execution": "blocked" },
+    "freshness": "current",
+    "flows": { "workflow:page:app:/loyalty": "blocked" }
+  },
+  "mode-a-f4-loyalty-override": {
+    "setup": "As mode-a-f4-loyalty-only, after a person marked the route-condition gap not material (audited).",
+    "activities": {
+      "scenario_design": "ready_with_gaps",
+      "manual_preparation": "ready_with_gaps",
+      "automated_execution": "blocked"
+    },
+    "freshness": "current",
+    "flows": { "workflow:page:app:/loyalty": "ready_with_gaps" }
+  },
+  "mode-b": {
+    "setup": "The QAA runtime package (Mode B) in a project with a declared, configured but not yet validated staging environment.",
+    "activities": {
+      "scenario_design": "ready_with_gaps",
+      "manual_preparation": "ready_with_gaps",
+      "automated_execution": "blocked"
+    },
+    "freshness": "unverifiable"
+  },
+  "mode-d": {
+    "setup": "The SAA contract package imported into a package-only project (Mode D); no checkout, no environment.",
+    "activities": {
+      "scenario_design": "ready_with_gaps",
+      "manual_preparation": "ready_with_gaps",
+      "automated_execution": "blocked"
+    },
+    "freshness": "current"
+  },
+  "mode-d-stale": {
+    "setup": "Mode D after a newer version of the same package was imported; the older version is assessed.",
+    "activities": {
+      "scenario_design": "review_only",
+      "manual_preparation": "review_only",
+      "automated_execution": "blocked"
+    },
+    "freshness": "stale"
+  }
+}

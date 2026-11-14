@@ -97,7 +97,9 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `job_events` | `job_id`, `seq`, `at`, `event`, `data_json` | **Append-only** progress and state changes |
 | `analysis_runs` | `id`, `project_id`, `producer`, `status`, `artifact_path`, `revision_json`, `coverage_json` | |
 | `packages` | `project_id`, `package_id`, `version` (key, migration 0007), `producer`, `path`, `manifest_sha256`, `imported_from_import_id?` | Immutable rows (trigger rejects `UPDATE`); the same package version may be imported into several projects |
-| `readiness_assessments` | `id`, `package_ref`, `activity`, `readiness`, `reasons_json` | |
+| `readiness_assessments` | `id` (`<assessment-id>#<activity>`), `package_ref` (with `assessment_id`), `activity`, `readiness`, `reasons_json` | One row per activity of each assessment |
+| `baseline_confirmations` | `id`, `project_id`, `package_id`, `package_version`, `confirmed_by`, `statement` | **Append-only** (migration 0008); OD-04 confirmation that the target runs the package's working tree |
+| `materiality_overrides` | `id`, `project_id`, `gap_id`, `material`, `reason`, `overridden_by` | **Append-only** (migration 0008); the latest row per gap applies |
 | `test_plans` | `id`, `project_id`, `baseline_json`, `doc_json` | |
 | `test_conditions` | `id`, `plan_id`, `basis_refs_json` | |
 | `scenarios` | `scenario_id`, `project_id`, `display_key`, `latest_version` | |

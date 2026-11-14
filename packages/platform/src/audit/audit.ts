@@ -24,6 +24,8 @@ export const AUDIT_ACTIONS = [
   "export.created",
   "package.imported",
   "package.import_refused",
+  "baseline.confirmed",
+  "materiality.overridden",
   "data.deleted",
   "settings.changed",
 ] as const;

@@ -16,6 +16,7 @@ import { adapterMatrixText, describeAdapters } from "@sys2qa/saa-core";
 import { CAPABILITY_VERSION, checkCompatibility, type CapabilityRequirements } from "./capabilities.js";
 import { runDoctor } from "./doctor.js";
 import { PACKAGE_OPERATIONS } from "./packages.js";
+import { READINESS_OPERATIONS } from "./readiness.js";
 import { SAA_OPERATIONS } from "./saa.js";
 import { serviceError } from "./errors.js";
 import { defineOperation, type Operation } from "./operations.js";
@@ -584,5 +585,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   policyCheck,
   packageValidate,
   ...PACKAGE_OPERATIONS,
+  ...READINESS_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;

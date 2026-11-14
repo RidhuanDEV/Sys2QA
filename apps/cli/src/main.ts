@@ -183,6 +183,42 @@ const COMMANDS: Record<string, Command> = {
       input: defined({ project_id, package_id, version: version === undefined ? undefined : Number(version) }),
     }),
   },
+  readiness: {
+    usage: "readiness <project-id> <package-id> <version> [--workflow <workflow-id>]...",
+    build: ([project_id, package_id, version], v) => ({
+      operation: "readiness.assess",
+      input: defined({
+        project_id,
+        package_id,
+        version: version === undefined ? undefined : Number(version),
+        workflow_ids: list(v.workflow),
+      }),
+    }),
+  },
+  "baseline confirm": {
+    usage: "baseline confirm <project-id> <package-id> <version> --statement <text>",
+    build: ([project_id, package_id, version], v) => ({
+      operation: "readiness.confirm_baseline",
+      input: defined({
+        project_id,
+        package_id,
+        version: version === undefined ? undefined : Number(version),
+        statement: str(v.statement),
+      }),
+    }),
+  },
+  "materiality override": {
+    usage: "materiality override <project-id> <gap-id> --material <yes|no> --reason <text>",
+    build: ([project_id, gap_id], v) => ({
+      operation: "readiness.override_materiality",
+      input: defined({
+        project_id,
+        gap_id,
+        material: v.material === "yes" ? true : v.material === "no" ? false : str(v.material),
+        reason: str(v.reason),
+      }),
+    }),
+  },
   start: {
     usage: "start <project-name> <repository-path> [--language <code>]...",
     build: ([name, root], v, cwd) => ({
@@ -269,6 +305,10 @@ const OPTIONS = {
   output: { type: "string" },
   "allow-in-repository": { type: "boolean" },
   skill: { type: "string" },
+  workflow: { type: "string", multiple: true },
+  statement: { type: "string" },
+  material: { type: "string" },
+  reason: { type: "string" },
 } as const;
 
 function safeUser(): string {
