@@ -22,3 +22,5 @@ Fixtures (IMP-005): every schema has a canonical example, in `fixtures/contract/
 Validator change before release (IMP-009): secret detection (CR-060) gained the `bearer_token` detector (`Bearer` followed by at least 16 token characters). `redactSecrets` reuses the detectors for redaction and masks a private key through its END marker. No schema changed.
 
 Validator change before release (IMP-015): the `credential_assignment` detector also matches prefixed names (`DB_PASSWORD=…`, `AWS_SECRET_ACCESS_KEY=…`), which it previously missed, and skips code references such as `process.env.X` and `req.body.password`. Found by the security harness.
+
+Error catalog addition (IMP-201, 1.0.0 unchanged): `PKG_PATH_UNSAFE` and `PKG_TOO_LARGE`, detected by the package importer for hostile archives and directories (ST-13). No schema changed: the `error` document's `code` is an open pattern.

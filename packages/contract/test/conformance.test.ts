@@ -17,6 +17,8 @@ import { invalidDir, packageDoc, readJson, readPackage, validDoc, validPackagesD
 /** Codes detected by components other than the contract library, with the task that owns detection. */
 const COMPONENT_DETECTED: Partial<Record<ErrorCode, string>> = {
   PKG_NOT_FOUND: "IMP-201 package importer",
+  PKG_PATH_UNSAFE: "IMP-201 package importer",
+  PKG_TOO_LARGE: "IMP-201 package importer",
   PKG_REVISION_MISMATCH: "IMP-202 readiness and freshness",
   PKG_REVISION_UNVERIFIABLE: "IMP-202 readiness and freshness",
   PKG_LANGUAGE_UNAVAILABLE: "IMP-201/IMP-116 language selection",

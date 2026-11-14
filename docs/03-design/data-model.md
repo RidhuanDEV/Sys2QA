@@ -96,7 +96,7 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `jobs` | `id`, `type`, `project_id?`, `state ∈ {queued, running, cancelling, completed, failed, cancelled}`, `priority`, `payload_json`, `budget_json`, `attempt`, `max_attempts`, `idempotency_key UNIQUE`, `lease_owner`, `lease_expires_at`, `cancel_requested_at`, `run_after?`, `last_progress_at?`, `error_json` | Queue and history; see Operational notes §7. `run_after` and `last_progress_at` added by migration 0002 |
 | `job_events` | `job_id`, `seq`, `at`, `event`, `data_json` | **Append-only** progress and state changes |
 | `analysis_runs` | `id`, `project_id`, `producer`, `status`, `artifact_path`, `revision_json`, `coverage_json` | |
-| `packages` | `package_id`, `version`, `producer`, `path`, `manifest_sha256`, `imported_from_import_id?` | Immutable rows |
+| `packages` | `project_id`, `package_id`, `version` (key, migration 0007), `producer`, `path`, `manifest_sha256`, `imported_from_import_id?` | Immutable rows (trigger rejects `UPDATE`); the same package version may be imported into several projects |
 | `readiness_assessments` | `id`, `package_ref`, `activity`, `readiness`, `reasons_json` | |
 | `test_plans` | `id`, `project_id`, `baseline_json`, `doc_json` | |
 | `test_conditions` | `id`, `plan_id`, `basis_refs_json` | |

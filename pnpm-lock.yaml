@@ -73,6 +73,9 @@ importers:
       '@sys2qa/platform':
         specifier: workspace:*
         version: link:../platform
+      '@sys2qa/qaa-core':
+        specifier: workspace:*
+        version: link:../qaa-core
       '@sys2qa/runtime-observer':
         specifier: workspace:*
         version: link:../runtime-observer
@@ -117,7 +120,17 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
 
-  packages/qaa-core: {}
+  packages/qaa-core:
+    dependencies:
+      '@sys2qa/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@sys2qa/platform':
+        specifier: workspace:*
+        version: link:../platform
+      '@sys2qa/system-model':
+        specifier: workspace:*
+        version: link:../system-model
 
   packages/runtime-observer: {}
 

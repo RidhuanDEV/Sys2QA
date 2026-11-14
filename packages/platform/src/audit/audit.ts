@@ -22,6 +22,8 @@ export const AUDIT_ACTIONS = [
   "run.cancelled",
   "l4.action",
   "export.created",
+  "package.imported",
+  "package.import_refused",
   "data.deleted",
   "settings.changed",
 ] as const;

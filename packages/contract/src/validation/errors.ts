@@ -183,6 +183,28 @@ export const ERROR_CATALOG = {
     ],
     ["The file is ignored.", "File tersebut diabaikan."],
   ),
+  PKG_PATH_UNSAFE: entry(
+    "error",
+    [
+      "The package contains a path or link that would leave the package (absolute path, drive letter, `..`, backslash, duplicate name or symbolic link).",
+      "Package berisi path atau link yang akan keluar dari package (path absolut, huruf drive, `..`, backslash, nama ganda, atau symbolic link).",
+    ],
+    [
+      "Do not import it. Re-export the package from its producer, or ask its sender for an unmodified copy.",
+      "Jangan impor package ini. Ekspor ulang dari produsennya, atau minta salinan yang tidak diubah dari pengirimnya.",
+    ],
+  ),
+  PKG_TOO_LARGE: entry(
+    "error",
+    [
+      "The package exceeds the import limits (number of files, size of a file or total size).",
+      "Package melebihi batas impor (jumlah file, ukuran satu file, atau ukuran total).",
+    ],
+    [
+      "Check that this is the intended package; a package of a supported repository stays far below the limits.",
+      "Periksa apakah ini package yang dimaksud; package dari repositori yang didukung jauh di bawah batas ini.",
+    ],
+  ),
   CONTRACT_SCHEMA_INVALID: entry(
     "error",
     ["The document does not match its contract schema.", "Dokumen tidak sesuai dengan schema kontraknya."],

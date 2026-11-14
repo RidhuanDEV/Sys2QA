@@ -217,6 +217,34 @@ describe("state database invariants [@req NFR-004] [@req SEC-014] [@req QAA-FR-0
   });
 });
 
+describe("migration 0007: packages per project [@req NFR-004] [@req CON-010]", () => {
+  const insertPackage = (st: StateDatabase, project: string, sha = "a") =>
+    st.db
+      .prepare(
+        "INSERT INTO packages (package_id, version, project_id, producer, path, manifest_sha256, created_at, updated_at) VALUES ('pkg:acme', 1, ?, 'SAA', '/p', ?, ?, ?)",
+      )
+      .run(project, `sha256:${sha.repeat(64)}`, AT, AT);
+
+  it("keeps the rows of a version-6 database and keys packages per project", () => {
+    const path = join(dir, "state.db");
+    const all = loadMigrations();
+    const v6 = open(path, { migrations: all.filter((m) => m.version <= 6) });
+    seedProject(v6);
+    insertPackage(v6, "project:p1");
+    v6.close();
+    const s = open(path);
+    expect(appliedMigrations(s.db).map((m) => m.version)).toEqual(all.map((m) => m.version));
+    expect(s.db.prepare("SELECT package_id, project_id FROM packages").all()).toEqual([
+      { package_id: "pkg:acme", project_id: "project:p1" },
+    ]);
+    // The same package version in a second project, but never twice in one.
+    seedProject(s, "project:p2");
+    insertPackage(s, "project:p2");
+    expect(() => insertPackage(s, "project:p2", "b")).toThrow(/UNIQUE/);
+    expect(() => s.db.prepare("UPDATE packages SET path = '/q'").run()).toThrow(/immutable/);
+  });
+});
+
 describe("crash recovery [@req NFR-004]", () => {
   it("keeps committed writes and discards the in-flight transaction of a killed writer", async () => {
     const path = join(dir, "state.db");

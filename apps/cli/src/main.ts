@@ -165,6 +165,24 @@ const COMMANDS: Record<string, Command> = {
       input: defined({ path: path && resolve(cwd, path) }),
     }),
   },
+  "package import": {
+    usage: "package import <project-id> <package-directory-or-zip> [--language <code>]",
+    build: ([project_id, path], v, cwd) => ({
+      operation: "package.import",
+      input: defined({ project_id, path: path && resolve(cwd, path), language: list(v.language)?.[0] }),
+    }),
+  },
+  "package list": {
+    usage: "package list <project-id>",
+    build: ([project_id]) => ({ operation: "package.list", input: defined({ project_id }) }),
+  },
+  "package show": {
+    usage: "package show <project-id> <package-id> <version>",
+    build: ([project_id, package_id, version]) => ({
+      operation: "package.show",
+      input: defined({ project_id, package_id, version: version === undefined ? undefined : Number(version) }),
+    }),
+  },
   start: {
     usage: "start <project-name> <repository-path> [--language <code>]...",
     build: ([name, root], v, cwd) => ({

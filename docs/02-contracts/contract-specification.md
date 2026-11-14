@@ -273,7 +273,7 @@ Observed access outcomes per credential role are recorded as `runtime_observed` 
 
 The catalog (code, severity, English and Indonesian title and remediation) is `ERROR_CATALOG` in `packages/contract`; `toErrorObject()` renders a catalog entry as an `error` document. `CONTRACT_SCHEMA_INVALID` reports a single document that fails its schema outside a package import.
 
-Package import codes: PRD §13.10, plus `PKG_CLAIM_EXCEEDS_EVIDENCE`. QA and execution codes:
+Package import codes: PRD §13.10, plus `PKG_CLAIM_EXCEEDS_EVIDENCE`, and the importer's refusals of hostile input (threat T-13): `PKG_PATH_UNSAFE` (an entry path or link that would leave the package: absolute, drive letter, `..`, backslash, duplicate or case-colliding name, symbolic link) and `PKG_TOO_LARGE` (file count, file size or total size over the import limits, checked before and while decompressing). An archive that is corrupt, encrypted, ZIP64 or uses a compression method other than stored or deflate is unreadable: `PKG_NOT_FOUND`. QA and execution codes:
 - `SCN_OBJECTIVE_INCONSISTENT`, `SCN_NOT_AUTOMATABLE`, `SCN_ORACLE_INCONSISTENT`, `SCN_BASIS_INVALID`;
 - `APPROVAL_REQUIRED`, `APPROVAL_MISMATCH`;
 - `SCOPE_DENIED`, `PRODUCTION_REFUSED`, `SUBMISSION_REQUIRES_APPROVAL`;
@@ -288,7 +288,7 @@ Error object: `{code, severity ∈ {error, warning, info}, message (lang-tagged)
 
 | Code | Detected by |
 |---|---|
-| `PKG_NOT_FOUND` | Package importer (IMP-201) |
+| `PKG_NOT_FOUND`, `PKG_PATH_UNSAFE`, `PKG_TOO_LARGE` | Package importer (IMP-201) |
 | `PKG_REVISION_MISMATCH`, `PKG_REVISION_UNVERIFIABLE` | Readiness and freshness (IMP-202) |
 | `PKG_LANGUAGE_UNAVAILABLE` | Language selection (IMP-201, IMP-116) |
 | `SCOPE_DENIED` | Scope-enforcing proxy (IMP-401) |
