@@ -79,7 +79,7 @@ const keyOf = (id: string) =>
     .toLowerCase();
 
 /** The package's revision as a baseline: the repository revision, or the observation window of a runtime package. */
-function baselineRevision(manifest: Record<string, unknown>): Record<string, unknown> {
+export function baselineRevision(manifest: Record<string, unknown>): Record<string, unknown> {
   const repository = manifest.repository as { revision?: Record<string, unknown> } | null;
   if (repository?.revision) return repository.revision;
   const [env] = (manifest.observed_environments as Array<Record<string, string>>) ?? [];

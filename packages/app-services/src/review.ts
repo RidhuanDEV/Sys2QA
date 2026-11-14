@@ -16,6 +16,7 @@ interface VersionRow {
   scenario_id: string;
   version: number;
   status: string;
+  freshness: string;
   doc_json: string;
   project_id: string;
   latest_version: number;
@@ -24,7 +25,7 @@ interface VersionRow {
 function load(host: Host, scenarioId: string, version?: number): VersionRow & { doc: Scenario } {
   const row = host.state.db
     .prepare(
-      `SELECT v.scenario_id, v.version, v.status, v.doc_json, s.project_id, s.latest_version FROM scenario_versions v
+      `SELECT v.scenario_id, v.version, v.status, v.freshness, v.doc_json, s.project_id, s.latest_version FROM scenario_versions v
        JOIN scenarios s ON s.scenario_id = v.scenario_id WHERE v.scenario_id = ? AND v.version = COALESCE(?, s.latest_version)`,
     )
     .get(scenarioId, version ?? null) as VersionRow | undefined;
@@ -665,7 +666,12 @@ const executionCheck = defineOperation<
     const approval = approvalRow
       ? { ...(JSON.parse(approvalRow.binding_json) as object), state: approvalRow.state }
       : undefined;
-    const scenario = { ...row.doc, status: row.status } as unknown as ExecutionRequest["scenario"];
+    // The stored status and freshness are authoritative: staleness changes them without touching an approved document.
+    const scenario = {
+      ...row.doc,
+      status: row.status,
+      freshness: row.freshness,
+    } as unknown as ExecutionRequest["scenario"];
     const latestNote =
       row.version !== row.latest_version
         ? [{ code: "APPROVAL_REQUIRED", message: `version ${row.version} is not the latest (${row.latest_version})` }]

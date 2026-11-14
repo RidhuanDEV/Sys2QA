@@ -83,7 +83,7 @@ export function scheduleLabel(expression: string): string {
  */
 export function traceComponents(
   facts: StructuralFacts,
-  derived: { entities: Entity[]; relationships: Relationship[] },
+  derived: { entities: Entity[]; relationships: Relationship[]; gaps?: Gap[] },
   options: TraceOptions = {},
 ): TraceLinks {
   const maxDepth = options.maxDepth ?? 12;
@@ -323,7 +323,8 @@ export function traceComponents(
       entry_point_id: entryId,
       relationship_ids: [...ids].sort(),
       stopped_at: [...stops.values()],
-      status: "source_verified",
+      // A trace without a single traced hop verifies nothing beyond its entry point (CR-001).
+      status: ids.size > 0 ? "source_verified" : "unresolved",
     };
   };
 
@@ -416,7 +417,15 @@ export function traceComponents(
     const conditional = p.condition_gap_id
       ? [{ entity_id: page.id, reason_code: "config_unavailable" as const, gap_id: p.condition_gap_id }]
       : [];
-    out.component_traces.push(trace(page.id, start, ids, "client", conditional));
+    // Requests of the page or its forms that no analyzed route answers stop the trace there.
+    const unanswered = (derived.gaps ?? [])
+      .filter((g) => g.id.startsWith("gap:endpoint:"))
+      .flatMap((g) =>
+        (g.related_entity_ids ?? [])
+          .filter((id) => id === page.id || forms.has(id))
+          .map((id) => ({ entity_id: id, reason_code: "missing_repository" as const, gap_id: g.id })),
+      );
+    out.component_traces.push(trace(page.id, start, ids, "client", [...conditional, ...unanswered]));
   }
   // A topic published here with no consumer in the analyzed scope.
   for (const topic of [...topics.values()].filter((t) => t.subscribers === 0))

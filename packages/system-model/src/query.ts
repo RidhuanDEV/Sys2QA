@@ -100,6 +100,10 @@ export class PackageQuery {
   entity(id: string): Entity | undefined {
     return this.entities.get(id);
   }
+  /** Every entity, in ID order. */
+  allEntities(): Entity[] {
+    return [...this.entities.values()].sort((a, b) => a.id.localeCompare(b.id));
+  }
   byKind(kind: string): Entity[] {
     return [...this.entities.values()].filter((e) => e.kind === kind).sort((a, b) => a.id.localeCompare(b.id));
   }

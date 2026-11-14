@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -444,6 +444,26 @@ describe("component traces [@req SAA-FR-009] [@req SAA-FR-041]", () => {
     expect(scheduleLabel("*/5 * * * *")).toBe("scheduled");
     expect(scheduleLabel("0 0 2 * * *")).toBe("nightly");
   });
+});
+
+describe("unanswered requests [@req SAA-FR-009] [@req SAA-FR-043]", () => {
+  it("records a page request no analyzed route answers as a gap and a stop, and never verifies an empty trace", async () => {
+    const copy = join(base, "moved-endpoint");
+    cpSync(F1, copy, { recursive: true });
+    const admin = join(copy, "src", "server", "routes", "admin.ts");
+    writeFileSync(admin, readFileSync(admin, "utf8").replace('"/api/admin/users"', '"/api/admin/accounts"'));
+    const result = await analyze(copy);
+    const gap = result.gaps.find((g) => g.id === "gap:endpoint:GET:/api/admin/users")!;
+    expect(gap).toMatchObject({ type: "missing_evidence", related_entity_ids: ["page:web:/admin/users"] });
+    const trace = result.component_traces.find((t) => t.id === "trace:page:web:/admin/users")!;
+    expect(trace.stopped_at).toContainEqual({
+      entity_id: "page:web:/admin/users",
+      reason_code: "missing_repository",
+      gap_id: gap.id,
+    });
+    for (const t of result.component_traces)
+      if (t.relationship_ids.length === 0) expect(t.status, t.id).toBe("unresolved");
+  }, 60_000);
 });
 
 describe("workflow catalog [@req SAA-FR-040] [@req SAA-FR-046]", () => {

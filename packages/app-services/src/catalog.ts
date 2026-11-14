@@ -22,6 +22,7 @@ import { PLAN_OPERATIONS } from "./plans.js";
 import { READINESS_OPERATIONS } from "./readiness.js";
 import { REVIEW_OPERATIONS } from "./review.js";
 import { SCENARIO_OPERATIONS } from "./scenarios.js";
+import { STALENESS_OPERATIONS, suspendForScopeChange } from "./staleness.js";
 import { SAA_OPERATIONS } from "./saa.js";
 import { serviceError } from "./errors.js";
 import { defineOperation, type Operation } from "./operations.js";
@@ -262,8 +263,8 @@ const projectConfigureEnvironment = defineOperation<
       local_owner_mode: { type: "boolean" },
     },
   },
-  run: ({ host, caller }, input) =>
-    host.projects.configureEnvironment(
+  run: ({ host, caller }, input) => {
+    const policy = host.projects.configureEnvironment(
       input.source_id,
       {
         baseUrl: input.base_url,
@@ -273,7 +274,14 @@ const projectConfigureEnvironment = defineOperation<
         ...(input.local_owner_mode !== undefined ? { localOwnerMode: input.local_owner_mode } : {}),
       },
       caller.actor,
-    ),
+    );
+    // A new scope policy version suspends approvals bound to an older one (PRD §13.11).
+    const source = host.projects.getEvidenceSource(input.source_id);
+    host.state.transaction(() =>
+      suspendForScopeChange(host, source.project_id, policy.environment_id, policy.version, caller.actor),
+    );
+    return policy;
+  },
 });
 
 const policyCheck = defineOperation<
@@ -596,5 +604,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   ...SCENARIO_OPERATIONS,
   ...CRITIQUE_OPERATIONS,
   ...REVIEW_OPERATIONS,
+  ...STALENESS_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;

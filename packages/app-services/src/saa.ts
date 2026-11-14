@@ -37,6 +37,7 @@ import {
 import { serviceError, ServiceError, SERVICE_ERRORS } from "./errors.js";
 import type { Host } from "./host.js";
 import { defineOperation } from "./operations.js";
+import { propagateNewPackage } from "./staleness.js";
 
 const ID = { type: "string", minLength: 3, maxLength: 300 } as const;
 const PATH = { type: "string", minLength: 1, maxLength: 4096 } as const;
@@ -483,10 +484,13 @@ const saaExport = defineOperation<{ run_id: string; output_dir?: string; allow_i
         { redactor: host.redactor, now: host.now },
       );
     });
+    // A new version of a package the project already designs from makes its scenarios stale (PRD §13.11).
+    const staleness = propagateNewPackage(host, project.id, packageId, (last?.v ?? 0) + 1, caller.actor);
     return {
       package_id: packageId,
       version: (last?.v ?? 0) + 1,
       path: result.path,
+      ...(staleness.scenarios.length > 0 ? { staleness } : {}),
       manifest_sha256: manifestSha,
       ...(result.warning ? { warning: result.warning } : {}),
       notes: result.issues.filter((i) => i.severity !== "error").map((i) => i.message),

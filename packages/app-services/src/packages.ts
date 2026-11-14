@@ -5,6 +5,7 @@ import { PackageImportError, prepareImport, storeImport, type PreparedImport } f
 import { serviceError, ServiceError, type ErrorKind } from "./errors.js";
 import type { Host } from "./host.js";
 import { defineOperation } from "./operations.js";
+import { propagateNewPackage } from "./staleness.js";
 
 const ID = { type: "string", minLength: 3, maxLength: 300 } as const;
 const PATH = { type: "string", minLength: 1, maxLength: 4096 } as const;
@@ -166,9 +167,14 @@ const packageImport = defineOperation<{ project_id: string; path: string; langua
         source_kind: prepared.source.kind,
       });
     });
+    // A newer version of a package the project already designs from makes its scenarios stale (PRD §13.11).
+    const staleness = !existing
+      ? propagateNewPackage(host, project.id, provenance.package_id, provenance.package_version, caller.actor)
+      : undefined;
     return {
       status: stored.status,
       import_id: stored.status === "imported" ? importId : null,
+      ...(staleness && staleness.scenarios.length > 0 ? { staleness } : {}),
       package: {
         package_id: provenance.package_id,
         version: provenance.package_version,

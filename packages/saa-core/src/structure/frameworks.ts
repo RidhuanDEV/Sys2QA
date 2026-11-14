@@ -402,6 +402,22 @@ export function linkFrameworks(facts: StructuralFacts, boundaries: ReadonlyArray
         return (method === request.method || method === "ANY" || method === "ALL") && matchesPattern(pattern!, path);
       });
       if (endpoint) relate("CONSUMES", page.id, endpoint, [request.evidence]);
+      // A same-origin request no analyzed route answers is a gap, as for forms; it is never dropped silently.
+      else if (request.url.startsWith("/")) {
+        const gapId = `gap:endpoint:${request.method}:${path}`;
+        if (!out.gaps.some((g) => g.id === gapId))
+          out.gaps.push({
+            id: gapId,
+            type: "missing_evidence",
+            description: `${page.path} requests ${request.method} ${request.url}, which no analyzed route defines.`,
+            impact:
+              "The workflow stops at the request; the server side is outside the analyzed code or registered dynamically.",
+            evidence_ids: [request.evidence],
+            related_entity_ids: [page.id],
+            requires_human_clarification: false,
+            status: "unresolved",
+          });
+      }
     }
     for (const nav of component.navigations) {
       const to = `page:${page.ns}:${normalizeRoutePath(nav.to)}`;

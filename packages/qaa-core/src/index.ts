@@ -7,3 +7,4 @@ export * from "./conditions/conditions.js";
 export * from "./scenarios/generator.js";
 export * from "./scenarios/messages.js";
 export * from "./scenarios/critic.js";
+export * from "./staleness/staleness.js";

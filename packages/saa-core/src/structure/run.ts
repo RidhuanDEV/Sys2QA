@@ -214,6 +214,7 @@ export async function analyzeStructure(options: StructureOptions): Promise<Struc
   const traces = traceComponents(facts, {
     entities: [...frameworks.entities, ...data.entities],
     relationships: frameworks.relationships,
+    gaps: frameworks.gaps,
   });
   const rules = linkRules(
     facts,
