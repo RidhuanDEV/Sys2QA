@@ -19,7 +19,11 @@ export interface CoverageReport {
     designed: Ratio;
     approved: Ratio;
     uncovered: string[];
-    branches: { designed: Ratio; approved: Ratio; uncovered: Array<{ workflow_id: string; branch: number; condition: string }> };
+    branches: {
+      designed: Ratio;
+      approved: Ratio;
+      uncovered: Array<{ workflow_id: string; branch: number; condition: string }>;
+    };
     /** What the plan leaves out of QA scope (catalog workflows and excluded boundaries): listed, never dropped. */
     outside_scope: string[];
   };
@@ -32,7 +36,12 @@ export interface CoverageReport {
   role_permissions: {
     designed: Ratio;
     approved: Ratio;
-    pairs: Array<{ role: string; step: string; allowed: { designed: boolean; approved: boolean }; denied: { designed: boolean; approved: boolean } }>;
+    pairs: Array<{
+      role: string;
+      step: string;
+      allowed: { designed: boolean; approved: boolean };
+      denied: { designed: boolean; approved: boolean };
+    }>;
     uncovered: Array<{ role: string; step: string }>;
   };
   pages: { designed: Ratio; approved: Ratio; uncovered: string[] };
@@ -65,25 +74,39 @@ export function computeCoverage(input: {
   // Scenario IDs end in the condition item they test, cleaned as the generator cleans it.
   const endsWithItem = (s: Scenario, item: string) =>
     s.scenario_id.endsWith(`.${item.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "")}`);
-  const withCondition = (list: Scenario[], condition: string) => list.filter((s) => s.test_condition_ids.includes(condition));
+  const withCondition = (list: Scenario[], condition: string) =>
+    list.filter((s) => s.test_condition_ids.includes(condition));
 
   // Workflows and branches.
   const wfDesigned = inScope.filter((w) => live.some((s) => s.feature_ref === w.id));
   const wfApproved = inScope.filter((w) => approved.some((s) => s.feature_ref === w.id));
   const journeyOf = new Map(
-    input.conditions.filter((c) => c.condition_id.endsWith("_journey")).flatMap((c) => c.workflow_ids.map((w) => [w, c.condition_id] as const)),
+    input.conditions
+      .filter((c) => c.condition_id.endsWith("_journey"))
+      .flatMap((c) => c.workflow_ids.map((w) => [w, c.condition_id] as const)),
   );
-  const branches = inScope.flatMap((w) => w.branches.map((b, i) => ({ workflow_id: w.id, branch: i + 1, condition: b.condition, journey: journeyOf.get(w.id) })));
+  const branches = inScope.flatMap((w) =>
+    w.branches.map((b, i) => ({
+      workflow_id: w.id,
+      branch: i + 1,
+      condition: b.condition,
+      journey: journeyOf.get(w.id),
+    })),
+  );
   const branchCovered = (list: Scenario[], b: (typeof branches)[number]) =>
     b.journey !== undefined && withCondition(list, b.journey).some((s) => endsWithItem(s, `branch-${b.branch}`));
 
   // Rules and their techniques.
-  const rules = rulesOnPath(model, inScope.flatMap((w) => [...w.entry_point_ids, ...w.steps.map((s) => s.entity_id)]));
+  const rules = rulesOnPath(
+    model,
+    inScope.flatMap((w) => [...w.entry_point_ids, ...w.steps.map((s) => s.entity_id)]),
+  );
   const perRule = rules.map((rule) => {
     const condition = input.conditions.find((c) => c.condition_id === `tc:${rule.replace(/^business_rule:/, "")}`);
     const techniques: Record<string, { designed: boolean; approved: boolean }> = {};
     for (const t of condition?.techniques ?? []) {
-      const uses = (list: Scenario[]) => withCondition(list, condition!.condition_id).some((s) => s.test_techniques.some((x) => x.id === t.id));
+      const uses = (list: Scenario[]) =>
+        withCondition(list, condition!.condition_id).some((s) => s.test_techniques.some((x) => x.id === t.id));
       techniques[t.id] = { designed: uses(live), approved: uses(approved) };
     }
     return { rule_id: rule, techniques };
@@ -100,7 +123,9 @@ export function computeCoverage(input: {
         const key = `${r.to}\0${step}`;
         if (seenPairs.has(key)) continue;
         seenPairs.add(key);
-        const condition = input.conditions.find((c) => c.condition_id.endsWith("_access") && c.basis_refs.some((b) => b.ref === step));
+        const condition = input.conditions.find(
+          (c) => c.condition_id.endsWith("_access") && c.basis_refs.some((b) => b.ref === step),
+        );
         const cases = (list: Scenario[], kind: "allowed" | "denied") =>
           condition !== undefined &&
           withCondition(list, condition.condition_id).some((s) =>
@@ -115,13 +140,20 @@ export function computeCoverage(input: {
           denied: { designed: cases(live, "denied"), approved: cases(approved, "denied") },
         });
       }
-  const pairCovered = (p: (typeof pairs)[number], level: "designed" | "approved") => p.allowed[level] && p.denied[level];
+  const pairCovered = (p: (typeof pairs)[number], level: "designed" | "approved") =>
+    p.allowed[level] && p.denied[level];
 
   // Documented pages on in-scope workflows.
   const pages = [
-    ...new Set(inScope.flatMap((w) => [...w.entry_point_ids, ...w.steps.map((s) => s.entity_id)]).filter((id) => model.entity(id)?.kind === "page")),
+    ...new Set(
+      inScope
+        .flatMap((w) => [...w.entry_point_ids, ...w.steps.map((s) => s.entity_id)])
+        .filter((id) => model.entity(id)?.kind === "page"),
+    ),
   ].sort();
-  const pathOf = new Map(inScope.map((w) => [w.id, new Set([...w.entry_point_ids, ...w.steps.map((s) => s.entity_id)])]));
+  const pathOf = new Map(
+    inScope.map((w) => [w.id, new Set([...w.entry_point_ids, ...w.steps.map((s) => s.entity_id)])]),
+  );
   const pageCovered = (list: Scenario[], page: string) => list.some((s) => pathOf.get(s.feature_ref)?.has(page));
 
   const executed = input.executed ?? new Set<string>();
@@ -134,7 +166,9 @@ export function computeCoverage(input: {
       branches: {
         designed: ratio(branches.filter((b) => branchCovered(live, b)).length, branches.length),
         approved: ratio(branches.filter((b) => branchCovered(approved, b)).length, branches.length),
-        uncovered: branches.filter((b) => !branchCovered(approved, b)).map(({ workflow_id, branch, condition }) => ({ workflow_id, branch, condition })),
+        uncovered: branches
+          .filter((b) => !branchCovered(approved, b))
+          .map(({ workflow_id, branch, condition }) => ({ workflow_id, branch, condition })),
       },
       outside_scope: [
         ...new Set([
@@ -166,7 +200,8 @@ export function computeCoverage(input: {
     execution: {
       executed: approved.filter((s) => executed.has(s.scenario_id)).length,
       of: approved.length,
-      ratio: approved.length === 0 ? null : approved.filter((s) => executed.has(s.scenario_id)).length / approved.length,
+      ratio:
+        approved.length === 0 ? null : approved.filter((s) => executed.has(s.scenario_id)).length / approved.length,
       note: "Approved scenarios of this plan executed in a recorded run (manual or automated) / approved scenarios.",
     },
   };
