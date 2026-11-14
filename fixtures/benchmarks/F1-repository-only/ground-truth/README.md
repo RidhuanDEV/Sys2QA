@@ -30,7 +30,7 @@ Each records an honesty trap: email delivery, the never-mounted legacy export (d
 
 ## Scenarios (`scenarios-expected.json`)
 
-Minimum justified scenarios: boundaries of NIB length, password length and order amount; order status transitions; admin access by role; invalid login. Forbidden: requirement-conformance objectives (no requirement documents exist) and an `observed` basis (F1 is not run in Mode A).
+Minimum justified scenarios: boundaries of NIB length, password length and order amount; order status transitions; admin access by role; invalid login. Forbidden: requirement-conformance objectives (no requirement documents exist) and an `observed` basis (F1 is not run in Mode A). Condition IDs follow the test-condition scheme of the Data Model (§3, IMP-204): `tc:<rule local ID>`, `tc:<state machine local ID>_transitions`, `tc:<guarded API key>_access` and `tc:<API key>.<error message>`; the admin and login conditions were renamed to it (`tc:admin.users_access`, `tc:auth.login.invalid_credentials`).
 
 ## Also present on purpose
 

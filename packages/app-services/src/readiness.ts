@@ -27,7 +27,7 @@ interface PackageRow {
   manifest_sha256: string;
 }
 
-function packageRow(host: Host, projectId: string, packageId: string, version: number): PackageRow {
+export function packageRow(host: Host, projectId: string, packageId: string, version: number): PackageRow {
   const row = host.state.db
     .prepare("SELECT * FROM packages WHERE project_id = ? AND package_id = ? AND version = ?")
     .get(projectId, packageId, version) as PackageRow | undefined;
@@ -36,7 +36,7 @@ function packageRow(host: Host, projectId: string, packageId: string, version: n
 }
 
 /** Revalidates a stored package; a package changed after it was stored is never assessed. */
-function revalidated(row: PackageRow): PreparedImport {
+export function revalidated(row: PackageRow): PreparedImport {
   let prepared: PreparedImport;
   try {
     prepared = prepareImport(row.path);

@@ -221,6 +221,17 @@ const COMMANDS: Record<string, Command> = {
       }),
     }),
   },
+  "conditions derive": {
+    usage: "conditions derive <plan-id>",
+    build: ([plan_id]) => ({ operation: "conditions.derive", input: defined({ plan_id }) }),
+  },
+  "conditions list": {
+    usage: "conditions list <plan-id> [--technique <technique>]",
+    build: ([plan_id], v) => ({
+      operation: "conditions.list",
+      input: defined({ plan_id, technique: str(v.technique) }),
+    }),
+  },
   readiness: {
     usage: "readiness <project-id> <package-id> <version> [--workflow <workflow-id>]...",
     build: ([project_id, package_id, version], v) => ({
@@ -352,6 +363,7 @@ const OPTIONS = {
   likelihood: { type: "string" },
   exposure: { type: "string", multiple: true },
   rationale: { type: "string" },
+  technique: { type: "string" },
 } as const;
 
 function safeUser(): string {

@@ -22,12 +22,12 @@
     },
     {
       "key": "admin-access",
-      "condition": "tc:admin.user_list_access",
+      "condition": "tc:admin.users_access",
       "technique": "role_matrix"
     },
     {
       "key": "login-invalid",
-      "condition": "tc:login.invalid_credentials",
+      "condition": "tc:auth.login.invalid_credentials",
       "technique": "negative"
     }
   ],

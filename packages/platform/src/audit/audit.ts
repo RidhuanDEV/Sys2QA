@@ -28,6 +28,7 @@ export const AUDIT_ACTIONS = [
   "materiality.overridden",
   "plan.created",
   "plan.risk_changed",
+  "conditions.derived",
   "data.deleted",
   "settings.changed",
 ] as const;
