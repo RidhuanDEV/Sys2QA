@@ -37,6 +37,31 @@ function call(
   });
 }
 
+/** Sends only the headers of a POST with the given Content-Length and returns the status of the early answer. */
+function headersOnly(
+  server: ApiServer,
+  path: string,
+  headers: Record<string, string>,
+  length: number,
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const req = request({
+      host: "127.0.0.1",
+      port: server.port,
+      path,
+      method: "POST",
+      headers: { ...headers, "content-length": String(length) },
+    });
+    req.on("response", (res) => {
+      resolve(res.statusCode ?? 0);
+      res.resume();
+      req.destroy();
+    });
+    req.on("error", (error) => reject(error));
+    req.flushHeaders();
+  });
+}
+
 describe("ST-12 local API hardening with the web UI served", () => {
   let home: string;
   let ui: string;
@@ -110,30 +135,27 @@ describe("ST-12 local API hardening with the web UI served", () => {
 
   it("limits bodies to 1 MB, except a manual-evidence upload, which may carry its 5 MB file", async () => {
     const api = { ...hostHeader, authorization: `Bearer ${server.token}`, "content-type": "application/json" };
-    const big = JSON.stringify({ content_base64: "A".repeat(2 * 1024 * 1024) });
-    const normal = await call(server, {
-      path: "/api/v1/operations/system.info",
-      method: "POST",
-      headers: api,
-      body: big,
-    });
-    expect(normal.status).toBe(413);
+    const twoMb = 2 * 1024 * 1024;
+    // A refusal comes before the body is read: only the headers are sent, so the closed connection races nothing.
+    expect(await headersOnly(server, "/api/v1/operations/system.info", api, twoMb)).toBe(413);
+    expect(
+      await headersOnly(
+        server,
+        "/api/v1/operations/runs.attach",
+        { ...hostHeader, "content-type": "application/json" },
+        twoMb,
+      ),
+    ).toBe(401);
+    // The upload route reads the whole body; the service then rejects the incomplete input.
+    const big = JSON.stringify({ content_base64: "A".repeat(twoMb) });
     const upload = await call(server, {
       path: "/api/v1/operations/runs.attach",
       method: "POST",
       headers: api,
       body: big,
     });
-    // Accepted by the transport; the service then rejects the incomplete input.
     expect(upload.status).toBe(400);
     expect(JSON.parse(upload.body)).toMatchObject({ ok: false, error: { code: "INPUT_INVALID" } });
-    const unauthenticated = await call(server, {
-      path: "/api/v1/operations/runs.attach",
-      method: "POST",
-      headers: { ...hostHeader, "content-type": "application/json" },
-      body: big,
-    });
-    expect(unauthenticated.status).toBe(401);
   });
 
   it("serves no UI file at all when no UI is configured", async () => {
