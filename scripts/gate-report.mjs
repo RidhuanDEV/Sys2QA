@@ -8,7 +8,7 @@
 // manual evidence. Exits 1 when an item or a requirement of the gate fails; pending manual evidence is reported, not
 // failed.
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -28,8 +28,8 @@ const { values } = parseArgs({
   options: { gate: { type: "string" }, results: { type: "string" }, out: { type: "string" } },
 });
 const gate = Number(values.gate);
-if (gate !== 1) {
-  console.error("Only --gate 1 has an acceptance suite so far.");
+if (!Number.isInteger(gate) || !existsSync(join(REPO, "tests", "acceptance", `gate-${gate}.test.ts`))) {
+  console.error(`Gate ${values.gate} has no acceptance suite (tests/acceptance/gate-<n>.test.ts).`);
   process.exit(2);
 }
 const date = new Date().toISOString().slice(0, 10);
@@ -61,11 +61,18 @@ const results = mergeResults(resultFiles.map((f) => JSON.parse(readFileSync(f, "
 const benchStatus = node(["--conditions=source", "--import", "tsx", join(REPO, "tests", "benchmark", "run.ts")]);
 const benchDir = join(REPO, "reports", "benchmarks");
 const bench = [];
+// One result per fixture and producer: saa (SAA alone), saa+qaa (SAA package → QAA scenarios), qaa (QAA package).
 for (const fixture of existsSync(benchDir) ? readdirSync(benchDir) : []) {
-  const file = join(benchDir, fixture, "saa.json");
-  if (!existsSync(file)) continue;
+  if (!statSync(join(benchDir, fixture)).isDirectory()) continue;
+  const results = readdirSync(join(benchDir, fixture)).filter((f) => /^(saa|saa\+qaa|qaa)\.json$/.test(f));
+  if (results.length === 0) continue;
   cpSync(join(benchDir, fixture), join(out, "benchmarks", fixture), { recursive: true });
-  bench.push({ fixture, ...JSON.parse(readFileSync(file, "utf8")) });
+  for (const f of results)
+    bench.push({
+      fixture,
+      producer: f.replace(/\.json$/, ""),
+      ...JSON.parse(readFileSync(join(benchDir, fixture, f), "utf8")),
+    });
 }
 
 // 3. Traceability over the same results.
@@ -141,8 +148,24 @@ const reviews = reviewed.map(({ fixture, readme }) => {
 const pendingReviews = reviews.filter((r) => r.pending);
 
 const benchFailures = bench.flatMap((b) =>
-  (b.metrics.gates ?? []).filter((g) => !g.passed).map((g) => `${b.fixture}: ${g.metric}`),
+  (b.metrics.gates ?? []).filter((g) => !g.passed).map((g) => `${b.fixture} (${b.producer}): ${g.metric}`),
 );
+// From Gate 2 on, the web UI's manual keyboard and readability review (NFR-009, Test Strategy §8) is also manual evidence.
+const accessibility = join(REPO, "docs", "05-quality", "web-ui-accessibility.md");
+const uiReview =
+  gate >= 2
+    ? {
+        pending:
+          !existsSync(accessibility) ||
+          /pending/i.test(
+            read("docs/05-quality/web-ui-accessibility.md").split("## Reviewer sign-off")[1] ?? "pending",
+          ),
+      }
+    : undefined;
+const manualPending = [
+  ...pendingReviews.map((r) => `ground-truth review of ${r.fixture}`),
+  ...(uiReview?.pending ? ["web UI keyboard and readability review (NFR-009)"] : []),
+];
 const skipped = (results.testResults ?? []).flatMap((f) =>
   f.assertionResults.filter((t) => t.status !== "passed" && t.status !== "failed"),
 );
@@ -155,7 +178,7 @@ const automatedPass =
   results.numFailedTests === 0;
 const verdict = !automatedPass
   ? "FAILED"
-  : pendingReviews.length > 0
+  : manualPending.length > 0
     ? "PASSED on automated evidence; manual evidence pending"
     : "PASSED";
 
@@ -177,7 +200,7 @@ const report = [
   `- Checklist items with passing acceptance tests: ${items.filter((i) => i.passed).length} of ${items.length}.`,
   `- Gate requirements: ${rows.length}; covered by a passing tagged test: ${rows.filter((r) => r.covered).length}; blockers: ${blockers.length}.`,
   `- Benchmark gate rules: ${benchFailures.length === 0 ? "all pass" : `failing: ${benchFailures.join(", ")}`}.`,
-  `- Manual evidence pending: ${pendingReviews.length === 0 ? "none" : pendingReviews.map((r) => `ground-truth review of ${r.fixture}`).join(", ")}.`,
+  `- Manual evidence pending: ${manualPending.length === 0 ? "none" : manualPending.join(", ")}.`,
   "",
   "## Checklist (PRD §29.1)",
   "",
@@ -193,11 +216,28 @@ const report = [
   "",
   "| Fixture | Recall | Precision | Step F1 | Branch recall | Stop points | True gaps | Honest misses | Over-claiming | Evidence traceability | Gate rules |",
   "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|---|",
-  ...bench.map((b) => {
-    const m = b.metrics;
-    return `| ${b.fixture} | ${pct(m.discovery.recall)} | ${pct(m.discovery.precision)} | ${pct(m.reconstruction.step_f1)} | ${pct(m.reconstruction.branch_recall)} | ${pct(m.reconstruction.stop_point_accuracy)} | ${pct(m.uncertainty.true_gap_ratio)} | ${pct(m.uncertainty.misses_in_unexplored_areas)} | ${m.over_claiming.count} | ${pct(m.evidence_traceability)} | ${(m.gates ?? []).every((g) => g.passed) ? "pass" : "FAIL"} |`;
-  }),
+  ...bench
+    .filter((b) => b.producer === "saa")
+    .map((b) => {
+      const m = b.metrics;
+      return `| ${b.fixture} | ${pct(m.discovery.recall)} | ${pct(m.discovery.precision)} | ${pct(m.reconstruction.step_f1)} | ${pct(m.reconstruction.branch_recall)} | ${pct(m.reconstruction.stop_point_accuracy)} | ${pct(m.uncertainty.true_gap_ratio)} | ${pct(m.uncertainty.misses_in_unexplored_areas)} | ${m.over_claiming.count} | ${pct(m.evidence_traceability)} | ${(m.gates ?? []).every((g) => g.passed) ? "pass" : "FAIL"} |`;
+    }),
   "",
+  ...(bench.some((b) => typeof b.metrics.scenarios?.forbidden_present === "number")
+    ? [
+        "## Benchmarks (QAA scenarios)",
+        "",
+        "| Fixture | Producer | Expected scenarios covered | Forbidden expectations present | Gate rules |",
+        "|---|---|--:|--:|---|",
+        ...bench
+          .filter((b) => typeof b.metrics.scenarios?.forbidden_present === "number")
+          .map(
+            (b) =>
+              `| ${b.fixture} | ${b.producer} | ${pct(b.metrics.scenarios.expected_covered)} | ${b.metrics.scenarios.forbidden_present} | ${(b.metrics.gates ?? []).every((g) => g.passed) ? "pass" : "FAIL"} |`,
+          ),
+        "",
+      ]
+    : []),
   "## Requirements of the gate (PRD §27.2, §27.4)",
   "",
   "A requirement whose acceptance criterion belongs to a later gate's backlog (Implementation Plan §4) is deferred there.",
@@ -222,6 +262,11 @@ const report = [
   ...reviews.map(
     (r) => `| Human review of the ${r.fixture} ground truth (IMP-013) | ${r.pending ? "pending" : "recorded"} |`,
   ),
+  ...(uiReview
+    ? [
+        `| Manual keyboard and readability review of the web UI (NFR-009, record in docs/05-quality/web-ui-accessibility.md) | ${uiReview.pending ? "pending" : "recorded"} |`,
+      ]
+    : []),
   "",
   "## Quarantined or skipped tests",
   "",

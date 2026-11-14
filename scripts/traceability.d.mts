@@ -39,7 +39,13 @@ export function parseContractRules(spec: string): Set<string>;
 export function parseGateOwnership(plan: string): Map<string, Gate>;
 export function scanTags(repoRoot: string, roots: string[]): Tag[];
 export function outcomesFromResults(results: unknown): Map<string, Outcome>;
-export function mergeResults(list: unknown[]): { numFailedTests: number; testResults: unknown[] };
+export function mergeResults(list: unknown[]): {
+  numPassedTests: number;
+  numFailedTests: number;
+  numTotalTests: number;
+  numTotalTestSuites: number;
+  testResults: unknown[];
+};
 export function buildReport(input: {
   requirements: Map<string, Requirement>;
   contractRules: Set<string>;

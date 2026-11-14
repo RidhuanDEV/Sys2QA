@@ -121,8 +121,12 @@ export function scanTags(repoRoot, roots) {
 
 /** Several Vitest JSON reports (the main suite and the browser end-to-end suite) as one. */
 export function mergeResults(list) {
+  const sum = (key) => list.reduce((n, r) => n + (r[key] ?? 0), 0);
   return {
-    numFailedTests: list.reduce((n, r) => n + (r.numFailedTests ?? 0), 0),
+    numPassedTests: sum("numPassedTests"),
+    numFailedTests: sum("numFailedTests"),
+    numTotalTests: sum("numTotalTests"),
+    numTotalTestSuites: sum("numTotalTestSuites"),
     testResults: list.flatMap((r) => r.testResults ?? []),
   };
 }
