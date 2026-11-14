@@ -112,7 +112,7 @@ afterAll(async () => {
   rmSync(work, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 });
 
-describe("manual runner in the web UI [@req QAA-FR-080] [@req QAA-FR-081] [@req QAA-FR-082] [@req QAA-FR-083] [@req QAA-FR-085] [@req QAA-FR-086] [@req NFR-009]", () => {
+describe("manual runner in the web UI [@req QAA-FR-084] [@req QAA-FR-080] [@req QAA-FR-081] [@req QAA-FR-082] [@req QAA-FR-083] [@req QAA-FR-085] [@req QAA-FR-086] [@req NFR-009]", () => {
   it("runs two approved F1 scenarios step by step with a failure, evidence, pause and resume, and submits them", async () => {
     const page = await browser.newPage();
     await page.goto(link);
@@ -154,6 +154,18 @@ describe("manual runner in the web UI [@req QAA-FR-080] [@req QAA-FR-081] [@req 
       }
       await page.getByRole("button", { name: "Record step" }).click();
       await expect.poll(() => status.textContent()).toMatch(/recorded as (Pass|Fail)\.$/);
+      if (failing) {
+        // The failed step stays open with its defect form (QAA-FR-084).
+        await page.getByLabel("Defect title (required)").fill("Admin user list does not load");
+        await page.getByLabel("Severity: impact on the system (required)").selectOption("major");
+        await page.getByLabel("Priority: urgency to fix (required)").selectOption("high");
+        await page.getByLabel("Suspected cause").selectOption("product_defect");
+        await page.getByRole("button", { name: "Create defect" }).click();
+        await expect.poll(() => status.textContent()).toBe("Defect created and linked to this step.");
+        await expect.poll(() => main.textContent()).toMatch(/Defects of TC-ADMIN-001: defect:/);
+        expect(await axe(page)).toEqual([]);
+        await page.getByRole("button", { name: "Next step" }).click();
+      }
       if (n === 3) {
         // Pause, reload the page: the run comes back paused with its progress, and resumes.
         await page.getByRole("button", { name: "Pause run" }).click();
@@ -187,6 +199,10 @@ describe("manual runner in the web UI [@req QAA-FR-080] [@req QAA-FR-081] [@req 
       ["passed", "tester"],
     ]);
     expect(docs[0]!.steps[2]!.evidence_refs?.[0]).toMatch(/^qevid:/);
+    const defects = host.state.db.prepare("SELECT doc_json FROM defects").all() as Array<{ doc_json: string }>;
+    expect(
+      defects.map((d) => (JSON.parse(d.doc_json) as { links: { run_id: string; step_id: string } }).links),
+    ).toEqual([expect.objectContaining({ run_id: runs[0]!.id, step_id: "S3" })]);
     await page.close();
   });
 

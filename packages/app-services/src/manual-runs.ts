@@ -6,6 +6,7 @@ import { appendAudit, canonicalJson, projectDirectory, type AuditAction } from "
 import type { Scenario } from "@sys2qa/qaa-core";
 import { serviceError, ServiceError } from "./errors.js";
 import type { Host } from "./host.js";
+import { defectIdsOf } from "./defects.js";
 import { defineOperation } from "./operations.js";
 import { BINDING_INPUT, checkExecution, type Binding } from "./review.js";
 
@@ -150,6 +151,7 @@ export function caseOutcome(statuses: StepStatus[]): CaseOutcome {
 /** The run as the contract states it (`run-result`, Contract Specification §6.3); manual results are tester-reported. */
 function runResult(host: Host, run: RunRow): Record<string, unknown> {
   const steps = latestSteps(host, run.id);
+  const defects = defectIdsOf(host, run.id);
   const finished = ["completed", "abandoned"].includes(run.state);
   return {
     schema_version: "1.0.0",
@@ -182,6 +184,7 @@ function runResult(host: Host, run: RunRow): Record<string, unknown> {
         outcome,
         reported_by: "tester",
         steps: results,
+        ...(defects.get(c.scenario_id)?.length ? { defect_ids: defects.get(c.scenario_id) } : {}),
         ...(run.state === "abandoned" && run.abandon_reason && finished ? { reason: run.abandon_reason } : {}),
       };
     }),
@@ -192,6 +195,7 @@ function runResult(host: Host, run: RunRow): Record<string, unknown> {
 function showRun(host: Host, run: RunRow, language?: string) {
   const steps = latestSteps(host, run.id);
   const attachments = attachmentsOf(host, run.id);
+  const defects = defectIdsOf(host, run.id);
   const cases = casesOf(host, run.id);
   let total = 0;
   let recorded = 0;
@@ -202,6 +206,7 @@ function showRun(host: Host, run: RunRow, language?: string) {
     return {
       // So far: from the steps recorded; final once the run is completed or abandoned.
       outcome: caseOutcome(statuses),
+      defect_ids: defects.get(c.scenario_id) ?? [],
       position: c.position,
       scenario_id: c.scenario_id,
       version: c.version,

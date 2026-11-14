@@ -105,6 +105,10 @@ export const SERVICE_ERRORS: Record<string, { kind: ErrorKind; remediation: stri
     remediation:
       "Record the listed steps and fields (the actual result of a failed step, the reason of a blocked one).",
   },
+  DEFECT_STEP_NOT_FAILED: {
+    kind: "conflict",
+    remediation: "Record the step as failed with its actual result, then create the defect from it.",
+  },
   ATTACHMENT_REFUSED: {
     kind: "invalid_input",
     remediation:

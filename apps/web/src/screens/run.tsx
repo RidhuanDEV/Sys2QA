@@ -12,6 +12,7 @@ interface RunStep {
 interface RunCase {
   scenario_id: string;
   outcome: string;
+  defect_ids: string[];
   version: number;
   display_key: string;
   title: string;
@@ -112,7 +113,8 @@ function Runner({ view, reload }: { view: RunView; reload: () => void }) {
     );
     if (done) {
       reload();
-      go(index + 1);
+      // A failed step stays open, so its defect can be created right away.
+      if (status !== "fail") go(index + 1);
     }
   }
   async function attach() {
@@ -297,6 +299,17 @@ function Runner({ view, reload }: { view: RunView; reload: () => void }) {
           </ul>
         ) : null}
         {action.error ? <ErrorBox error={action.error} /> : null}
+        {step.result?.status === "fail" ? (
+          <DefectForm runId={view.run.run_id} scenarioId={kase.scenario_id} stepId={step.step_id} onDone={reload} />
+        ) : null}
+        {kase.defect_ids.length > 0 ? (
+          <p>
+            Defects of {kase.display_key}:{" "}
+            {kase.defect_ids.map((d) => (
+              <code key={d}>{d} </code>
+            ))}
+          </p>
+        ) : null}
       </section>
 
       <section aria-labelledby="run-actions">
@@ -360,5 +373,80 @@ function Runner({ view, reload }: { view: RunView; reload: () => void }) {
         ) : null}
       </section>
     </Page>
+  );
+}
+
+/** Creates a defect from the failed step, pre-linked to the scenario version, run, step and evidence (QAA-FR-084). */
+function DefectForm(props: { runId: string; scenarioId: string; stepId: string; onDone: () => void }) {
+  const [title, setTitle] = useState("");
+  const [severity, setSeverity] = useState("");
+  const [priority, setPriority] = useState("");
+  const [suspected, setSuspected] = useState("unknown");
+  const action = useAction();
+  return (
+    <form
+      className="panel"
+      aria-labelledby="defect-heading"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void action
+          .run<{ defect: { defect_id: string } }>(
+            "defects.create",
+            {
+              run_id: props.runId,
+              scenario_id: props.scenarioId,
+              step_id: props.stepId,
+              title,
+              severity,
+              priority,
+              suspected_type: suspected,
+            },
+            "Defect created and linked to this step.",
+          )
+          .then((r) => {
+            if (r) {
+              setTitle("");
+              props.onDone();
+            }
+          });
+      }}
+    >
+      <h4 id="defect-heading">Create a defect from this failed step</h4>
+      <div className="field">
+        <label htmlFor="defect-title">Defect title (required)</label>
+        <input id="defect-title" type="text" value={title} required onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="defect-severity">Severity: impact on the system (required)</label>
+        <select id="defect-severity" value={severity} required onChange={(e) => setSeverity(e.target.value)}>
+          <option value="">Choose…</option>
+          <option value="critical">Critical</option>
+          <option value="major">Major</option>
+          <option value="minor">Minor</option>
+          <option value="trivial">Trivial</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="defect-priority">Priority: urgency to fix (required)</label>
+        <select id="defect-priority" value={priority} required onChange={(e) => setPriority(e.target.value)}>
+          <option value="">Choose…</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="defect-suspected">Suspected cause</label>
+        <select id="defect-suspected" value={suspected} onChange={(e) => setSuspected(e.target.value)}>
+          <option value="unknown">Unknown</option>
+          <option value="product_defect">Product defect</option>
+          <option value="test_defect">Test defect</option>
+        </select>
+      </div>
+      <button type="submit" disabled={action.busy || !title.trim() || !severity || !priority}>
+        Create defect
+      </button>
+      {action.error ? <ErrorBox error={action.error} /> : null}
+    </form>
   );
 }

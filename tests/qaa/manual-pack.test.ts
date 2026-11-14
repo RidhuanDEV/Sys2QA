@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppServices, openHost, type Host, type ServiceResult } from "../../packages/app-services/src/index.js";
 import { validateDocument } from "../../packages/contract/src/index.js";
 import { bundleSaaAdapters } from "../benchmark/harness/index.js";
@@ -29,6 +29,9 @@ interface Template {
     steps: Array<{ step_id: string; status: string; expected?: string; actual?: string; notes?: string }>;
   }>;
 }
+
+// Each test runs whole flows (import, plan, generation, approval, runs); slow CI machines need more than 5 s.
+vi.setConfig({ testTimeout: 60_000 });
 
 const work = mkdtempSync(join(tmpdir(), "sys2qa-pack-"));
 const repo = join(work, "acme-portal");

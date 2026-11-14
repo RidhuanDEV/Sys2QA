@@ -450,6 +450,57 @@ const COMMANDS: Record<string, Command> = {
     usage: "pack list <project-id>",
     build: ([project_id]) => ({ operation: "packs.list", input: defined({ project_id }) }),
   },
+  "defect create": {
+    usage:
+      "defect create <run-id> <scenario-id> <step-id> --title <text> --severity <critical|major|minor|trivial> --priority <high|medium|low> [--description <text>] [--suspected <product_defect|test_defect|unknown>]",
+    build: ([run_id, scenario_id, step_id], v) => ({
+      operation: "defects.create",
+      input: defined({
+        run_id,
+        scenario_id,
+        step_id,
+        title: str(v.title),
+        description: str(v.description),
+        severity: str(v.severity),
+        priority: str(v.priority),
+        suspected_type: str(v.suspected),
+      }),
+    }),
+  },
+  "defect move": {
+    usage: "defect move <defect-id> <state> [--reason <text>] [--duplicate-of <defect-id>] [--retest-run <run-id>]",
+    build: ([defect_id, to], v) => ({
+      operation: "defects.transition",
+      input: defined({
+        defect_id,
+        to,
+        reason: str(v.reason),
+        duplicate_of: str(v["duplicate-of"]),
+        retest_run_id: str(v["retest-run"]),
+      }),
+    }),
+  },
+  "defect update": {
+    usage: "defect update <defect-id> --reason <text> [--severity <s>] [--priority <p>] [--suspected <type>]",
+    build: ([defect_id], v) => ({
+      operation: "defects.update",
+      input: defined({
+        defect_id,
+        severity: str(v.severity),
+        priority: str(v.priority),
+        suspected_type: str(v.suspected),
+        reason: str(v.reason),
+      }),
+    }),
+  },
+  "defect show": {
+    usage: "defect show <defect-id>",
+    build: ([defect_id]) => ({ operation: "defects.show", input: defined({ defect_id }) }),
+  },
+  "defect list": {
+    usage: "defect list <project-id> [--state <state>]",
+    build: ([project_id], v) => ({ operation: "defects.list", input: defined({ project_id, state: str(v.state) }) }),
+  },
   coverage: {
     usage: "coverage <plan-id>",
     build: ([plan_id]) => ({ operation: "coverage.report", input: defined({ plan_id }) }),
@@ -599,6 +650,14 @@ const OPTIONS = {
   notes: { type: "string" },
   evidence: { type: "string", multiple: true },
   "env-version": { type: "string" },
+  title: { type: "string" },
+  description: { type: "string" },
+  severity: { type: "string" },
+  priority: { type: "string" },
+  suspected: { type: "string" },
+  "duplicate-of": { type: "string" },
+  "retest-run": { type: "string" },
+  state: { type: "string" },
   status: { type: "string" },
   version: { type: "string" },
 } as const;
