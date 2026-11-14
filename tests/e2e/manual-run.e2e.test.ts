@@ -206,7 +206,7 @@ describe("manual runner in the web UI [@req QAA-FR-084] [@req QAA-FR-080] [@req 
     await page.close();
   });
 
-  it("exports a manual test pack from the plan and imports its filled-in results on the project page [@req QAA-FR-112]", async () => {
+  it("exports a manual test pack from the plan, imports its filled-in results and writes the report on the project page [@req QAA-FR-112] [@req QAA-FR-090]", async () => {
     const page = await browser.newPage();
     await page.goto(link);
     await page.goto(`${server.url}/#/plan/${encodeURIComponent(planId)}`);
@@ -238,6 +238,13 @@ describe("manual runner in the web UI [@req QAA-FR-084] [@req QAA-FR-080] [@req 
       .poll(() => page.getByRole("status").textContent())
       .toBe("Manual test pack results imported as tester-reported.");
     await expect.poll(() => page.getByRole("heading", { name: "Manual runs" }).isVisible()).toBe(true);
+    // The QA report, in Indonesian, from the project page (QAA-FR-090).
+    await page.getByLabel("Report language").selectOption("id");
+    await page.getByRole("button", { name: "Generate the QA report" }).click();
+    await expect.poll(() => page.getByRole("status").textContent()).toBe("QA report written.");
+    const reportDir = /Written to (\S+) \(/.exec((await page.getByRole("note").last().textContent()) ?? "")![1]!;
+    expect(readFileSync(joinPath(reportDir, "report.md"), "utf8").startsWith("# Laporan QA")).toBe(true);
+    await page.getByRole("table", { name: "Scenario counts" }).waitFor();
     expect(await axe(page)).toEqual([]);
     await page.close();
   });

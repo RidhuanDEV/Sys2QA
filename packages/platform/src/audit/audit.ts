@@ -49,6 +49,7 @@ export const AUDIT_ACTIONS = [
   "defect.created",
   "defect.updated",
   "defect.transitioned",
+  "report.generated",
   "data.deleted",
   "settings.changed",
 ] as const;

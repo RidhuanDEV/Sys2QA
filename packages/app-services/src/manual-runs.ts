@@ -863,3 +863,8 @@ export const MANUAL_RUN_OPERATIONS = [
   runsSubmit,
   runsResult,
 ];
+
+/** The `run-result` document of a manual run (for reports and exports). */
+export function manualRunResult(host: Host, runId: string): Record<string, unknown> {
+  return runResult(host, runRow(host, runId));
+}

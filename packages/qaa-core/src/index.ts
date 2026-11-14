@@ -10,3 +10,4 @@ export * from "./scenarios/critic.js";
 export * from "./staleness/staleness.js";
 export * from "./measure/coverage.js";
 export * from "./packs/pack.js";
+export * from "./reports/report.js";

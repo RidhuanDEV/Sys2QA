@@ -20,6 +20,7 @@ import { COVERAGE_OPERATIONS } from "./coverage.js";
 import { MANUAL_RUN_OPERATIONS } from "./manual-runs.js";
 import { PACK_OPERATIONS } from "./packs.js";
 import { DEFECT_OPERATIONS } from "./defects.js";
+import { REPORT_OPERATIONS } from "./reports.js";
 import { CRITIQUE_OPERATIONS } from "./critique.js";
 import { PACKAGE_OPERATIONS } from "./packages.js";
 import { PLAN_OPERATIONS } from "./plans.js";
@@ -617,5 +618,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   ...MANUAL_RUN_OPERATIONS,
   ...PACK_OPERATIONS,
   ...DEFECT_OPERATIONS,
+  ...REPORT_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ErrorBox, href, Loaded, Page, Status, useAction, useLoad } from "../ui";
 
 interface ProjectDetail {
@@ -115,6 +115,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
             </Loaded>
           </section>
           <ImportPackResults projectId={projectId} onDone={runs.reload} />
+          <GenerateReport projectId={projectId} />
           <section aria-labelledby="runs">
             <h2 id="runs">Manual runs</h2>
             <Loaded result={runs.result} what="manual runs">
@@ -176,6 +177,59 @@ function ImportPackResults(props: { projectId: string; onDone: () => void }) {
       <button type="button" disabled={action.busy} onClick={() => void upload()}>
         Import results
       </button>
+      {action.error ? <ErrorBox error={action.error} /> : null}
+    </section>
+  );
+}
+
+/** Writes the QA report (JSON and Markdown) in the chosen language (QAA-FR-090–093). */
+function GenerateReport(props: { projectId: string }) {
+  const [language, setLanguage] = useState("en");
+  const [done, setDone] = useState<{ path: string; summary: Record<string, number> } | null>(null);
+  const action = useAction();
+  return (
+    <section aria-labelledby="report">
+      <h2 id="report">QA report</h2>
+      <div className="field">
+        <label htmlFor="report-language">Report language</label>
+        <select id="report-language" value={language} onChange={(e) => setLanguage(e.target.value)}>
+          <option value="en">English</option>
+          <option value="id">Bahasa Indonesia</option>
+        </select>
+      </div>
+      <button
+        type="button"
+        disabled={action.busy}
+        onClick={() =>
+          void action
+            .run<{ path: string; summary: Record<string, number> }>(
+              "reports.generate",
+              { project_id: props.projectId, language },
+              "QA report written.",
+            )
+            .then((r) => setDone(r ?? null))
+        }
+      >
+        Generate the QA report
+      </button>
+      {done ? (
+        <>
+          <p role="note">
+            Written to <code>{done.path}</code> (report.json, report.md).
+          </p>
+          <table>
+            <caption>Scenario counts</caption>
+            <tbody>
+              {Object.entries(done.summary).map(([k, n]) => (
+                <tr key={k}>
+                  <th scope="row">{k.replaceAll("_", " ")}</th>
+                  <td>{n}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : null}
       {action.error ? <ErrorBox error={action.error} /> : null}
     </section>
   );

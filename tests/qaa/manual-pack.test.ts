@@ -235,6 +235,18 @@ describe("importing pack results [@req QAA-FR-112] [@req QAA-FR-086]", () => {
       project_id: modeA.projectId,
     });
     expect(packs.packs.find((p) => p.pack_id === pack.pack_id)?.imported_at).toBeTruthy();
+    // The imported results appear in the QA report, tester-reported, with the declared environment.
+    const report = await call<{ path: string }>("reports.generate", { project_id: modeA.projectId });
+    const json = JSON.parse(readFileSync(join(report.path, "report.json"), "utf8")) as {
+      results: Array<{ run_id: string; label: string; environment: { declared?: { name: string } } }>;
+    };
+    const fromPack = json.results.filter((r) => r.run_id === pack.run_id);
+    expect(fromPack).toHaveLength(2);
+    for (const r of fromPack)
+      expect(r).toMatchObject({
+        label: "tester-reported",
+        environment: { declared: { name: "Rina laptop against staging" } },
+      });
   });
 
   it("imports an abandoned pack run with its reason and not_run steps", async () => {

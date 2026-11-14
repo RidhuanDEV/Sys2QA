@@ -501,6 +501,13 @@ const COMMANDS: Record<string, Command> = {
     usage: "defect list <project-id> [--state <state>]",
     build: ([project_id], v) => ({ operation: "defects.list", input: defined({ project_id, state: str(v.state) }) }),
   },
+  report: {
+    usage: "report <project-id> [--plan <plan-id>] [--language <en|id>] [--output <absolute-dir>]",
+    build: ([project_id], v) => ({
+      operation: "reports.generate",
+      input: defined({ project_id, plan_id: str(v.plan), language: list(v.language)?.[0], output_dir: str(v.output) }),
+    }),
+  },
   coverage: {
     usage: "coverage <plan-id>",
     build: ([plan_id]) => ({ operation: "coverage.report", input: defined({ plan_id }) }),
@@ -658,6 +665,7 @@ const OPTIONS = {
   "duplicate-of": { type: "string" },
   "retest-run": { type: "string" },
   state: { type: "string" },
+  plan: { type: "string" },
   status: { type: "string" },
   version: { type: "string" },
 } as const;
