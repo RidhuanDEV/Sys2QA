@@ -51,15 +51,25 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - if: ${{ !(matrix.os == 'ubuntu-latest' && matrix.node == '24') }}
-        run: pnpm test
-      # One matrix cell also produces the traceability report from its test results (Test Strategy §1), including the
-      # browser end-to-end suite of the web UI, which needs Chromium.
-      - if: ${{ matrix.os == 'ubuntu-latest' && matrix.node == '24' }}
-        run: pnpm exec playwright install --with-deps chromium
-      - if: ${{ matrix.os == 'ubuntu-latest' && matrix.node == '24' }}
-        run: pnpm trace
-      - if: ${{ always() && matrix.os == 'ubuntu-latest' && matrix.node == '24' }}
+      - run: pnpm test
+
+  trace:
+    # Stage 3 of the Test Strategy (§7): the traceability report from the test results of the main suite and the web
+    # UI's browser end-to-end suite. Ubuntu 24.04: Playwright 1.56 does not support Chromium on Ubuntu 26.04
+    # (ubuntu-latest); move to ubuntu-latest when Playwright is upgraded.
+    name: Traceability and E2E (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm trace
+      - if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: traceability

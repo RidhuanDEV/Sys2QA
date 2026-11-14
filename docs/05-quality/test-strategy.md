@@ -47,7 +47,7 @@ Implementation (`scripts/traceability.mjs`):
 | Integration | IT | Module combinations with real SQLite, filesystem, adapter workers, proxy | Vitest | Every push |
 | Parity | PT | Same operation via CLI, HTTP API and MCP yields identical decisions, states and errors (SYS-005) | Vitest harness | Every push |
 | Security | ST | Threat Model §6 tests | Vitest + fixture servers | Every push (fast set); full set nightly |
-| End-to-end | E2E | Full pipeline per starting mode on benchmark fixtures; web UI flows | Playwright (Chromium) driven from Vitest (`pnpm e2e`, `vitest.e2e.config.ts`, `tests/e2e/*.e2e.test.ts`), with axe-core for automated accessibility checks | Every push in the traceability cell (Linux); gate runs on all three OS; nightly + release candidate |
+| End-to-end | E2E | Full pipeline per starting mode on benchmark fixtures; web UI flows | Playwright (Chromium) driven from Vitest (`pnpm e2e`, `vitest.e2e.config.ts`, `tests/e2e/*.e2e.test.ts`), with axe-core for automated accessibility checks | Every push in the CI job "Traceability and E2E" (Ubuntu 24.04, since Playwright 1.56 does not support Chromium on Ubuntu 26.04); gate runs on all three OS; nightly + release candidate |
 | Benchmark | BM | Quality metrics against ground truth (§5) | Benchmark harness (IMP-014) | Nightly; results archived |
 | Acceptance | AT | Gate checklists (PRD §29.1) assembled from the above | Gate runner script | At each gate and release candidate |
 
