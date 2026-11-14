@@ -1,7 +1,7 @@
 node_modules/
 dist/
-coverage/
-reports/
+/coverage/
+/reports/
 *.tsbuildinfo
 .DS_Store
 .env
