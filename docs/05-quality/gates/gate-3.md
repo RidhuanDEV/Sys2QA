@@ -25,7 +25,8 @@ report with its evidence as artifacts.
   run assignment (QAA-FR-087) are P1. Defects are recorded in Sys2QA only; tracker export is P2.
 - **Found and fixed during Gate 3:** a GitHub push-protection block on a token-shaped test string (now joined at run
   time); a Windows timeout of flow-heavy tests at Vitest's 5 s default; `.gitignore` ignoring every `reports/` and
-  `coverage/` directory, which kept two source modules out of the repository (now anchored to the root).
+  `coverage/` directory, which kept two source modules out of the repository (now anchored to the root); an ST-12
+  test whose 2 MB request raced the API's early refusal on macOS (refusals are now checked with the headers alone).
 - **Earlier gates:** five Gate 0 P0 requirements still have no passing tagged test (listed below; LOC-004 is now
   covered by item 3).
 
