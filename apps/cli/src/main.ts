@@ -183,6 +183,44 @@ const COMMANDS: Record<string, Command> = {
       input: defined({ project_id, package_id, version: version === undefined ? undefined : Number(version) }),
     }),
   },
+  "plan create": {
+    usage:
+      "plan create <project-id> <package-id> <version> [--workflow <workflow-id>]... [--language <code>] [--objective <text>]",
+    build: ([project_id, package_id, version], v) => ({
+      operation: "plan.create",
+      input: defined({
+        project_id,
+        package_id,
+        version: version === undefined ? undefined : Number(version),
+        workflow_ids: list(v.workflow),
+        language: list(v.language)?.[0],
+        objective: str(v.objective),
+      }),
+    }),
+  },
+  "plan show": {
+    usage: "plan show <plan-id>",
+    build: ([plan_id]) => ({ operation: "plan.show", input: defined({ plan_id }) }),
+  },
+  "plan list": {
+    usage: "plan list <project-id>",
+    build: ([project_id]) => ({ operation: "plan.list", input: defined({ project_id }) }),
+  },
+  "plan risk": {
+    usage:
+      "plan risk <plan-id> <risk-id> [--impact <1-5>] [--likelihood <1-5>] [--exposure <flag>]... --rationale <text>",
+    build: ([plan_id, risk_id], v) => ({
+      operation: "plan.update_risk",
+      input: defined({
+        plan_id,
+        risk_id,
+        impact: str(v.impact) === undefined ? undefined : Number(v.impact),
+        likelihood: str(v.likelihood) === undefined ? undefined : Number(v.likelihood),
+        exposure: list(v.exposure),
+        rationale: str(v.rationale),
+      }),
+    }),
+  },
   readiness: {
     usage: "readiness <project-id> <package-id> <version> [--workflow <workflow-id>]...",
     build: ([project_id, package_id, version], v) => ({
@@ -309,6 +347,11 @@ const OPTIONS = {
   statement: { type: "string" },
   material: { type: "string" },
   reason: { type: "string" },
+  objective: { type: "string" },
+  impact: { type: "string" },
+  likelihood: { type: "string" },
+  exposure: { type: "string", multiple: true },
+  rationale: { type: "string" },
 } as const;
 
 function safeUser(): string {

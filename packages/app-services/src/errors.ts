@@ -83,6 +83,11 @@ export const SERVICE_ERRORS: Record<string, { kind: ErrorKind; remediation: stri
     remediation:
       "Choose an output directory outside the analyzed repository, or allow in-repository output explicitly; a package version is never overwritten.",
   },
+  READINESS_BLOCKED: {
+    kind: "conflict",
+    remediation:
+      "Resolve or override the material gaps listed in the readiness assessment, or select workflows that are not blocked.",
+  },
   PACKAGE_INVALID: {
     kind: "internal",
     remediation: "The analysis produced a package the contract rejects; report it with the listed issues.",

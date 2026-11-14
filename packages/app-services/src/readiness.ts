@@ -110,6 +110,79 @@ function overridesOf(host: Host, projectId: string): MaterialityOverride[] {
   return [...latest.values()].sort((a, b) => a.gap_id.localeCompare(b.gap_id));
 }
 
+/** Revalidates a stored package and assesses its readiness (PRD §13.9); shared by readiness and planning. */
+export async function assessStoredPackage(
+  host: Host,
+  input: { project_id: string; package_id: string; version: number; workflow_ids?: string[] },
+) {
+  const project = host.projects.getProject(input.project_id);
+  const row = packageRow(host, project.id, input.package_id, input.version);
+  const prepared = revalidated(row);
+  const model = packageModel(prepared);
+  if (model && input.workflow_ids) {
+    const unknown = input.workflow_ids.filter((id) => !model.workflow(id));
+    if (unknown.length > 0)
+      throw serviceError("NOT_FOUND", `no workflow ${unknown[0]} in this package`, { workflow_ids: unknown });
+  }
+  const newer = (
+    host.state.db
+      .prepare("SELECT version FROM packages WHERE project_id = ? AND package_id = ? AND version > ?")
+      .all(project.id, row.package_id, row.version) as Array<{ version: number }>
+  ).map((r) => r.version);
+  const manifest = JSON.parse(new TextDecoder().decode(prepared.files.get("manifest.json")!)) as Record<
+    string,
+    unknown
+  >;
+  const repository = manifest.repository as { revision?: { kind: string; value: string } } | null;
+  const checkout = repository ? await checkoutRevision(host, project.id) : { note: "runtime package" };
+  const freshness = packageFreshness({
+    packageRevision: repository?.revision ? { kind: repository.revision.kind, value: repository.revision.value } : null,
+    deployedRevisions: (
+      (manifest.observed_environments as Array<{ deployed_revision?: { value: string | null } }>) ?? []
+    ).map((e) => e.deployed_revision?.value ?? null),
+    ...(checkout.revision ? { checkoutRevision: checkout.revision } : {}),
+    newerVersions: newer,
+  });
+  const environment = host.state.db
+    .prepare(
+      "SELECT classification, state FROM environments WHERE project_id = ? AND state != 'disabled' ORDER BY created_at DESC, rowid DESC LIMIT 1",
+    )
+    .get(project.id) as EnvironmentState | undefined;
+  const confirmed =
+    host.state.db
+      .prepare(
+        "SELECT 1 FROM baseline_confirmations WHERE project_id = ? AND package_id = ? AND package_version = ? LIMIT 1",
+      )
+      .get(project.id, row.package_id, row.version) !== undefined;
+  const assessmentId = host.newId("ready");
+  const result = assessReadiness({
+    assessmentId,
+    assessedAt: host
+      .now()
+      .toISOString()
+      .replace(/\.\d{3}Z$/, "Z"),
+    packageRef: { package_id: row.package_id, package_version: row.version },
+    manifest,
+    ...(model ? { model } : {}),
+    issues: prepared.issues,
+    freshness,
+    ...(input.workflow_ids ? { scope: input.workflow_ids } : {}),
+    ...(environment ? { environment } : {}),
+    baselineConfirmed: confirmed,
+    overrides: overridesOf(host, project.id),
+  });
+  const check = validateDocument("readiness-assessment", result.assessment);
+  if (!check.ok)
+    throw new ServiceError(
+      "INTERNAL_ERROR",
+      "internal",
+      "the readiness assessment does not match its contract schema",
+      "Report it with the listed issues.",
+      { issues: check.issues.slice(0, 10).map((i) => i.message) },
+    );
+  return { project, row, prepared, model, manifest, freshness, checkout, result };
+}
+
 const readinessAssess = defineOperation<
   { project_id: string; package_id: string; version: number; workflow_ids?: string[] },
   unknown
@@ -132,73 +205,8 @@ const readinessAssess = defineOperation<
     },
   },
   run: async ({ host }, input) => {
-    const project = host.projects.getProject(input.project_id);
-    const row = packageRow(host, project.id, input.package_id, input.version);
-    const prepared = revalidated(row);
-    const model = packageModel(prepared);
-    if (model && input.workflow_ids) {
-      const unknown = input.workflow_ids.filter((id) => !model.workflow(id));
-      if (unknown.length > 0)
-        throw serviceError("NOT_FOUND", `no workflow ${unknown[0]} in this package`, { workflow_ids: unknown });
-    }
-    const newer = (
-      host.state.db
-        .prepare("SELECT version FROM packages WHERE project_id = ? AND package_id = ? AND version > ?")
-        .all(project.id, row.package_id, row.version) as Array<{ version: number }>
-    ).map((r) => r.version);
-    const manifest = JSON.parse(new TextDecoder().decode(prepared.files.get("manifest.json")!)) as Record<
-      string,
-      unknown
-    >;
-    const repository = manifest.repository as { revision?: { kind: string; value: string } } | null;
-    const checkout = repository ? await checkoutRevision(host, project.id) : { note: "runtime package" };
-    const freshness = packageFreshness({
-      packageRevision: repository?.revision
-        ? { kind: repository.revision.kind, value: repository.revision.value }
-        : null,
-      deployedRevisions: (
-        (manifest.observed_environments as Array<{ deployed_revision?: { value: string | null } }>) ?? []
-      ).map((e) => e.deployed_revision?.value ?? null),
-      ...(checkout.revision ? { checkoutRevision: checkout.revision } : {}),
-      newerVersions: newer,
-    });
-    const environment = host.state.db
-      .prepare(
-        "SELECT classification, state FROM environments WHERE project_id = ? AND state != 'disabled' ORDER BY created_at DESC, rowid DESC LIMIT 1",
-      )
-      .get(project.id) as EnvironmentState | undefined;
-    const confirmed =
-      host.state.db
-        .prepare(
-          "SELECT 1 FROM baseline_confirmations WHERE project_id = ? AND package_id = ? AND package_version = ? LIMIT 1",
-        )
-        .get(project.id, row.package_id, row.version) !== undefined;
-    const assessmentId = host.newId("ready");
-    const result = assessReadiness({
-      assessmentId,
-      assessedAt: host
-        .now()
-        .toISOString()
-        .replace(/\.\d{3}Z$/, "Z"),
-      packageRef: { package_id: row.package_id, package_version: row.version },
-      manifest,
-      ...(model ? { model } : {}),
-      issues: prepared.issues,
-      freshness,
-      ...(input.workflow_ids ? { scope: input.workflow_ids } : {}),
-      ...(environment ? { environment } : {}),
-      baselineConfirmed: confirmed,
-      overrides: overridesOf(host, project.id),
-    });
-    const check = validateDocument("readiness-assessment", result.assessment);
-    if (!check.ok)
-      throw new ServiceError(
-        "INTERNAL_ERROR",
-        "internal",
-        "the readiness assessment does not match its contract schema",
-        "Report it with the listed issues.",
-        { issues: check.issues.slice(0, 10).map((i) => i.message) },
-      );
+    const { project, result, freshness, checkout, manifest } = await assessStoredPackage(host, input);
+    const assessmentId = result.assessment.assessment_id;
     host.state.transaction(() => {
       const at = host.now().toISOString();
       const insert = host.state.db.prepare(
