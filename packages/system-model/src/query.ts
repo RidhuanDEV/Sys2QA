@@ -140,13 +140,14 @@ export class PackageQuery {
       .map((r) => (direction === "out" ? r.to : r.from))
       .sort();
   }
-  /** The evidence records cited by an entity, relationship, claim or workflow. */
+  /** The evidence records cited by an entity, relationship, claim, workflow or gap. */
   evidenceFor(id: string): Evidence[] {
     const subject =
       this.entities.get(id) ??
       this.relationships.find((r) => r.id === id) ??
       this.claims.find((c) => c.id === id) ??
-      this.workflowList.find((w) => w.id === id);
+      this.workflowList.find((w) => w.id === id) ??
+      this.gaps.find((g) => g.id === id);
     const ids = (subject as { evidence_ids?: string[] } | undefined)?.evidence_ids ?? [];
     return ids.map((e) => this.evidence.get(e)).filter((e): e is Evidence => e !== undefined);
   }

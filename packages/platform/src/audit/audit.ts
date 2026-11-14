@@ -30,6 +30,7 @@ export const AUDIT_ACTIONS = [
   "plan.risk_changed",
   "conditions.derived",
   "scenarios.generated",
+  "scenarios.critiqued",
   "data.deleted",
   "settings.changed",
 ] as const;

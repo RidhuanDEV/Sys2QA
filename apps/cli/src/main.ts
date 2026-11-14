@@ -253,6 +253,14 @@ const COMMANDS: Record<string, Command> = {
       input: defined({ scenario_id, version: str(v.version) === undefined ? undefined : Number(v.version) }),
     }),
   },
+  "scenarios critique": {
+    usage: "scenarios critique <plan-id>",
+    build: ([plan_id]) => ({ operation: "scenarios.critique", input: defined({ plan_id }) }),
+  },
+  "findings list": {
+    usage: "findings list <project-id> [--kind <checklist|duplicate|conflict>]",
+    build: ([project_id], v) => ({ operation: "findings.list", input: defined({ project_id, kind: str(v.kind) }) }),
+  },
   readiness: {
     usage: "readiness <project-id> <package-id> <version> [--workflow <workflow-id>]...",
     build: ([project_id, package_id, version], v) => ({
@@ -386,6 +394,7 @@ const OPTIONS = {
   rationale: { type: "string" },
   technique: { type: "string" },
   wording: { type: "string" },
+  kind: { type: "string" },
   status: { type: "string" },
   version: { type: "string" },
 } as const;
