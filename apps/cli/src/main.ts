@@ -341,6 +341,10 @@ const COMMANDS: Record<string, Command> = {
       }),
     }),
   },
+  coverage: {
+    usage: "coverage <plan-id>",
+    build: ([plan_id]) => ({ operation: "coverage.report", input: defined({ plan_id }) }),
+  },
   readiness: {
     usage: "readiness <project-id> <package-id> <version> [--workflow <workflow-id>]...",
     build: ([project_id, package_id, version], v) => ({
