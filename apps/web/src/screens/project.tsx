@@ -1,4 +1,4 @@
-import { href, Loaded, Page, useLoad } from "../ui";
+import { href, Loaded, Page, Status, useLoad } from "../ui";
 
 interface ProjectDetail {
   id: string;
@@ -18,6 +18,18 @@ interface Plans {
   }>;
 }
 
+interface Runs {
+  runs: Array<{
+    run_id: string;
+    state: string;
+    tester: string;
+    label: string;
+    scenarios: number;
+    progress: { steps_total: number; steps_recorded: number };
+    started_at: string;
+  }>;
+}
+
 const SOURCE_KIND: Record<string, string> = {
   source_root: "Repository",
   environment: "Environment",
@@ -28,6 +40,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
   const project = useLoad<ProjectDetail>("project.get", { project_id: projectId }, projectId);
   const packages = useLoad<Packages>("package.list", { project_id: projectId }, projectId);
   const plans = useLoad<Plans>("plan.list", { project_id: projectId }, projectId);
+  const runs = useLoad<Runs>("runs.list", { project_id: projectId }, projectId);
   return (
     <Loaded result={project.result} what="the project">
       {(p) => (
@@ -93,6 +106,28 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
                           {plan.baseline.packages[0]?.package_version}, {plan.in_scope} workflow(s) in scope
                         </a>{" "}
                         ({new Date(plan.created_at).toLocaleString()})
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }
+            </Loaded>
+          </section>
+          <section aria-labelledby="runs">
+            <h2 id="runs">Manual runs</h2>
+            <Loaded result={runs.result} what="manual runs">
+              {(d) =>
+                d.runs.length === 0 ? (
+                  <p>No manual run yet. Start one from a test plan with approved scenarios.</p>
+                ) : (
+                  <ul>
+                    {d.runs.map((r) => (
+                      <li key={r.run_id}>
+                        <a href={href("run", r.run_id)}>
+                          Run of {r.scenarios} scenario(s) by {r.tester}
+                        </a>{" "}
+                        <Status value={r.state} /> {r.progress.steps_recorded} of {r.progress.steps_total} steps,{" "}
+                        {r.label} ({new Date(r.started_at).toLocaleString()})
                       </li>
                     ))}
                   </ul>

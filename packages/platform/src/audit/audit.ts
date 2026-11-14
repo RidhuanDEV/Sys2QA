@@ -37,6 +37,13 @@ export const AUDIT_ACTIONS = [
   "approval.revalidated",
   "staleness.evaluated",
   "source.verified",
+  "run.started",
+  "run.paused",
+  "run.resumed",
+  "run.abandoned",
+  "run.submitted",
+  "run.step_recorded",
+  "run.attachment_added",
   "data.deleted",
   "settings.changed",
 ] as const;

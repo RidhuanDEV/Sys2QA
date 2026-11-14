@@ -234,3 +234,16 @@ dt {
 dd {
   margin: 0;
 }
+textarea {
+  font: inherit;
+  width: 100%;
+  max-width: 40rem;
+  padding: 0.3rem;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.steps li[aria-current="step"] {
+  font-weight: 700;
+}

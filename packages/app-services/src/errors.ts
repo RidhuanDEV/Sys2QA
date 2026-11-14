@@ -96,6 +96,20 @@ export const SERVICE_ERRORS: Record<string, { kind: ErrorKind; remediation: stri
     kind: "internal",
     remediation: "The analysis produced a package the contract rejects; report it with the listed issues.",
   },
+  RUN_STATE_INVALID: {
+    kind: "conflict",
+    remediation: "Resume a paused run first; a completed or abandoned run takes no more results (start a new run).",
+  },
+  RESULT_INCOMPLETE: {
+    kind: "invalid_input",
+    remediation:
+      "Record the listed steps and fields (the actual result of a failed step, the reason of a blocked one).",
+  },
+  ATTACHMENT_REFUSED: {
+    kind: "invalid_input",
+    remediation:
+      "Attach a PNG, JPEG, GIF, WebP or PDF file, or UTF-8 text (.txt, .log, .json, .csv, .md), of at most 5 MB.",
+  },
   INTERNAL_ERROR: {
     kind: "internal",
     remediation: "Retry once; if it fails again, report it with the log file (it contains no secrets).",

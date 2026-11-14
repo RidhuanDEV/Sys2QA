@@ -11,9 +11,12 @@ export const href = (...parts: string[]) => `#/${parts.map(encodeURIComponent).j
 export function useLoad<T>(operation: string, input: Record<string, unknown>, key: string) {
   const [result, setResult] = useState<Result<T> | null>(null);
   const [tick, setTick] = useState(0);
+  const shownKey = useRef<string | null>(null);
   useEffect(() => {
     let live = true;
-    setResult(null);
+    // A new subject starts empty; a reload of the same one keeps showing the current data until the new data arrives.
+    if (shownKey.current !== `${operation}\0${key}`) setResult(null);
+    shownKey.current = `${operation}\0${key}`;
     void call<T>(operation, input).then((r) => live && setResult(r));
     return () => {
       live = false;
@@ -114,6 +117,19 @@ const TONE: Record<string, string> = {
   contradicted: "bad",
   unavailable: "neutral",
   unresolved: "bad",
+  pass: "good",
+  passed: "good",
+  completed: "good",
+  running: "neutral",
+  fail: "bad",
+  failed: "bad",
+  blocked_step: "bad",
+  abandoned: "bad",
+  paused: "warn",
+  inconclusive: "warn",
+  not_applicable: "neutral",
+  not_run: "neutral",
+  not_recorded: "neutral",
 };
 const MARK: Record<string, string> = { good: "✓", warn: "!", bad: "✕", neutral: "•" };
 

@@ -296,6 +296,7 @@ function PlanBody({ planId, data }: { planId: string; data: PlanShow }) {
           refresh();
         }}
       />
+      <StartManualRun projectId={projectId} selected={selected} />
     </Page>
   );
 }
@@ -544,6 +545,58 @@ function Approval(props: { projectId: string; selected: string[]; onDone: () => 
           </div>
         </div>
       ) : null}
+    </section>
+  );
+}
+
+/**
+ * Starts a manual run of the selected scenarios (QAA-FR-080). The service runs the same execution gate as automation:
+ * only scenarios approved for this environment and the current baseline start.
+ */
+function StartManualRun(props: { projectId: string; selected: string[] }) {
+  const [environment, setEnvironment] = useState("");
+  const [url, setUrl] = useState("");
+  const action = useAction();
+  return (
+    <section aria-labelledby="manual-run">
+      <h2 id="manual-run">Manual testing</h2>
+      {props.selected.length === 0 ? (
+        <p>Select approved scenarios in the review table to run them by hand.</p>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void action
+              .run<{ run: { run_id: string } }>(
+                "runs.start_manual",
+                {
+                  project_id: props.projectId,
+                  scenario_ids: props.selected,
+                  declared_environment: environment,
+                  ...(url.trim() ? { declared_environment_url: url.trim() } : {}),
+                },
+                "Manual run started.",
+              )
+              .then((r) => {
+                if (r) window.location.hash = href("run", r.run.run_id);
+              });
+          }}
+        >
+          <Field
+            id="manual-environment"
+            label="Environment you test in"
+            hint="The environment the approval names, for example: tester laptop."
+            value={environment}
+            onChange={setEnvironment}
+            required
+          />
+          <Field id="manual-url" label="Its URL, if any" type="url" value={url} onChange={setUrl} />
+          <button type="submit" disabled={action.busy}>
+            Start a manual run of {props.selected.length} scenario(s)
+          </button>
+        </form>
+      )}
+      {action.error ? <ErrorBox error={action.error} /> : null}
     </section>
   );
 }

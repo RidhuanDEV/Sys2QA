@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
@@ -356,6 +356,82 @@ const COMMANDS: Record<string, Command> = {
       input: defined({ project_id, package_id, version: version === undefined ? undefined : Number(version) }),
     }),
   },
+  "run start": {
+    usage:
+      "run start <project-id> <scenario-id>... (--declared-environment <name> [--url <url>] [--env-version <v>] | --environment <id>) [--test-data-profile <name>] [--language <code>] [--by <tester>]",
+    build: ([project_id, ...scenario_ids], v) => ({
+      operation: "runs.start_manual",
+      input: defined({
+        project_id,
+        scenario_ids,
+        environment_id: str(v.environment),
+        declared_environment: str(v["declared-environment"]),
+        declared_environment_url: str(v.url),
+        declared_environment_version: str(v["env-version"]),
+        test_data_profile: str(v["test-data-profile"]),
+        language: list(v.language)?.[0],
+        tester: str(v.by),
+      }),
+    }),
+  },
+  "run show": {
+    usage: "run show <run-id> [--language <code>]",
+    build: ([run_id], v) => ({ operation: "runs.show", input: defined({ run_id, language: list(v.language)?.[0] }) }),
+  },
+  "run list": {
+    usage: "run list <project-id>",
+    build: ([project_id]) => ({ operation: "runs.list", input: defined({ project_id }) }),
+  },
+  "run step": {
+    usage:
+      "run step <run-id> <scenario-id> <step-id> <pass|fail|blocked|not_applicable> [--actual <text>] [--notes <text>] [--evidence <qevid-id>]...",
+    build: ([run_id, scenario_id, step_id, status], v) => ({
+      operation: "runs.record_step",
+      input: defined({
+        run_id,
+        scenario_id,
+        step_id,
+        status,
+        actual: str(v.actual),
+        notes: str(v.notes),
+        evidence_refs: list(v.evidence),
+      }),
+    }),
+  },
+  "run attach": {
+    usage: "run attach <run-id> <scenario-id> <step-id> <file>",
+    // The CLI reads the tester's own file; the service decides whether its type and size are accepted (SEC-019).
+    build: ([run_id, scenario_id, step_id, file], _v, cwd) => ({
+      operation: "runs.attach",
+      input: defined({
+        run_id,
+        scenario_id,
+        step_id,
+        name: file === undefined ? undefined : basename(file),
+        content_base64: file === undefined ? undefined : readFileSync(resolve(cwd, file)).toString("base64"),
+      }),
+    }),
+  },
+  "run pause": {
+    usage: "run pause <run-id>",
+    build: ([run_id]) => ({ operation: "runs.pause", input: defined({ run_id }) }),
+  },
+  "run resume": {
+    usage: "run resume <run-id>",
+    build: ([run_id]) => ({ operation: "runs.resume", input: defined({ run_id }) }),
+  },
+  "run abandon": {
+    usage: "run abandon <run-id> --reason <text>",
+    build: ([run_id], v) => ({ operation: "runs.abandon", input: defined({ run_id, reason: str(v.reason) }) }),
+  },
+  "run submit": {
+    usage: "run submit <run-id>",
+    build: ([run_id]) => ({ operation: "runs.submit", input: defined({ run_id }) }),
+  },
+  "run result": {
+    usage: "run result <run-id>",
+    build: ([run_id]) => ({ operation: "runs.result", input: defined({ run_id }) }),
+  },
   coverage: {
     usage: "coverage <plan-id>",
     build: ([plan_id]) => ({ operation: "coverage.report", input: defined({ plan_id }) }),
@@ -501,6 +577,10 @@ const OPTIONS = {
   token: { type: "string" },
   "state-changing-ack": { type: "boolean" },
   port: { type: "string" },
+  actual: { type: "string" },
+  notes: { type: "string" },
+  evidence: { type: "string", multiple: true },
+  "env-version": { type: "string" },
   status: { type: "string" },
   version: { type: "string" },
 } as const;

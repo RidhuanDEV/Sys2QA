@@ -4,6 +4,7 @@ import { takeToken } from "./api";
 import { PackageScreen } from "./screens/package";
 import { PlanScreen } from "./screens/plan";
 import { ProjectScreen } from "./screens/project";
+import { RunScreen } from "./screens/run";
 import { Home, StartWizard } from "./screens/start";
 import { Announce } from "./ui";
 
@@ -30,6 +31,7 @@ function Screen({ route }: { route: string[] }) {
     return <PackageScreen projectId={a} packageId={c} version={Number(d)} />;
   if (head === "project" && a) return <ProjectScreen projectId={a} />;
   if (head === "plan" && a) return <PlanScreen planId={a} />;
+  if (head === "run" && a) return <RunScreen runId={a} />;
   return <Home />;
 }
 

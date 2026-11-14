@@ -10,7 +10,8 @@ report with its evidence (test results of the main and browser suites, traceabil
   `tests/acceptance/gate-2.test.ts`, on F1, the F2 URL-only package, every invalid package fixture and a change of
   F1); all 40 requirements of the gate are covered by passing tagged tests; the benchmark gate rules hold (over-claiming
   0, evidence traceability 100%, no forbidden expectation in the F1 and F2 scenarios).
-- **Multi-OS gate run:** dispatched on `main` after the fast-forward; its result is added here.
+- **Multi-OS gate run #2 on main (`30ae439`): passed on Linux (Ubuntu 24.04), macOS and Windows** (`gate` workflow, run
+  43614839974; reports and evidence, including the browser E2E results, archived as the `gate-2-<os>` artifacts).
 - **Manual evidence pending:** the second-person ground-truth review (IMP-013) and the manual keyboard and readability
   review of the web UI ([record](../web-ui-accessibility.md), NFR-009). Until both are recorded, the gate stands at
   "passed on automated evidence"; the automated a11y checks and the automated keyboard-only pass are green.

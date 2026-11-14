@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import type { ErrorKind } from "../errors.js";
 import type { AppServices } from "../services.js";
 
@@ -67,7 +67,7 @@ export interface ApiServer {
 /**
  * Local HTTP API (Architecture §8; ST-12). Hardened for a loopback service that a browser on the same machine can
  * reach: binds 127.0.0.1 only; every request needs the session token; the Host header must name the loopback address
- * and port (DNS-rebinding defense); a browser Origin must be allowed; JSON bodies only, at most 1 MB.
+ * and port (DNS-rebinding defense); a browser Origin must be allowed; JSON bodies only, at most 1 MB (8 MB for a manual-evidence upload).
  */
 export async function startApiServer(services: AppServices, options: ApiServerOptions = {}): Promise<ApiServer> {
   const token = options.token ?? randomBytes(32).toString("base64url");
@@ -115,13 +115,20 @@ export async function startApiServer(services: AppServices, options: ApiServerOp
     if (!result.ok) return reply.code(HTTP_STATUS[result.error.kind]).send(result);
     return reply.code((result.data as { status: string }).status === "failing" ? 503 : 200).send(result);
   });
-  app.post<{ Params: { name: string } }>("/api/v1/operations/:name", async (request, reply) => {
+  const execute = async (name: string, request: FastifyRequest, reply: FastifyReply) => {
     if (!request.headers["content-type"]?.startsWith("application/json")) {
       return reply.code(415).send(denied("CONTENT_TYPE_REJECTED", "send the input as application/json"));
     }
-    const result = await services.execute(request.params.name, request.body, { interface: "api", actor: "local-user" });
+    const result = await services.execute(name, request.body, { interface: "api", actor: "local-user" });
     return reply.code(result.ok ? 200 : HTTP_STATUS[result.error.kind]).send(result);
-  });
+  };
+  // A manual-evidence upload carries its file (at most 5 MB, base64); every other operation stays within 1 MB.
+  app.post("/api/v1/operations/runs.attach", { bodyLimit: 8 * 1024 * 1024 }, (request, reply) =>
+    execute("runs.attach", request, reply),
+  );
+  app.post<{ Params: { name: string } }>("/api/v1/operations/:name", (request, reply) =>
+    execute(request.params.name, request, reply),
+  );
 
   await app.listen({ host: "127.0.0.1", port: options.port ?? 0 });
   const address = app.server.address();

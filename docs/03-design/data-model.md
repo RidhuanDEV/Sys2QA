@@ -109,8 +109,10 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `scenarios` | `scenario_id`, `project_id`, `display_key`, `latest_version` | |
 | `scenario_versions` | `scenario_id`, `version`, `doc_json`, `status`, `freshness`, `content_sha256` | Approved versions are immutable (trigger prevents UPDATE of `doc_json`) |
 | `approvals` | `id`, `scenario_id`, `version`, `binding_json`, `mode`, `state`, `approver`, `approved_at` | State changes recorded in `audit_events` |
-| `runs` | `id`, `kind`, `state`, `environment_ref`, `baseline_json`, `started_at`, `finished_at` | Manual and automated |
-| `case_results` / `step_results` | `run_id`, `scenario_id`, `version`, `step_id`, `doc_json` | **Append-only**; corrections create new records with `supersedes` |
+| `runs` | `id` (`mrun:` manual, `arun:` automated), `kind`, `state`, `environment_json`, `baseline_json`, `binding_json`, `language`, `tester`, `baseline_changed`, `abandon_reason?`, `started_at`, `finished_at` | Migration 0012 (replaces the unused 0001 tables). Manual runs add `paused` and `abandoned`; an abandoned run needs its reason |
+| `run_cases` | `run_id`, `position`, `scenario_id`, `version`, `approval_id` | The scenario versions a run executes and the active approval each rests on |
+| `run_attachments` | `id` (`qevid:`), `run_id`, `scenario_id`, `step_id`, `sha256`, `name`, `media_type`, `size_bytes`, `redacted` | Manual evidence (SEC-019: type- and size-limited); the file is the content-addressed blob |
+| `case_results` / `step_results` | `run_id`, `scenario_id`, `version`, `step_id`, `doc_json`, `recorded_by` (steps) | **Append-only**; corrections create new records with `supersedes`. Case results are written when a run is submitted or abandoned |
 | `defects` | `id`, `state`, `severity`, `priority`, `links_json` | |
 | `defect_transitions` | `defect_id`, `seq`, `from`, `to`, `by`, `at`, `reason` | **Append-only** |
 | `audit_events` | `seq`, `project_id?`, `at`, `actor`, `action`, `target`, `details_json`, `prev_hash`, `hash` | **Append-only**; details pass through the redactor, and fields it replaced are listed in `details.redacted_paths` (SEC-004, SEC-014). One hash chain per project and one for installation-wide events (`project_id` NULL): `hash = sha256(canonical JSON of the event and prev_hash)`. Deleting a project removes its chain; the installation-wide `project.deleted` event records that chain's last hash. Actions are the catalog `AUDIT_ACTIONS` in `@sys2qa/platform` |

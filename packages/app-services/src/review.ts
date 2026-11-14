@@ -299,7 +299,7 @@ const scenariosClassify = defineOperation<
   },
 });
 
-interface Binding {
+export interface Binding {
   mode: "manual" | "automated";
   environment_id?: string;
   declared_environment_id?: string;
@@ -307,7 +307,7 @@ interface Binding {
   test_data_profile: string;
 }
 
-const BINDING_INPUT = {
+export const BINDING_INPUT = {
   mode: { enum: ["manual", "automated"] },
   environment_id: ID,
   declared_environment: { type: "string", minLength: 1, maxLength: 100, pattern: "^[A-Za-z0-9][A-Za-z0-9 ._-]*$" },
@@ -632,6 +632,82 @@ function currentBaseline(host: Host, projectId: string, scenario: Scenario): Exe
   } as unknown as ExecutionRequest["baseline"];
 }
 
+export interface ExecutionDecision {
+  allowed: boolean;
+  scenario_id: string;
+  version: number;
+  project_id: string;
+  issues: Array<{ code: string; message: string; details?: unknown }>;
+  /** The active approval the run rests on, when it is allowed. */
+  approval_id: string | null;
+  binding: Binding;
+  baseline: ExecutionRequest["baseline"];
+  scenario: Scenario;
+}
+
+/**
+ * The execution gate every run passes, manual or automated (QAA-FR-054, CR-055, CR-056): the scenario version must be
+ * approved and current, and its active approval must match the run on every binding field.
+ */
+export function checkExecution(
+  host: Host,
+  input: {
+    scenario_id: string;
+    version?: number;
+    mode: "manual" | "automated";
+    environment_id?: string;
+    declared_environment?: string;
+    test_data_profile?: string;
+  },
+): ExecutionDecision {
+  const row = load(host, input.scenario_id, input.version);
+  const binding = bindingOf(host, row.project_id, input);
+  const approvalRow = host.state.db
+    .prepare(
+      "SELECT id, binding_json, state FROM approvals WHERE scenario_id = ? AND version = ? AND mode = ? ORDER BY approved_at DESC, rowid DESC LIMIT 1",
+    )
+    .get(row.scenario_id, row.version, binding.mode) as { id: string; binding_json: string; state: string } | undefined;
+  const approval = approvalRow
+    ? { ...(JSON.parse(approvalRow.binding_json) as object), state: approvalRow.state }
+    : undefined;
+  // The stored status and freshness are authoritative: staleness changes them without touching an approved document.
+  const scenario = {
+    ...row.doc,
+    status: row.status,
+    freshness: row.freshness,
+  } as unknown as ExecutionRequest["scenario"];
+  const latestNote =
+    row.version !== row.latest_version
+      ? [{ code: "APPROVAL_REQUIRED", message: `version ${row.version} is not the latest (${row.latest_version})` }]
+      : [];
+  const baseline = currentBaseline(host, row.project_id, row.doc);
+  const issues = [
+    ...latestNote,
+    ...checkExecutionAllowed({
+      scenario,
+      ...(approval ? { approval: approval as unknown as NonNullable<ExecutionRequest["approval"]> } : {}),
+      mode: binding.mode,
+      baseline,
+      ...(binding.environment_id ? { environment_id: binding.environment_id } : {}),
+      ...(binding.declared_environment_id ? { declared_environment_id: binding.declared_environment_id } : {}),
+      scope_policy_version: binding.scope_policy_version,
+      test_data_profile: binding.test_data_profile,
+    }).map((i) => ({ code: i.code, message: i.message, ...(i.details ? { details: i.details } : {}) })),
+  ];
+  const allowed = issues.length === 0;
+  return {
+    allowed,
+    scenario_id: row.scenario_id,
+    version: row.version,
+    project_id: row.project_id,
+    issues,
+    approval_id: allowed && approvalRow ? approvalRow.id : null,
+    binding,
+    baseline,
+    scenario: row.doc,
+  };
+}
+
 const executionCheck = defineOperation<
   {
     scenario_id: string;
@@ -656,40 +732,8 @@ const executionCheck = defineOperation<
     properties: { scenario_id: ID, version: { type: "integer", minimum: 1 }, ...BINDING_INPUT },
   },
   run: ({ host }, input) => {
-    const row = load(host, input.scenario_id, input.version);
-    const binding = bindingOf(host, row.project_id, input);
-    const approvalRow = host.state.db
-      .prepare(
-        "SELECT binding_json, state FROM approvals WHERE scenario_id = ? AND version = ? AND mode = ? ORDER BY approved_at DESC, rowid DESC LIMIT 1",
-      )
-      .get(row.scenario_id, row.version, binding.mode) as { binding_json: string; state: string } | undefined;
-    const approval = approvalRow
-      ? { ...(JSON.parse(approvalRow.binding_json) as object), state: approvalRow.state }
-      : undefined;
-    // The stored status and freshness are authoritative: staleness changes them without touching an approved document.
-    const scenario = {
-      ...row.doc,
-      status: row.status,
-      freshness: row.freshness,
-    } as unknown as ExecutionRequest["scenario"];
-    const latestNote =
-      row.version !== row.latest_version
-        ? [{ code: "APPROVAL_REQUIRED", message: `version ${row.version} is not the latest (${row.latest_version})` }]
-        : [];
-    const issues = [
-      ...latestNote,
-      ...checkExecutionAllowed({
-        scenario,
-        ...(approval ? { approval: approval as unknown as NonNullable<ExecutionRequest["approval"]> } : {}),
-        mode: binding.mode,
-        baseline: currentBaseline(host, row.project_id, row.doc),
-        ...(binding.environment_id ? { environment_id: binding.environment_id } : {}),
-        ...(binding.declared_environment_id ? { declared_environment_id: binding.declared_environment_id } : {}),
-        scope_policy_version: binding.scope_policy_version,
-        test_data_profile: binding.test_data_profile,
-      }).map((i) => ({ code: i.code, message: i.message, ...(i.details ? { details: i.details } : {}) })),
-    ];
-    return { allowed: issues.length === 0, scenario_id: row.scenario_id, version: row.version, issues };
+    const { allowed, scenario_id, version, issues } = checkExecution(host, input);
+    return { allowed, scenario_id, version, issues };
   },
 });
 

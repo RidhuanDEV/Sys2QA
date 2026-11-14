@@ -108,6 +108,34 @@ describe("ST-12 local API hardening with the web UI served", () => {
     expect(other.status).toBe(403);
   });
 
+  it("limits bodies to 1 MB, except a manual-evidence upload, which may carry its 5 MB file", async () => {
+    const api = { ...hostHeader, authorization: `Bearer ${server.token}`, "content-type": "application/json" };
+    const big = JSON.stringify({ content_base64: "A".repeat(2 * 1024 * 1024) });
+    const normal = await call(server, {
+      path: "/api/v1/operations/system.info",
+      method: "POST",
+      headers: api,
+      body: big,
+    });
+    expect(normal.status).toBe(413);
+    const upload = await call(server, {
+      path: "/api/v1/operations/runs.attach",
+      method: "POST",
+      headers: api,
+      body: big,
+    });
+    // Accepted by the transport; the service then rejects the incomplete input.
+    expect(upload.status).toBe(400);
+    expect(JSON.parse(upload.body)).toMatchObject({ ok: false, error: { code: "INPUT_INVALID" } });
+    const unauthenticated = await call(server, {
+      path: "/api/v1/operations/runs.attach",
+      method: "POST",
+      headers: { ...hostHeader, "content-type": "application/json" },
+      body: big,
+    });
+    expect(unauthenticated.status).toBe(401);
+  });
+
   it("serves no UI file at all when no UI is configured", async () => {
     const plain = await startApiServer(new AppServices(host));
     try {

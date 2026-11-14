@@ -17,6 +17,7 @@ import { CAPABILITY_VERSION, checkCompatibility, type CapabilityRequirements } f
 import { runDoctor } from "./doctor.js";
 import { CONDITION_OPERATIONS } from "./conditions.js";
 import { COVERAGE_OPERATIONS } from "./coverage.js";
+import { MANUAL_RUN_OPERATIONS } from "./manual-runs.js";
 import { CRITIQUE_OPERATIONS } from "./critique.js";
 import { PACKAGE_OPERATIONS } from "./packages.js";
 import { PLAN_OPERATIONS } from "./plans.js";
@@ -611,5 +612,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   ...SOURCE_CHECK_OPERATIONS,
   ...COVERAGE_OPERATIONS,
   ...SYSTEM_MAP_OPERATIONS,
+  ...MANUAL_RUN_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;
