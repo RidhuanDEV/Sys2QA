@@ -1,5 +1,6 @@
 import type { Workflow } from "@sys2qa/contract";
 import type { PackageQuery } from "@sys2qa/system-model";
+import { rulesOnPath } from "../model/paths.js";
 import type { ReadinessResult } from "../readiness/readiness.js";
 
 /** Exposure flags of PRD §15.7; nothing else is accepted, so no sensitive domain is inferred without evidence. */
@@ -108,9 +109,9 @@ function factsOf(model: PackageQuery, workflow: Workflow): PathFacts {
   let writes = false;
   let authenticated = false;
   let errorResponses = 0;
+  for (const rule of rulesOnPath(model, entities)) rules.add(rule);
   for (const id of entities) {
     if (model.entity(id)?.kind === "state_machine") machines.add(id);
-    for (const r of model.related(id, "in", "VALIDATES")) rules.add(r.from);
     for (const r of model.related(id, "out", "AUTHORIZES_WITH")) roles.add(r.to);
     if (model.related(id, "out", "AUTHENTICATES_WITH").length > 0) authenticated = true;
     if (model.related(id, "out", "WRITES_TO").length > 0) writes = true;

@@ -19,6 +19,7 @@ import { CONDITION_OPERATIONS } from "./conditions.js";
 import { PACKAGE_OPERATIONS } from "./packages.js";
 import { PLAN_OPERATIONS } from "./plans.js";
 import { READINESS_OPERATIONS } from "./readiness.js";
+import { SCENARIO_OPERATIONS } from "./scenarios.js";
 import { SAA_OPERATIONS } from "./saa.js";
 import { serviceError } from "./errors.js";
 import { defineOperation, type Operation } from "./operations.js";
@@ -590,5 +591,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   ...READINESS_OPERATIONS,
   ...PLAN_OPERATIONS,
   ...CONDITION_OPERATIONS,
+  ...SCENARIO_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;

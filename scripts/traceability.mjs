@@ -8,7 +8,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "n
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-export const REQUIREMENT_ID = /^[A-Z]+(?:-[A-Z]+)?-\d{3}$/;
+export const REQUIREMENT_ID = /^[A-Z]+(?:-[A-Z]+)?-\d{3}[a-z]?$/;
 const TAG = /\[@req ([^\]]+)\]/g;
 const TEST_FILE = /\.test\.(?:ts|tsx|mts|js|mjs)$/;
 
@@ -83,7 +83,7 @@ export function parseGateOwnership(plan) {
     }
     if (!gate || !/^\| IMP-\d{3} \|/.test(line)) continue;
     const reqs = line.split("|")[3] ?? "";
-    for (const id of reqs.match(/[A-Z]+(?:-[A-Z]+)?-\d{3}/g) ?? []) {
+    for (const id of reqs.match(/[A-Z]+(?:-[A-Z]+)?-\d{3}[a-z]?/g) ?? []) {
       const current = owner.get(id);
       if (!current || gate.order < current.order) owner.set(id, gate);
     }

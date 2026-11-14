@@ -4,6 +4,7 @@ import {
   acquireHostLock,
   createIdGenerator,
   createLlmBackend,
+  type LlmBackend,
   loadConfig,
   createLogger,
   fileSink,
@@ -37,6 +38,8 @@ export interface HostOptions {
   osSecretStoreAvailable?: () => Promise<boolean>;
   /** Analyzer adapters to run; defaults to the built-in bundles (`pnpm build:adapters`). Tests pass their own. */
   adapters?: ReadonlyArray<AdapterSpec>;
+  /** Replaces the configured model backend (tests: a stub or a replay cassette). */
+  llmBackend?: LlmBackend;
 }
 
 /** The composition root of one host process: the only writer of state.db (Data Model §6). */
@@ -82,7 +85,7 @@ export function openHost(options: HostOptions): Host {
       projects: new ProjectService(state.db, { audit, newId, logger }),
       jobs: new JobStore(state.db, { now, newId, logger }),
       // The secret store (IMP-010) will resolve `api_key_ref`; until then a configured key reference is not used.
-      llm: new LlmService(createLlmBackend(config.config.llm), {
+      llm: new LlmService(options.llmBackend ?? createLlmBackend(config.config.llm), {
         redactor,
         db: state.db,
         logger,

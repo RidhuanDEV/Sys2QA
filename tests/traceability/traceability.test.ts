@@ -46,6 +46,12 @@ describe("traceability tooling", () => {
     expect(reqs.get("SEC-001")?.priority).toBe("P1");
   });
 
+  it("reads requirement IDs with a letter suffix", () => {
+    const prd =
+      "| ID | Requirement | Pri | St | Acceptance criteria | Source |\n|---|---|:-:|:-:|---|---|\n| QAA-FR-033a | Lettered | P0 | C | x | y |\n";
+    expect([...parseRequirements(prd).keys()]).toEqual(["QAA-FR-033a"]);
+  });
+
   it("assigns each requirement to the earliest gate that lists it", () => {
     const owner = parseGateOwnership(PLAN);
     expect(owner.get("SEC-001")?.label).toBe("Gate 0");

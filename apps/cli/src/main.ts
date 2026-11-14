@@ -232,6 +232,27 @@ const COMMANDS: Record<string, Command> = {
       input: defined({ plan_id, technique: str(v.technique) }),
     }),
   },
+  "scenarios generate": {
+    usage: "scenarios generate <plan-id> [--language <en|id>] [--wording <templates|model>]",
+    build: ([plan_id], v) => ({
+      operation: "scenarios.generate",
+      input: defined({ plan_id, language: list(v.language)?.[0], wording: str(v.wording) }),
+    }),
+  },
+  "scenarios list": {
+    usage: "scenarios list <project-id> [--status <status>]",
+    build: ([project_id], v) => ({
+      operation: "scenarios.list",
+      input: defined({ project_id, status: str(v.status) }),
+    }),
+  },
+  "scenarios show": {
+    usage: "scenarios show <scenario-id> [--version <n>]",
+    build: ([scenario_id], v) => ({
+      operation: "scenarios.show",
+      input: defined({ scenario_id, version: str(v.version) === undefined ? undefined : Number(v.version) }),
+    }),
+  },
   readiness: {
     usage: "readiness <project-id> <package-id> <version> [--workflow <workflow-id>]...",
     build: ([project_id, package_id, version], v) => ({
@@ -364,6 +385,9 @@ const OPTIONS = {
   exposure: { type: "string", multiple: true },
   rationale: { type: "string" },
   technique: { type: "string" },
+  wording: { type: "string" },
+  status: { type: "string" },
+  version: { type: "string" },
 } as const;
 
 function safeUser(): string {

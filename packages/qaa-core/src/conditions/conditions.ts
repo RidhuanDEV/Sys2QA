@@ -1,6 +1,9 @@
 import type { Entity, Workflow } from "@sys2qa/contract";
 import type { PackageQuery } from "@sys2qa/system-model";
 import type { LangText, TestPlan } from "../plan/plan.js";
+import { rulesOnPath } from "../model/paths.js";
+
+export { rulesOnPath };
 
 /** Techniques of PRD §15.4, named as the scenario contract names them (`test_techniques[].id`). */
 export type TechniqueId =
@@ -17,10 +20,19 @@ export type TechniqueId =
 /** Expected-result basis of PRD §15.9 that a condition item can claim from a package. */
 export type ItemBasis = "saa_documented" | "source_supported" | "observed" | "inferred";
 
+/** A sentence as a message key and its parameters, so scenarios can be written in any supported language. */
+export interface Phrase {
+  key: string;
+  params: Record<string, string | number>;
+}
+
 /** One thing to test inside a condition: an input class, a boundary, a transition, a role, a branch. */
 export interface ConditionItem {
   id: string;
   description: string;
+  /** What the item does, and what is expected, as message keys (scenario wording, QAA-FR-037). */
+  phrase: Phrase;
+  outcome: Phrase;
   /** What the item feeds the system, described, never concrete test data (scenario generation picks the data). */
   input: string;
   expected: string;
@@ -83,6 +95,13 @@ const basisOf = (status: string | undefined): ItemBasis =>
       ? "observed"
       : "inferred";
 
+const phrase = (key: string, params: Record<string, string | number> = {}): Phrase => ({ key, params });
+
+function violationOutcome(rule: Entity): Phrase {
+  const behavior = (rule as { expected_behavior?: { on_violation?: string } }).expected_behavior;
+  return phrase("rejected", behavior?.on_violation ? { detail: behavior.on_violation } : {});
+}
+
 function onViolation(rule: Entity): string {
   const behavior = (rule as { expected_behavior?: { on_violation?: string } }).expected_behavior;
   return behavior?.on_violation ? `rejected (${behavior.on_violation})` : "rejected";
@@ -93,13 +112,38 @@ function ruleItems(rule: Entity): { ep: ConditionItem[]; bva: ConditionItem[] } 
   const basis = basisOf(rule.status);
   const refs = [rule.id];
   const reject = onViolation(rule);
+  const rejected = violationOutcome(rule);
+  const accepted = phrase("accepted");
   const ep: ConditionItem[] = [];
   const bva: ConditionItem[] = [];
-  const add = (list: ConditionItem[], tag: string, description: string, input: string, expected: string) =>
-    list.push({ id: `${tag}`, description, input, expected, basis, refs });
+  const add = (
+    list: ConditionItem[],
+    tag: string,
+    description: string,
+    input: string,
+    expected: string,
+    what: Phrase,
+  ) =>
+    list.push({
+      id: `${tag}`,
+      description,
+      input,
+      expected,
+      phrase: what,
+      outcome: expected === "accepted" ? accepted : rejected,
+      basis,
+      refs,
+    });
   for (const b of bounds) {
     const field = b.field ?? "the value";
-    add(ep, "valid", `A valid ${field}`, `${field} satisfying every constraint`, "accepted");
+    add(
+      ep,
+      "valid",
+      `A valid ${field}`,
+      `${field} satisfying every constraint`,
+      "accepted",
+      phrase("ep_valid", { field }),
+    );
     if (b.min_length !== undefined || b.max_length !== undefined) {
       const lengths = new Set<number>();
       for (const n of [b.min_length, b.max_length]) if (n !== undefined) for (const d of [-1, 0, 1]) lengths.add(n + d);
@@ -112,19 +156,35 @@ function ruleItems(rule: Entity): { ep: ConditionItem[]; bva: ConditionItem[] } 
           `${field} of length ${n}`,
           `${field} with ${n} character(s)`,
           inside ? "accepted" : reject,
+          phrase("bva_length", { field, n }),
         );
       }
       if (b.min_length !== undefined && b.min_length > 0)
-        add(ep, "empty", `An empty ${field}`, `${field} left empty`, reject);
+        add(ep, "empty", `An empty ${field}`, `${field} left empty`, reject, phrase("ep_empty", { field }));
     }
     if (b.min !== undefined || b.max !== undefined) {
       const values = new Set<number>();
       for (const n of [b.min, b.max]) if (n !== undefined) for (const d of [-1, 0, 1]) values.add(n + d);
       for (const n of [...values].sort((x, y) => x - y)) {
         const inside = (b.min === undefined || n >= b.min) && (b.max === undefined || n <= b.max);
-        add(bva, `value-${n}`, `${field} = ${n}`, `${field} set to ${n}`, inside ? "accepted" : reject);
+        add(
+          bva,
+          `value-${n}`,
+          `${field} = ${n}`,
+          `${field} set to ${n}`,
+          inside ? "accepted" : reject,
+          phrase("bva_value", { field, n }),
+        );
       }
-      if (b.integer) add(ep, "non-integer", `A non-integer ${field}`, `${field} with a fractional part`, reject);
+      if (b.integer)
+        add(
+          ep,
+          "non-integer",
+          `A non-integer ${field}`,
+          `${field} with a fractional part`,
+          reject,
+          phrase("ep_non_integer", { field }),
+        );
     }
     if (b.pattern)
       add(
@@ -133,6 +193,7 @@ function ruleItems(rule: Entity): { ep: ConditionItem[]; bva: ConditionItem[] } 
         `A ${field} not matching ${b.pattern}`,
         `${field} of a valid length with a disallowed character`,
         reject,
+        phrase("ep_pattern", { field, pattern: b.pattern }),
       );
     if (b.format)
       add(
@@ -141,6 +202,7 @@ function ruleItems(rule: Entity): { ep: ConditionItem[]; bva: ConditionItem[] } 
         `A ${field} that is not a valid ${b.format}`,
         `${field} in the wrong ${b.format} format`,
         reject,
+        phrase("ep_format", { field, format: b.format }),
       );
     if (b.enum)
       add(
@@ -149,6 +211,7 @@ function ruleItems(rule: Entity): { ep: ConditionItem[]; bva: ConditionItem[] } 
         `A ${field} outside its allowed values`,
         `${field} set to a value not in the list`,
         reject,
+        phrase("ep_enum", { field }),
       );
   }
   const unique = (list: ConditionItem[]) => [...new Map(list.map((i) => [i.id, i])).values()];
@@ -214,6 +277,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
           description: "The main path from the entry point to the last documented step",
           input: workflow.steps.map((s) => `${s.action} ${s.entity_id}`).join(" → "),
           expected: "every step completes",
+          phrase: phrase("journey_main", { workflow: workflow.name }),
+          outcome: phrase("completes"),
           basis: basisOf(workflow.status),
           refs: [workflow.id],
         },
@@ -222,6 +287,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
           description: `Branch at ${b.from_step}: ${b.condition}`,
           input: b.condition,
           expected: b.outcome,
+          phrase: phrase("journey_branch", { condition: b.condition }),
+          outcome: phrase("branch_outcome", { outcome: b.outcome }),
           basis: basisOf(b.status),
           refs: [workflow.id],
         })),
@@ -234,8 +301,7 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
     });
 
     // Rules on the path: equivalence classes and, where ordered limits exist, boundary values.
-    const rules = new Set<string>();
-    for (const id of path) for (const r of model.related(id, "in", "VALIDATES")) rules.add(r.from);
+    const rules = new Set<string>(rulesOnPath(model, path));
     for (const ruleId of [...rules].sort()) {
       const rule = model.entity(ruleId);
       if (!rule) continue;
@@ -278,6 +344,13 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
       const key = ids[0]!.replace(/^business_rule:/, "").split(".")[0]!;
       const conditionId = `tc:${key}.combinations`;
       const sorted = [...ids].sort();
+      // The combined basis is the weakest of its rules' bases.
+      const bases = sorted.map((r) => basisOf(model.entity(r)?.status));
+      const combined: ItemBasis = bases.includes("inferred")
+        ? "inferred"
+        : bases.includes("observed")
+          ? "observed"
+          : "source_supported";
       upsert({
         condition_id: conditionId,
         plan_id: plan.plan_id,
@@ -293,7 +366,9 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: "Every rule satisfied",
             input: "all fields valid",
             expected: "accepted",
-            basis: "source_supported",
+            phrase: phrase("dt_all_valid"),
+            outcome: phrase("accepted"),
+            basis: combined,
             refs: sorted,
           },
           ...sorted.map((r) => ({
@@ -301,6 +376,10 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: `Only ${r} violated`,
             input: `${r} violated, every other rule satisfied`,
             expected: onViolation(model.entity(r)!),
+            phrase: phrase("dt_only", {
+              rule: String((model.entity(r) as { statement?: string } | undefined)?.statement ?? r),
+            }),
+            outcome: violationOutcome(model.entity(r)!),
             basis: basisOf(model.entity(r)?.status),
             refs: [r],
           })),
@@ -309,7 +388,9 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: "Every rule violated",
             input: "all fields invalid",
             expected: "rejected",
-            basis: "source_supported",
+            phrase: phrase("dt_all_invalid"),
+            outcome: phrase("rejected"),
+            basis: combined,
             refs: sorted,
           },
         ]),
@@ -343,6 +424,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: `${t.from} → ${t.to}${t.guard ? ` (guard: ${t.guard})` : ""}`,
             input: `an item in ${t.from} moved to ${t.to}`,
             expected: "allowed",
+            phrase: phrase("st_move", { from: t.from, to: t.to }),
+            outcome: phrase("allowed"),
             basis: basisOf(t.status ?? machine.status),
             refs: [id],
           })),
@@ -351,6 +434,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: `${t.from} → ${t.to} (invalid)`,
             input: `an item in ${t.from} moved to ${t.to}`,
             expected: "refused",
+            phrase: phrase("st_move", { from: t.from, to: t.to }),
+            outcome: phrase("refused"),
             basis: basisOf(t.status ?? machine.status),
             refs: [id],
           })),
@@ -383,6 +468,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: `${model.entity(g)?.name ?? g} is allowed`,
             input: `signed in as ${model.entity(g)?.name ?? g}`,
             expected: "allowed",
+            phrase: phrase("role_as", { role: model.entity(g)?.name ?? g }),
+            outcome: phrase("allowed"),
             basis: basisOf(model.entity(g)?.status),
             refs: [id, g],
           })),
@@ -391,6 +478,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: `${r.name} is denied`,
             input: `signed in as ${r.name}`,
             expected: "denied",
+            phrase: phrase("role_as", { role: r.name }),
+            outcome: phrase("denied"),
             basis: basisOf(r.status),
             refs: [id, ...guards, r.id],
           })),
@@ -399,6 +488,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: "An unauthenticated request is denied",
             input: "not signed in",
             expected: "denied",
+            phrase: phrase("role_anonymous"),
+            outcome: phrase("denied"),
             basis: basisOf(model.entity(id)?.status),
             refs: [id, ...guards],
           },
@@ -441,6 +532,12 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
               description: `Trigger: ${response.condition ?? response.outcome}`,
               input: response.condition ?? response.outcome,
               expected: `HTTP ${response.status} ${response.outcome}${response.message ? ` ("${response.message}")` : ""}`,
+              phrase: phrase("error_trigger", { condition: response.condition ?? response.outcome }),
+              outcome: phrase("http_response", {
+                status: response.status,
+                outcome: response.outcome,
+                message: response.message ?? "",
+              }),
               basis: basisOf(model.entity(id)?.status),
               refs: [id],
             },
@@ -474,6 +571,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: "Values with leading or trailing spaces",
             input: "each field padded with spaces",
             expected: "handled consistently",
+            phrase: phrase("eg_whitespace"),
+            outcome: phrase("eg_consistent"),
             basis: "inferred",
             refs: [id],
           },
@@ -482,6 +581,8 @@ export function deriveConditions(input: { plan: TestPlan; model: PackageQuery })
             description: "The form submitted twice quickly",
             input: "two submissions",
             expected: "one effect",
+            phrase: phrase("eg_double_submit"),
+            outcome: phrase("eg_single_effect"),
             basis: "inferred",
             refs: [id],
           },
