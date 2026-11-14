@@ -18,6 +18,7 @@ Each type of information has **one** source of truth (ADR-010). Documents link t
 | [Web UI accessibility](05-quality/web-ui-accessibility.md) | Can the web UI be used by keyboard and assistive technology? | Automated a11y checks, the keyboard-only pass and reviewer sign-off (NFR-009, IMP-211) | Record |
 | [Gate 1 record](05-quality/gates/gate-1.md) | Did Gate 1 pass, on what evidence? | Archived gate acceptance report (IMP-121) | Passed on automated evidence; ground-truth review pending |
 | [Gate 2 record](05-quality/gates/gate-2.md) | Did Gate 2 pass, on what evidence? | Archived gate acceptance report (IMP-212) | Passed on automated evidence; ground-truth and web UI reviews pending |
+| [Gate 3 record](05-quality/gates/gate-3.md) | Did Gate 3 pass, on what evidence? | Archived gate acceptance report (IMP-305) | Passed on automated evidence; ground-truth and web UI reviews pending |
 
 ### Planned (written when there is real content to put in them)
 
