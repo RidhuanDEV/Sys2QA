@@ -49,7 +49,7 @@ export interface Scenario {
   open_gaps: string[];
   baseline: TestPlan["baseline"];
   freshness: "current" | "potentially_stale" | "stale";
-  status: "draft" | "needs_clarification";
+  status: "draft" | "needs_clarification" | "pending_review" | "approved" | "rejected" | "deferred" | "superseded";
   status_reason?: string;
 }
 

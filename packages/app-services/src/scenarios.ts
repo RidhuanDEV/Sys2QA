@@ -8,7 +8,7 @@ import {
   type Language,
   type Scenario,
 } from "@sys2qa/qaa-core";
-import { planContext, storedConditions } from "./conditions.js";
+import { planContext, storeConditions, storedConditions } from "./conditions.js";
 import { serviceError, ServiceError } from "./errors.js";
 import type { Host } from "./host.js";
 import { defineOperation } from "./operations.js";
@@ -98,7 +98,10 @@ const scenariosGenerate = defineOperation<
   run: async ({ host, caller }, input) => {
     const { projectId, plan, model, prepared } = planContext(host, input.plan_id);
     let conditions = storedConditions(host, plan.plan_id);
-    if (conditions.length === 0) conditions = deriveConditions({ plan, model });
+    if (conditions.length === 0) {
+      conditions = deriveConditions({ plan, model });
+      storeConditions(host, projectId, plan.plan_id, conditions, caller.actor);
+    }
     const language = (input.language ?? plan.content_language) as Language;
     if (!SUPPORTED_LANGUAGES.includes(language))
       throw serviceError("INPUT_INVALID", `scenarios can be written in ${SUPPORTED_LANGUAGES.join(", ")}`, {

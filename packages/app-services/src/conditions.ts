@@ -28,6 +28,38 @@ export function storedConditions(host: Host, planId: string): TestCondition[] {
   ).map((r) => JSON.parse(r.doc_json) as TestCondition);
 }
 
+/** Replaces a plan's stored conditions (audited); used by derivation and by scenario generation. */
+export function storeConditions(
+  host: Host,
+  projectId: string,
+  planId: string,
+  conditions: TestCondition[],
+  actor: string,
+): void {
+  host.state.transaction(() => {
+    const at = host.now().toISOString();
+    host.state.db.prepare("DELETE FROM test_conditions WHERE plan_id = ?").run(planId);
+    const insert = host.state.db.prepare(
+      "INSERT INTO test_conditions (id, plan_id, basis_refs_json, condition_id, doc_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    for (const c of conditions)
+      insert.run(
+        `${planId}#${c.condition_id}`,
+        planId,
+        JSON.stringify(c.basis_refs),
+        c.condition_id,
+        JSON.stringify(c),
+        at,
+        at,
+      );
+    appendAudit(
+      host.state.db,
+      { projectId, actor, action: "conditions.derived", target: planId, details: { conditions: conditions.length } },
+      { redactor: host.redactor, now: host.now },
+    );
+  });
+}
+
 const conditionsDerive = defineOperation<{ plan_id: string }, unknown>({
   name: "conditions.derive",
   title: "Derive test conditions",
@@ -39,34 +71,7 @@ const conditionsDerive = defineOperation<{ plan_id: string }, unknown>({
   run: ({ host, caller }, input) => {
     const { projectId, plan, model } = planContext(host, input.plan_id);
     const conditions = deriveConditions({ plan, model });
-    host.state.transaction(() => {
-      const at = host.now().toISOString();
-      host.state.db.prepare("DELETE FROM test_conditions WHERE plan_id = ?").run(plan.plan_id);
-      const insert = host.state.db.prepare(
-        "INSERT INTO test_conditions (id, plan_id, basis_refs_json, condition_id, doc_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      );
-      for (const c of conditions)
-        insert.run(
-          `${plan.plan_id}#${c.condition_id}`,
-          plan.plan_id,
-          JSON.stringify(c.basis_refs),
-          c.condition_id,
-          JSON.stringify(c),
-          at,
-          at,
-        );
-      appendAudit(
-        host.state.db,
-        {
-          projectId,
-          actor: caller.actor,
-          action: "conditions.derived",
-          target: plan.plan_id,
-          details: { conditions: conditions.length },
-        },
-        { redactor: host.redactor, now: host.now },
-      );
-    });
+    storeConditions(host, projectId, plan.plan_id, conditions, caller.actor);
     return summary(plan.plan_id, conditions);
   },
 });

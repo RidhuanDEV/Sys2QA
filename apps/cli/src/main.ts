@@ -47,6 +47,13 @@ interface Command {
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+/** Approval binding options shared by preview, approve and the execution check. */
+const bindingOptions = (v: Record<string, string | boolean | string[] | undefined>) => ({
+  mode: str(v.mode),
+  environment_id: str(v.environment),
+  declared_environment: str(v["declared-environment"]),
+  test_data_profile: str(v["test-data-profile"]),
+});
 const list = (v: unknown) => (Array.isArray(v) ? (v as string[]) : typeof v === "string" ? [v] : undefined);
 const defined = (o: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
@@ -261,6 +268,67 @@ const COMMANDS: Record<string, Command> = {
     usage: "findings list <project-id> [--kind <checklist|duplicate|conflict>]",
     build: ([project_id], v) => ({ operation: "findings.list", input: defined({ project_id, kind: str(v.kind) }) }),
   },
+  "scenarios decide": {
+    usage:
+      "scenarios decide <scenario-id> <version> <ready_for_review|reject|defer|request_regeneration> --reason <text>",
+    build: ([scenario_id, version, decision], v) => ({
+      operation: "scenarios.decide",
+      input: defined({
+        scenario_id,
+        version: version === undefined ? undefined : Number(version),
+        decision,
+        reason: str(v.reason),
+      }),
+    }),
+  },
+  "scenarios classify": {
+    usage: "scenarios classify <scenario-id> <manual_only|automation_candidate|automation_ready|both> --reason <text>",
+    build: ([scenario_id, classification], v) => ({
+      operation: "scenarios.classify",
+      input: defined({ scenario_id, classification, reason: str(v.reason) }),
+    }),
+  },
+  "approvals preview": {
+    usage:
+      "approvals preview <project-id> <scenario-id>... --mode <manual|automated> [--environment <environment-id> | --declared-environment <name>] [--test-data-profile <name>]",
+    build: ([project_id, ...scenario_ids], v) => ({
+      operation: "approvals.preview",
+      input: defined({ project_id, scenario_ids, ...bindingOptions(v) }),
+    }),
+  },
+  "approvals approve": {
+    usage:
+      "approvals approve <project-id> <scenario-id>... --mode <manual|automated> [--environment <id> | --declared-environment <name>] [--test-data-profile <name>] --token <preview-token> [--state-changing-ack]",
+    build: ([project_id, ...scenario_ids], v) => ({
+      operation: "approvals.approve",
+      input: defined({
+        project_id,
+        scenario_ids,
+        ...bindingOptions(v),
+        preview_token: str(v.token),
+        state_changing_ack: v["state-changing-ack"] === true ? true : undefined,
+      }),
+    }),
+  },
+  "approvals revoke": {
+    usage: "approvals revoke <approval-id> --reason <text>",
+    build: ([approval_id], v) => ({
+      operation: "approvals.revoke",
+      input: defined({ approval_id, reason: str(v.reason) }),
+    }),
+  },
+  "approvals list": {
+    usage: "approvals list <scenario-id>",
+    build: ([scenario_id]) => ({ operation: "approvals.list", input: defined({ scenario_id }) }),
+  },
+  "execution check": {
+    usage:
+      "execution check <scenario-id> --mode <manual|automated> [--environment <id> | --declared-environment <name>] [--test-data-profile <name>]",
+    build: ([scenario_id], v) => ({
+      operation: "execution.check",
+      input: defined({ scenario_id, ...bindingOptions(v) }),
+    }),
+  },
   readiness: {
     usage: "readiness <project-id> <package-id> <version> [--workflow <workflow-id>]...",
     build: ([project_id, package_id, version], v) => ({
@@ -395,6 +463,12 @@ const OPTIONS = {
   technique: { type: "string" },
   wording: { type: "string" },
   kind: { type: "string" },
+  mode: { type: "string" },
+  environment: { type: "string" },
+  "declared-environment": { type: "string" },
+  "test-data-profile": { type: "string" },
+  token: { type: "string" },
+  "state-changing-ack": { type: "boolean" },
   status: { type: "string" },
   version: { type: "string" },
 } as const;

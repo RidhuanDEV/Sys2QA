@@ -20,6 +20,7 @@ import { CRITIQUE_OPERATIONS } from "./critique.js";
 import { PACKAGE_OPERATIONS } from "./packages.js";
 import { PLAN_OPERATIONS } from "./plans.js";
 import { READINESS_OPERATIONS } from "./readiness.js";
+import { REVIEW_OPERATIONS } from "./review.js";
 import { SCENARIO_OPERATIONS } from "./scenarios.js";
 import { SAA_OPERATIONS } from "./saa.js";
 import { serviceError } from "./errors.js";
@@ -594,5 +595,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   ...CONDITION_OPERATIONS,
   ...SCENARIO_OPERATIONS,
   ...CRITIQUE_OPERATIONS,
+  ...REVIEW_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;

@@ -83,6 +83,10 @@ export const SERVICE_ERRORS: Record<string, { kind: ErrorKind; remediation: stri
     remediation:
       "Choose an output directory outside the analyzed repository, or allow in-repository output explicitly; a package version is never overwritten.",
   },
+  SCENARIO_NOT_READY: {
+    kind: "conflict",
+    remediation: "Only scenarios in pending_review can be approved; resolve the clarification or run the critic first.",
+  },
   READINESS_BLOCKED: {
     kind: "conflict",
     remediation:

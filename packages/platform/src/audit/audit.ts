@@ -31,6 +31,9 @@ export const AUDIT_ACTIONS = [
   "conditions.derived",
   "scenarios.generated",
   "scenarios.critiqued",
+  "scenario.edited",
+  "scenario.decided",
+  "scenario.classified",
   "data.deleted",
   "settings.changed",
 ] as const;
