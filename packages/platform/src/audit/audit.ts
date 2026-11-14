@@ -36,6 +36,7 @@ export const AUDIT_ACTIONS = [
   "scenario.classified",
   "approval.revalidated",
   "staleness.evaluated",
+  "source.verified",
   "data.deleted",
   "settings.changed",
 ] as const;

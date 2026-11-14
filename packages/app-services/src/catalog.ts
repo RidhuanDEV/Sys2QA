@@ -22,6 +22,7 @@ import { PLAN_OPERATIONS } from "./plans.js";
 import { READINESS_OPERATIONS } from "./readiness.js";
 import { REVIEW_OPERATIONS } from "./review.js";
 import { SCENARIO_OPERATIONS } from "./scenarios.js";
+import { SOURCE_CHECK_OPERATIONS } from "./source-check.js";
 import { STALENESS_OPERATIONS, suspendForScopeChange } from "./staleness.js";
 import { SAA_OPERATIONS } from "./saa.js";
 import { serviceError } from "./errors.js";
@@ -605,5 +606,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   ...CRITIQUE_OPERATIONS,
   ...REVIEW_OPERATIONS,
   ...STALENESS_OPERATIONS,
+  ...SOURCE_CHECK_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;

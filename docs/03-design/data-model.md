@@ -101,6 +101,7 @@ The DDL is in `packages/platform/migrations/0001_initial_state.sql` (IMP-007); t
 | `packages` | `project_id`, `package_id`, `version` (key, migration 0007), `producer`, `path`, `manifest_sha256`, `imported_from_import_id?` | Immutable rows (trigger rejects `UPDATE`); the same package version may be imported into several projects |
 | `readiness_assessments` | `id` (`<assessment-id>#<activity>`), `package_ref` (with `assessment_id`), `activity`, `readiness`, `reasons_json` | One row per activity of each assessment |
 | `qa_findings` | `id`, `project_id`, `kind ∈ {checklist, duplicate, conflict}`, `subject_id` (scenario or `qconflict:` ID), `version?`, `doc_json` | Migration 0010; a new critique replaces the findings of the scenarios it checked |
+| `source_checks` | `id`, `project_id`, `package_id`, `package_version`, `record_id`, `result ∈ {confirmed, not_confirmed, unconfirmed}`, `doc_json` | Migration 0011; QAA `targeted_source_check` evidence, never written into a package |
 | `baseline_confirmations` | `id`, `project_id`, `package_id`, `package_version`, `confirmed_by`, `statement` | **Append-only** (migration 0008); OD-04 confirmation that the target runs the package's working tree |
 | `materiality_overrides` | `id`, `project_id`, `gap_id`, `material`, `reason`, `overridden_by` | **Append-only** (migration 0008); the latest row per gap applies |
 | `test_plans` | `id`, `project_id`, `baseline_json`, `doc_json` | |

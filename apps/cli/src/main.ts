@@ -329,6 +329,18 @@ const COMMANDS: Record<string, Command> = {
       input: defined({ scenario_id, ...bindingOptions(v) }),
     }),
   },
+  "source verify": {
+    usage: "source verify <project-id> <package-id> <version> <record-id>",
+    build: ([project_id, package_id, version, record_id]) => ({
+      operation: "source.verify",
+      input: defined({
+        project_id,
+        package_id,
+        version: version === undefined ? undefined : Number(version),
+        record_id,
+      }),
+    }),
+  },
   readiness: {
     usage: "readiness <project-id> <package-id> <version> [--workflow <workflow-id>]...",
     build: ([project_id, package_id, version], v) => ({
