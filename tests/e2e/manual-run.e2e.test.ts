@@ -1,4 +1,5 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join as joinPath } from "node:path";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -186,6 +187,42 @@ describe("manual runner in the web UI [@req QAA-FR-080] [@req QAA-FR-081] [@req 
       ["passed", "tester"],
     ]);
     expect(docs[0]!.steps[2]!.evidence_refs?.[0]).toMatch(/^qevid:/);
+    await page.close();
+  });
+
+  it("exports a manual test pack from the plan and imports its filled-in results on the project page [@req QAA-FR-112]", async () => {
+    const page = await browser.newPage();
+    await page.goto(link);
+    await page.goto(`${server.url}/#/plan/${encodeURIComponent(planId)}`);
+    await page.getByLabel("Show scenarios with status").selectOption("approved");
+    await page.getByRole("table", { name: /scenario\(s\)/ }).waitFor();
+    await page.getByLabel("Select TC-ADMIN-001").check();
+    await page.getByLabel("Environment you test in (required)").fill("tester laptop");
+    await page.getByRole("button", { name: "Export a manual test pack" }).click();
+    const note = page.getByRole("note");
+    await expect.poll(() => note.textContent()).toMatch(/Manual test pack written to /);
+    const dir = /written to (\S+) \(/.exec((await note.textContent()) ?? "")![1]!;
+    const template = JSON.parse(readFileSync(joinPath(dir, "result-template.json"), "utf8")) as {
+      environment: unknown;
+      cases: Array<{ outcome: string; steps: Array<{ status: string }> }>;
+    };
+    template.environment = { declared: { name: "Rina laptop" } };
+    for (const c of template.cases) {
+      for (const s of c.steps) s.status = "pass";
+      c.outcome = "passed";
+    }
+    await page.getByRole("link", { name: "Back to the project" }).click();
+    await page.getByLabel("Filled-in result-template.json").setInputFiles({
+      name: "result-template.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(template)),
+    });
+    await page.getByRole("button", { name: "Import results" }).click();
+    await expect
+      .poll(() => page.getByRole("status").textContent())
+      .toBe("Manual test pack results imported as tester-reported.");
+    await expect.poll(() => page.getByRole("heading", { name: "Manual runs" }).isVisible()).toBe(true);
+    expect(await axe(page)).toEqual([]);
     await page.close();
   });
 });

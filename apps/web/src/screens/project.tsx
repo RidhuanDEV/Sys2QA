@@ -1,4 +1,5 @@
-import { href, Loaded, Page, Status, useLoad } from "../ui";
+import { useRef } from "react";
+import { ErrorBox, href, Loaded, Page, Status, useAction, useLoad } from "../ui";
 
 interface ProjectDetail {
   id: string;
@@ -113,6 +114,7 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
               }
             </Loaded>
           </section>
+          <ImportPackResults projectId={projectId} onDone={runs.reload} />
           <section aria-labelledby="runs">
             <h2 id="runs">Manual runs</h2>
             <Loaded result={runs.result} what="manual runs">
@@ -138,5 +140,43 @@ export function ProjectScreen({ projectId }: { projectId: string }) {
         </Page>
       )}
     </Loaded>
+  );
+}
+
+/** Imports a filled-in result template of a manual test pack (QAA-FR-112); the service checks it against the pack. */
+function ImportPackResults(props: { projectId: string; onDone: () => void }) {
+  const file = useRef<HTMLInputElement>(null);
+  const action = useAction();
+  async function upload() {
+    const picked = file.current?.files?.[0];
+    if (!picked) return;
+    let result: unknown;
+    try {
+      result = JSON.parse(await picked.text());
+    } catch {
+      result = null;
+    }
+    const done = await action.run<{ run_id: string }>(
+      "packs.import_results",
+      { project_id: props.projectId, result: result ?? {} },
+      "Manual test pack results imported as tester-reported.",
+    );
+    if (done) {
+      if (file.current) file.current.value = "";
+      props.onDone();
+    }
+  }
+  return (
+    <section aria-labelledby="pack-results">
+      <h2 id="pack-results">Manual test pack results</h2>
+      <div className="field">
+        <label htmlFor="pack-result-file">Filled-in result-template.json</label>
+        <input id="pack-result-file" type="file" accept=".json,application/json" ref={file} />
+      </div>
+      <button type="button" disabled={action.busy} onClick={() => void upload()}>
+        Import results
+      </button>
+      {action.error ? <ErrorBox error={action.error} /> : null}
+    </section>
   );
 }

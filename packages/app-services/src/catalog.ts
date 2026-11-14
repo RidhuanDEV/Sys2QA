@@ -18,6 +18,7 @@ import { runDoctor } from "./doctor.js";
 import { CONDITION_OPERATIONS } from "./conditions.js";
 import { COVERAGE_OPERATIONS } from "./coverage.js";
 import { MANUAL_RUN_OPERATIONS } from "./manual-runs.js";
+import { PACK_OPERATIONS } from "./packs.js";
 import { CRITIQUE_OPERATIONS } from "./critique.js";
 import { PACKAGE_OPERATIONS } from "./packages.js";
 import { PLAN_OPERATIONS } from "./plans.js";
@@ -613,5 +614,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   ...COVERAGE_OPERATIONS,
   ...SYSTEM_MAP_OPERATIONS,
   ...MANUAL_RUN_OPERATIONS,
+  ...PACK_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;

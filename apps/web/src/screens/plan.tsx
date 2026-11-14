@@ -556,6 +556,7 @@ function Approval(props: { projectId: string; selected: string[]; onDone: () => 
 function StartManualRun(props: { projectId: string; selected: string[] }) {
   const [environment, setEnvironment] = useState("");
   const [url, setUrl] = useState("");
+  const [exported, setExported] = useState<{ path: string; files: string[] } | null>(null);
   const action = useAction();
   return (
     <section aria-labelledby="manual-run">
@@ -591,11 +592,35 @@ function StartManualRun(props: { projectId: string; selected: string[] }) {
             required
           />
           <Field id="manual-url" label="Its URL, if any" type="url" value={url} onChange={setUrl} />
-          <button type="submit" disabled={action.busy}>
-            Start a manual run of {props.selected.length} scenario(s)
-          </button>
+          <div className="actions">
+            <button type="submit" disabled={action.busy}>
+              Start a manual run of {props.selected.length} scenario(s)
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={action.busy}
+              onClick={() =>
+                void action
+                  .run<{ path: string; files: string[] }>(
+                    "packs.export",
+                    { project_id: props.projectId, scenario_ids: props.selected },
+                    "Manual test pack exported.",
+                  )
+                  .then((r) => setExported(r ?? null))
+              }
+            >
+              Export a manual test pack
+            </button>
+          </div>
         </form>
       )}
+      {exported ? (
+        <p role="note">
+          Manual test pack written to <code>{exported.path}</code> ({exported.files.join(", ")}). Testers fill in
+          result-template.json; import it from the project page.
+        </p>
+      ) : null}
       {action.error ? <ErrorBox error={action.error} /> : null}
     </section>
   );

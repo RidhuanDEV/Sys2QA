@@ -44,6 +44,8 @@ export const AUDIT_ACTIONS = [
   "run.submitted",
   "run.step_recorded",
   "run.attachment_added",
+  "run.imported",
+  "pack.exported",
   "data.deleted",
   "settings.changed",
 ] as const;

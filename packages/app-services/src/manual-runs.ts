@@ -139,7 +139,7 @@ function baselineMoved(host: Host, run: RunRow): boolean {
 /** A step without an expected result (setup, navigation) may be not applicable; an expected result never is. */
 const mayBeNotApplicable = (step: Scenario["steps"][number]) => step.expected_result === null;
 
-function caseOutcome(statuses: StepStatus[]): CaseOutcome {
+export function caseOutcome(statuses: StepStatus[]): CaseOutcome {
   if (statuses.includes("fail")) return "failed";
   if (statuses.includes("blocked")) return "blocked";
   if (statuses.every((s) => s === "not_run")) return "not_run";

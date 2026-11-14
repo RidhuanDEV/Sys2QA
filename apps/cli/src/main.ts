@@ -432,6 +432,24 @@ const COMMANDS: Record<string, Command> = {
     usage: "run result <run-id>",
     build: ([run_id]) => ({ operation: "runs.result", input: defined({ run_id }) }),
   },
+  "pack export": {
+    usage: "pack export <project-id> <scenario-id>... [--language <code>] [--output <absolute-dir>]",
+    build: ([project_id, ...scenario_ids], v) => ({
+      operation: "packs.export",
+      input: defined({ project_id, scenario_ids, language: list(v.language)?.[0], output_dir: str(v.output) }),
+    }),
+  },
+  "pack import": {
+    usage: "pack import <project-id> <result-file> [--by <tester>]",
+    build: ([project_id, file], v, cwd) => ({
+      operation: "packs.import_results",
+      input: defined({ project_id, path: file === undefined ? undefined : resolve(cwd, file), tester: str(v.by) }),
+    }),
+  },
+  "pack list": {
+    usage: "pack list <project-id>",
+    build: ([project_id]) => ({ operation: "packs.list", input: defined({ project_id }) }),
+  },
   coverage: {
     usage: "coverage <plan-id>",
     build: ([plan_id]) => ({ operation: "coverage.report", input: defined({ plan_id }) }),
