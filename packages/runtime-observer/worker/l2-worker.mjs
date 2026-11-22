@@ -50,6 +50,7 @@ const extractForms = (page) =>
       };
       return {
         index,
+        dom_id: form.id || null,
         page_url: `${location.protocol}//${location.host}${location.pathname}`,
         method: (form.getAttribute("method") || "GET").toUpperCase(),
         action: `${action.protocol}//${action.host}${action.pathname}`,
@@ -182,7 +183,10 @@ async function discover(page, job, loginState) {
         budget: { ...budget, exhausted: null },
       };
   }
-  const queue = [{ url: job.url, depth: 0, from: null }];
+  const queue = [
+    { url: job.url, depth: 0, from: null },
+    ...(job.seeds ?? []).filter((u) => inScope(u, job.scope)).map((url) => ({ url, depth: 0, from: "seed" })),
+  ];
   const visited = new Set();
   const variants = new Map();
   while (queue.length > 0) {
@@ -216,15 +220,24 @@ async function discover(page, job, loginState) {
     }
     const observedAt = new Date().toISOString();
     if (error) {
-      const blockedTarget = /ERR_BLOCKED_BY_CLIENT/.test(error);
+      // The browser layer refuses out-of-scope requests it sees; redirects it does not route are refused by the proxy.
+      const refused = /ERR_BLOCKED_BY_CLIENT|ERR_TUNNEL_CONNECTION_FAILED/.test(error);
       notFollowed.set(stripQuery(clean), {
         target: stripQuery(clean),
         from,
-        reason: blockedTarget ? "redirect outside the scope" : `not loaded: ${error.split("\n")[0].slice(0, 160)}`,
+        reason: refused ? "redirect outside the scope, refused" : `not loaded: ${error.split("\n")[0].slice(0, 160)}`,
       });
       continue;
     }
     const final = page.url();
+    if (!inScope(final, job.scope)) {
+      notFollowed.set(stripQuery(clean), {
+        target: stripQuery(final),
+        from,
+        reason: "redirect outside the scope, refused",
+      });
+      continue;
+    }
     const finalPath = new URL(final).pathname;
     const requiresAuth = finalPath !== path && (await page.locator("input[type=password]").count()) > 0;
     if (!pages.has(path))

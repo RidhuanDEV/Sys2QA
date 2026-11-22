@@ -21,7 +21,7 @@ export interface L2Result {
   blocked: BlockedRequest[];
   /** `inspect`: the page's forms, and the ones the parent let the worker submit. */
   forms?: ObservedForm[];
-  submissions?: Array<{ index: number; status: number | null; final_url: string }>;
+  submissions?: Array<{ index: number; status: number | null; final_url: string; page?: string; action?: string }>;
   /** Downloads the page started; none is saved (SEC-019). */
   downloads?: string[];
   error?: string;
@@ -56,6 +56,8 @@ export interface L2Job {
    */
   action: "validate" | "inspect" | "discover";
   url: string;
+  /** `discover`: extra in-scope entry URLs. */
+  seeds?: string[];
   /** `discover`: limits of the walk. */
   budget?: { pages?: number; depth?: number; ms?: number; variants?: number };
   /** `discover`: a credential profile's values, given to this one worker process only (SEC-011). */

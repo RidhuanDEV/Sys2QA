@@ -54,6 +54,8 @@ export const AUDIT_ACTIONS = [
   "environment.validated",
   "forms.inspected",
   "form.confirmed",
+  "credential_profile.added",
+  "discovery.completed",
   "data.deleted",
   "settings.changed",
 ] as const;

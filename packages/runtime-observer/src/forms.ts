@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 export interface ObservedForm {
   /** Position on the page, for the worker to act on. */
   index: number;
+  /** The form's `id` attribute, when it has one. */
+  dom_id?: string | null;
   page_url: string;
   method: string;
   /** Scheme, host and path the form submits to; no query string. */
