@@ -51,6 +51,7 @@ export const AUDIT_ACTIONS = [
   "defect.transitioned",
   "report.generated",
   "egress.decision",
+  "environment.validated",
   "data.deleted",
   "settings.changed",
 ] as const;

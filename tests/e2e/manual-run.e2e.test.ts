@@ -13,6 +13,7 @@ import {
   type ApiServer,
   type Host,
 } from "../../packages/app-services/src/index.js";
+import { browserOptions } from "./browser.js";
 import { bundleWebUi } from "../../scripts/web-bundle.mjs";
 import { bundleSaaAdapters } from "../benchmark/harness/index.js";
 
@@ -102,7 +103,7 @@ beforeAll(async () => {
   });
   server = await startApiServer(services, { webUi: { root: await bundleWebUi(join(work, "web")) } });
   link = `${server.url}/#token=${server.token}`;
-  browser = await chromium.launch();
+  browser = await chromium.launch(browserOptions());
 });
 
 afterAll(async () => {

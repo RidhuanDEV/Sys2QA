@@ -156,6 +156,9 @@ importers:
       '@sys2qa/platform':
         specifier: workspace:*
         version: link:../platform
+      playwright-core:
+        specifier: 1.56.1
+        version: 1.56.1
 
   packages/saa-adapters:
     dependencies:

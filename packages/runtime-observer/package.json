@@ -13,6 +13,7 @@
     }
   },
   "dependencies": {
-    "@sys2qa/platform": "workspace:*"
+    "@sys2qa/platform": "workspace:*",
+    "playwright-core": "1.56.1"
   }
 }
