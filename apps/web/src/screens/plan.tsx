@@ -602,7 +602,10 @@ function StartManualRun(props: { projectId: string; selected: string[] }) {
               disabled={action.busy}
               onClick={() =>
                 void action
-                  .run<{ path: string; files: string[] }>(
+                  .run<{
+                    path: string;
+                    files: string[];
+                  }>(
                     "packs.export",
                     { project_id: props.projectId, scenario_ids: props.selected },
                     "Manual test pack exported.",

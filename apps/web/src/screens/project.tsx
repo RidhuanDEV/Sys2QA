@@ -202,11 +202,10 @@ function GenerateReport(props: { projectId: string }) {
         disabled={action.busy}
         onClick={() =>
           void action
-            .run<{ path: string; summary: Record<string, number> }>(
-              "reports.generate",
-              { project_id: props.projectId, language },
-              "QA report written.",
-            )
+            .run<{
+              path: string;
+              summary: Record<string, number>;
+            }>("reports.generate", { project_id: props.projectId, language }, "QA report written.")
             .then((r) => setDone(r ?? null))
         }
       >

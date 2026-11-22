@@ -2,11 +2,14 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppServices, openHost, type Host, type ServiceResult } from "../../packages/app-services/src/index.js";
 import { validateScenario } from "../../packages/contract/src/index.js";
 import type { BackendRequest, LlmBackend } from "../../packages/platform/src/index.js";
 import { buildF2Package, bundleSaaAdapters } from "../benchmark/harness/index.js";
+
+// Tests here run whole service flows (projects, imports, plans, generation); slow CI machines need more than 5 s.
+vi.setConfig({ testTimeout: 60_000 });
 
 const F1 = fileURLToPath(new URL("../../fixtures/benchmarks/F1-repository-only/repo", import.meta.url));
 
