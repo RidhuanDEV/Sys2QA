@@ -6,7 +6,14 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppServices, openHost, type Host, type ServiceResult } from "../../packages/app-services/src/index.js";
+import { validateDocument } from "../../packages/contract/src/index.js";
 import { memorySink } from "../../packages/platform/src/index.js";
+import {
+  buildObservedModel,
+  type DiscoveryObservations,
+  type ObservedModel,
+} from "../../packages/runtime-observer/src/index.js";
+import { computeMetrics, loadGroundTruth, type ProducerOutput } from "../benchmark/harness/index.js";
 import { diffPolicyState, INJECTION_PAGE, snapshotPolicyState } from "../security/harness/index.js";
 
 vi.setConfig({ testTimeout: 180_000 });
@@ -155,6 +162,60 @@ describe("discovery of the F2 site [@req QAA-FR-021] [@req QAA-FR-022] [@req QAA
       await call("discovery.run", { source_id: envId, budget: { pages: 3 } }),
     );
     expect(small).toMatchObject({ pages: 3, budget_exhausted: "pages", status: "completed_with_limitations" });
+  });
+
+  it("builds an observed model that claims nothing beyond the observations, and reports its uncertainty [@req QAA-FR-114] [@req CON-023]", () => {
+    const truth = loadGroundTruth(join(F2, "ground-truth"), "F2-url-only");
+    const measure = (a: Artifact) => {
+      const built = buildObservedModel(a as unknown as DiscoveryObservations, { system_id: "system:f2-site" });
+      for (const [name, doc] of [
+        ["system-model", built.model],
+        ["evidence-index", built.evidence_index],
+        ["completeness-report", built.completeness],
+      ] as const) {
+        const result = validateDocument(name, doc);
+        expect(result.ok ? [] : result.issues, name).toEqual([]);
+      }
+      const model = built.model as unknown as ProducerOutput["systemModel"] & {
+        entities: Array<{ id: string; kind: string }>;
+      };
+      const formIds = model.entities.filter((e) => e.kind === "form").map((e) => e.id);
+      const output: ProducerOutput = {
+        systemModel: model,
+        evidenceIndex: built.evidence_index as unknown as ProducerOutput["evidenceIndex"],
+        completeness: built.completeness as unknown as NonNullable<ProducerOutput["completeness"]>,
+        runtime: {
+          visited_pages: a.pages.filter((p) => !p.observability).map((p) => p.path),
+          discovered_forms: formIds,
+          submitted_forms: a.forms
+            .filter((f) => f.submitted)
+            .map((f) => `form:observed:${new URL(f.form.page_url).pathname}#${f.form.dom_id}`),
+        },
+      };
+      const { gates, ...metrics } = computeMetrics(truth, output);
+      return { summary: (built as ObservedModel).summary, metrics, gates };
+    };
+    const seeded = measure(artifact);
+    const links = measure(linkOnly);
+    mkdirSync(reports, { recursive: true });
+    writeFileSync(
+      join(reports, "observed-model-metrics.json"),
+      `${JSON.stringify({ fixture: "F2-url-only", seeds: SEEDS, seeded, link_only: links }, null, 2)}\n`,
+    );
+    for (const run of [seeded, links]) {
+      expect(run.metrics.over_claiming).toEqual({ count: 0, items: [] });
+      expect(run.metrics.evidence_traceability).toBe(1);
+      expect(run.metrics.runtime.withheld_form_errors).toBe(0);
+      expect(run.gates.every((g) => g.passed)).toBe(true);
+      // Uncertainty reporting is measured and reported, not hidden.
+      expect(typeof run.metrics.uncertainty.true_gap_ratio).toBe("number");
+      expect(run.summary.statement).toMatch(
+        /^\d+ pages and \d+ candidate workflows observed within the declared scope\.$/,
+      );
+    }
+    // With the seeds every expected workflow is found, each stop point in its place.
+    expect(seeded.metrics.discovery.recall).toBe(1);
+    expect(seeded.metrics.reconstruction.stop_point_accuracy).toBe(1);
   });
 });
 

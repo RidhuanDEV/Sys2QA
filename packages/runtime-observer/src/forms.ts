@@ -10,8 +10,17 @@ export interface ObservedForm {
   method: string;
   /** Scheme, host and path the form submits to; no query string. */
   action: string;
-  fields: Array<{ name: string; type: string; label: string | null; required: boolean }>;
+  fields: Array<{
+    name: string;
+    type: string;
+    label: string | null;
+    required: boolean;
+    /** Constraint attributes as the page sets them (maxlength, minlength, pattern, min, max, inputmode, step). */
+    constraints?: Record<string, string>;
+  }>;
   buttons: string[];
+  /** Hint texts inside the form (page text: data, never instructions). */
+  hints?: string[];
 }
 
 export type FormProposal = "read_only" | "login" | "state_changing" | "unknown";
@@ -36,9 +45,6 @@ const DESTRUCTIVE_WORDS =
 export function classifyForm(form: ObservedForm): FormClassification {
   const signals: string[] = [];
   const method = form.method.toUpperCase();
-  if (form.fields.some((f) => f.type === "password")) return { proposal: "login", signals: ["password field"] };
-  if (method !== "GET") signals.push(`method ${method}`);
-  if (form.fields.some((f) => f.type === "file")) signals.push("file input");
   // Search, filter, sort and paging field names ("order", "sort") are not taken as intentions.
   const words = [
     ...form.buttons,
@@ -46,7 +52,15 @@ export function classifyForm(form: ObservedForm): FormClassification {
     form.action,
   ];
   const destructive = words.find((w) => DESTRUCTIVE_WORDS.test(w));
-  if (destructive) signals.push(`state-changing word in "${destructive.trim().slice(0, 60)}"`);
+  const stateWord = destructive ? `state-changing word in "${destructive.trim().slice(0, 60)}"` : null;
+  if (form.fields.some((f) => f.type === "password"))
+    // A password with a state-changing word (create account, register, reset) sets a credential rather than using one.
+    return stateWord
+      ? { proposal: "state_changing", signals: ["password field", stateWord] }
+      : { proposal: "login", signals: ["password field"] };
+  if (method !== "GET") signals.push(`method ${method}`);
+  if (form.fields.some((f) => f.type === "file")) signals.push("file input");
+  if (stateWord) signals.push(stateWord);
   if (signals.length > 0) return { proposal: "state_changing", signals };
   const named = form.fields.filter((f) => !["submit", "button", "reset", "hidden"].includes(f.type));
   if (named.length > 0 && named.every((f) => SEARCH_FIELDS.test(f.name)))

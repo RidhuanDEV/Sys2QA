@@ -256,6 +256,8 @@ async function discover(page, job, loginState) {
     if (requiresAuth) continue;
     // Links rendered after scripts ran, so client-side routes show as well.
     const links = await page.evaluate(() => [...document.querySelectorAll("a[href]")].map((a) => a.href));
+    // In-scope link targets of this page (no query, at most 200): the navigation the observed model is built from.
+    const linked = new Set();
     for (const link of links) {
       let target;
       try {
@@ -272,8 +274,11 @@ async function discover(page, job, loginState) {
         });
         continue;
       }
+      if (linked.size < 200) linked.add(stripQuery(target.href));
       if (depth + 1 <= budget.depth) queue.push({ url: target.href, depth: depth + 1, from: stripQuery(clean) });
     }
+    const record = pages.get(path);
+    if (!record.links) record.links = [...linked].sort();
     if (new URL(final).pathname === path) {
       const forms = await extractForms(page);
       if (forms.length > 0) {

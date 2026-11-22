@@ -46,6 +46,10 @@ const SAFE_LABEL = form({
 describe("form classification proposes, never decides [@req SEC-024] [@req QAA-FR-025]", () => {
   it("names login, state-changing, read-only and unknown forms with their signals", () => {
     expect(classifyForm(LOGIN)).toEqual({ proposal: "login", signals: ["password field"] });
+    // A password with a state-changing word creates or resets a credential: registration, not login.
+    const register = classifyForm({ ...LOGIN, action: "http://shop.test/register", buttons: ["Create account"] });
+    expect(register.proposal).toBe("state_changing");
+    expect(register.signals[0]).toBe("password field");
     expect(classifyForm(DELETE).proposal).toBe("state_changing");
     expect(classifyForm(DELETE).signals).toEqual(expect.arrayContaining(["method POST"]));
     expect(classifyForm(GET_DELETE).proposal).toBe("state_changing");

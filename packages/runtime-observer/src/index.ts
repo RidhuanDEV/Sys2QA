@@ -3,3 +3,4 @@ export * from "./prerequisites.js";
 export * from "./proxy.js";
 export * from "./l2-worker.js";
 export * from "./forms.js";
+export * from "./observed-model.js";

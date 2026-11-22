@@ -153,6 +153,9 @@ importers:
 
   packages/runtime-observer:
     dependencies:
+      '@sys2qa/contract':
+        specifier: workspace:*
+        version: link:../contract
       '@sys2qa/platform':
         specifier: workspace:*
         version: link:../platform

@@ -1,7 +1,15 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { appendAudit, localIdPart, projectDirectory } from "@sys2qa/platform";
-import { classifyForm, formKey, runL2Job, submissionDecision, type SubmissionDecision } from "@sys2qa/runtime-observer";
+import {
+  buildObservedModel,
+  classifyForm,
+  formKey,
+  runL2Job,
+  submissionDecision,
+  type DiscoveryObservations,
+  type SubmissionDecision,
+} from "@sys2qa/runtime-observer";
 import { observation } from "./environments.js";
 import { serviceError, ServiceError } from "./errors.js";
 import type { Host } from "./host.js";
@@ -199,10 +207,7 @@ const discoveryRun = defineOperation<
         `discovery could not run: ${result.error}`,
         "Check that the environment is up and the URL is in scope, then try again.",
       );
-    const forms = new Map<
-      string,
-      { form: unknown; proposal: string; signals: string[]; submitted: boolean; decision: string }
-    >();
+    const forms = new Map<string, Omit<DiscoveryObservations["forms"][number], "form_key">>();
     const submittedActions = new Set((result.submissions ?? []).map((s) => `${s.page}|${s.index}`));
     for (const f of result.forms_seen ?? []) {
       const key = formKey(f);
@@ -227,7 +232,7 @@ const discoveryRun = defineOperation<
               (result.pages ?? []).some((p) => p.observability)
             ? "completed_with_limitations"
             : "completed";
-    const artifact = {
+    const artifact: DiscoveryObservations = {
       schema: "sys2qa.discovery-observations/1",
       job_id: jobId,
       environment_id: source.id,
@@ -261,6 +266,11 @@ const discoveryRun = defineOperation<
       budget_exhausted: result.budget?.exhausted ?? null,
       login: result.login?.status ?? null,
     };
+    // The observed model of the walk (QAA-FR-114); IMP-406 publishes it as a package.
+    const observed = buildObservedModel(artifact, {
+      system_id: `system:${localIdPart(source.project_id)}`,
+      paths: scope.path_prefixes.length > 0 ? scope.path_prefixes : ["/"],
+    }).summary;
     host.state.transaction(() => {
       host.state.db
         .prepare(
@@ -296,6 +306,8 @@ const discoveryRun = defineOperation<
       job_id: jobId,
       environment_id: source.id,
       ...summary,
+      candidate_workflows: observed.candidate_workflows,
+      observed: observed.statement,
       ...(result.login && result.login.status !== "logged_in"
         ? {
             guidance: `${result.login.reason}. Sys2QA never bypasses login controls; log in another way or discover without the profile.`,
