@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import type { ObservedForm } from "./forms.js";
 import type { ProxyScope, ScopeProxy } from "./proxy.js";
 
 /** A request the L2 worker refused in the browser layer (outside the scope, or a non-GET while validating). */
@@ -18,12 +19,20 @@ export interface L2Result {
   cookies_before?: string[];
   cookies_after?: string[];
   blocked: BlockedRequest[];
+  /** `inspect`: the page's forms, and the ones the parent let the worker submit. */
+  forms?: ObservedForm[];
+  submissions?: Array<{ index: number; status: number | null; final_url: string }>;
+  /** Downloads the page started; none is saved (SEC-019). */
+  downloads?: string[];
   error?: string;
 }
 
 export interface L2Job {
-  /** `validate`: reachability without side effects (QAA-FR-006): GET and HEAD only. */
-  action: "validate";
+  /**
+   * `validate`: reachability without side effects (QAA-FR-006). `inspect`: also read the page's forms and submit only
+   * those the parent's policy names (SEC-024). Both let only GET and HEAD requests leave the browser.
+   */
+  action: "validate" | "inspect";
   url: string;
   scope: Pick<ProxyScope, "allowed_hosts" | "path_prefixes">;
   timeoutMs?: number;
@@ -52,7 +61,15 @@ const PASSED_ENV = [
  * request through the given scope proxy. The process gets a minimal environment (no secrets, no Sys2QA settings) and
  * is killed when the time budget runs out.
  */
-export function runL2Job(job: L2Job, proxy: ScopeProxy, options: { budgetMs?: number } = {}): Promise<L2Result> {
+export function runL2Job(
+  job: L2Job,
+  proxy: ScopeProxy,
+  options: {
+    budgetMs?: number;
+    /** `inspect`: the parent decides which forms the worker may submit (their indexes); the worker decides nothing. */
+    onForms?: (forms: ObservedForm[]) => number[];
+  } = {},
+): Promise<L2Result> {
   const env = Object.fromEntries(
     PASSED_ENV.flatMap((k) => (process.env[k] !== undefined ? [[k, process.env[k]!]] : [])),
   );
@@ -71,11 +88,26 @@ export function runL2Job(job: L2Job, proxy: ScopeProxy, options: { budgetMs?: nu
       child.kill("SIGKILL");
       finish({ ok: false, error: "the L2 job ran out of its time budget", blocked: [] });
     }, options.budgetMs ?? 60_000);
-    child.stdout.on("data", (c: Buffer) => (out += c.toString()));
+    let pending = "";
+    child.stdout.on("data", (c: Buffer) => {
+      out += c.toString();
+      pending += c.toString();
+      let end;
+      while ((end = pending.indexOf("\n")) >= 0) {
+        const line = pending.slice(0, end);
+        pending = pending.slice(end + 1);
+        if (!line.startsWith("{")) continue;
+        const message = JSON.parse(line) as { type: string; forms?: ObservedForm[] };
+        if (message.type === "forms")
+          child.stdin.end(
+            `${JSON.stringify({ type: "submit", submit: options.onForms?.(message.forms ?? []) ?? [] })}\n`,
+          );
+      }
+    });
     child.stderr.on("data", (c: Buffer) => (err = (err + c.toString()).slice(-2000)));
     child.on("error", (e) => finish({ ok: false, error: `the L2 worker did not start: ${e.message}`, blocked: [] }));
     child.on("close", () => {
-      const line = out.split("\n").find((l) => l.startsWith("{"));
+      const line = out.split("\n").find((l) => l.startsWith('{"type":"result"'));
       if (!line)
         return finish({
           ok: false,
@@ -85,8 +117,9 @@ export function runL2Job(job: L2Job, proxy: ScopeProxy, options: { budgetMs?: nu
       const { type: _type, ...result } = JSON.parse(line) as L2Result & { type: string };
       finish(result);
     });
-    child.stdin.end(
-      `${JSON.stringify({ ...job, proxy: { server: proxy.url, username: proxy.username, password: proxy.password } })}\n`,
-    );
+    const message = `${JSON.stringify({ ...job, proxy: { server: proxy.url, username: proxy.username, password: proxy.password } })}\n`;
+    // A validation job needs nothing more; an inspection waits for the parent's decision on its forms.
+    if (job.action === "validate") child.stdin.end(message);
+    else child.stdin.write(message);
   });
 }

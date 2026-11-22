@@ -9,17 +9,64 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright-core";
 
-const readJob = () =>
-  new Promise((resolve, reject) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => {
-      data += chunk;
-      const end = data.indexOf("\n");
-      if (end >= 0) resolve(JSON.parse(data.slice(0, end)));
-    });
-    process.stdin.on("end", () => (data.trim() ? resolve(JSON.parse(data)) : reject(new Error("no job"))));
+// Messages from the parent arrive as JSON lines: the job first, then (for `inspect`) the forms it lets the worker submit.
+const lines = [];
+const waiting = [];
+let buffer = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+  buffer += chunk;
+  let end;
+  while ((end = buffer.indexOf("\n")) >= 0) {
+    const line = buffer.slice(0, end);
+    buffer = buffer.slice(end + 1);
+    if (!line.trim()) continue;
+    const message = JSON.parse(line);
+    const next = waiting.shift();
+    if (next) next(message);
+    else lines.push(message);
+  }
+});
+const nextMessage = () =>
+  new Promise((resolve) => {
+    const queued = lines.shift();
+    if (queued) resolve(queued);
+    else waiting.push(resolve);
   });
+
+/** The page's forms as discovery may see them: method, target, fields and labels, button texts; never values. */
+/* global document, location, CSS -- the extraction function runs in the page, not in Node. */
+const extractForms = (page) =>
+  page.evaluate(() =>
+    [...document.forms].map((form, index) => {
+      const action = new URL(form.getAttribute("action") || location.href, location.href);
+      const labelOf = (el) => {
+        const byFor = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
+        const text =
+          (byFor ?? el.closest("label"))?.textContent ??
+          el.getAttribute("aria-label") ??
+          el.getAttribute("placeholder");
+        return text ? text.trim().slice(0, 120) : null;
+      };
+      return {
+        index,
+        page_url: `${location.protocol}//${location.host}${location.pathname}`,
+        method: (form.getAttribute("method") || "GET").toUpperCase(),
+        action: `${action.protocol}//${action.host}${action.pathname}`,
+        fields: [...form.elements]
+          .filter((el) => el.name && el.tagName !== "BUTTON")
+          .map((el) => ({
+            name: el.name.slice(0, 100),
+            type: (el.getAttribute("type") || el.tagName).toLowerCase(),
+            label: labelOf(el),
+            required: el.required === true,
+          })),
+        buttons: [...form.querySelectorAll("button, input[type=submit]")]
+          .map((b) => (b.textContent || b.value || "").trim().slice(0, 80))
+          .filter(Boolean),
+      };
+    }),
+  );
 
 const write = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 
@@ -48,7 +95,7 @@ function inScope(url, scope) {
 }
 
 async function main() {
-  const job = await readJob();
+  const job = await nextMessage();
   const profile = mkdtempSync(join(tmpdir(), "sys2qa-l2-"));
   const blocked = [];
   let context;
@@ -87,9 +134,46 @@ async function main() {
       }
       return route.continue();
     });
+    const downloads = [];
+    context.on("page", (p) => p.on("download", (d) => downloads.push(d.url())));
     const page = context.pages()[0] ?? (await context.newPage());
+    page.on("download", (d) => {
+      const u = new URL(d.url());
+      downloads.push(`${u.protocol}//${u.host}${u.pathname}`);
+      d.cancel().catch(() => {});
+    });
     const response = await page.goto(job.url, { waitUntil: "load", timeout: job.timeoutMs ?? 15000 });
     await page.waitForTimeout(job.settleMs ?? 300);
+    let forms = [];
+    const submissions = [];
+    if (job.action === "inspect") {
+      forms = await extractForms(page);
+      write({ type: "forms", forms });
+      const reply = await nextMessage();
+      for (const index of reply.submit ?? []) {
+        const form = forms[index];
+        // Only GET forms are ever submitted here; the route above refuses any other method in any case.
+        if (!form || form.method !== "GET") continue;
+        await page.goto(job.url, { waitUntil: "load", timeout: job.timeoutMs ?? 15000 });
+        const handle = page.locator("form").nth(index);
+        for (const field of form.fields)
+          if (["text", "search", "input"].includes(field.type))
+            await handle
+              .locator(`[name="${field.name.replace(/"/g, '\\"')}"]`)
+              .first()
+              .fill("sys2qa");
+        const [navigation] = await Promise.all([
+          page.waitForNavigation({ waitUntil: "load", timeout: job.timeoutMs ?? 15000 }).catch(() => null),
+          handle.evaluate((f) => f.requestSubmit()),
+        ]);
+        const u = new URL(page.url());
+        submissions.push({
+          index,
+          status: navigation?.status() ?? null,
+          final_url: `${u.protocol}//${u.host}${u.pathname}`,
+        });
+      }
+    }
     const after = await context.cookies();
     const final = new URL(page.url());
     write({
@@ -101,6 +185,9 @@ async function main() {
       cookies_before: before,
       cookies_after: after.map((c) => c.name),
       blocked,
+      forms,
+      submissions,
+      downloads,
     });
   } catch (error) {
     write({ type: "result", ok: false, error: String(error?.message ?? error).slice(0, 500), blocked });

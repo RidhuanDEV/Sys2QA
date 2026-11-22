@@ -1,11 +1,59 @@
 import { appendAudit } from "@sys2qa/platform";
 import { auditEgressDecisions, runL2Job, startScopeProxy } from "@sys2qa/runtime-observer";
 import { serviceError, ServiceError, SERVICE_ERRORS } from "./errors.js";
+import type { Host } from "./host.js";
 import { defineOperation } from "./operations.js";
 
 const ID = { type: "string", minLength: 3, maxLength: 300 } as const;
 /** Default rate for one environment (SEC-020): a steady 5 requests per second, bursts of 10. */
 export const DEFAULT_RATE_LIMIT = { perSecond: 5, burst: 10 } as const;
+
+/**
+ * What every L2 job of an environment starts from: the environment, its current scope policy, an authorization to
+ * observe its base URL (production refused, SEC-009), and a scope proxy for the job whose decisions go to the audit.
+ */
+export async function observation(host: Host, sourceId: string, url?: string) {
+  const source = host.projects.getEvidenceSource(sourceId);
+  if (source.kind !== "environment")
+    throw serviceError("INPUT_INVALID", "only an environment can be observed", { field: "source_id" });
+  const policy = host.projects.currentScopePolicy(source.id);
+  if (!policy) throw serviceError("NOT_FOUND", "configure the environment first (base URL, classification, hosts)");
+  const target = url ?? policy.base_url;
+  const decision = host.projects.authorize(source.id, "observe", { kind: "url", url: target });
+  if (!decision.allowed) {
+    const code =
+      decision.reason === "no_declaration"
+        ? "DECLARATION_REQUIRED"
+        : SERVICE_ERRORS[decision.code]
+          ? decision.code
+          : "SCOPE_DENIED";
+    throw new ServiceError(
+      code,
+      "denied",
+      `observing ${target} is not authorized (${decision.reason})`,
+      SERVICE_ERRORS[code]!.remediation,
+    );
+  }
+  const jobId = host.newId("job");
+  const scope = {
+    allowed_hosts: policy.allowed_hosts,
+    path_prefixes: policy.path_prefixes,
+    local_owner_mode: policy.local_owner_mode,
+  };
+  const proxy = await startScopeProxy({
+    scope,
+    localOwnerModeEnabled: host.projects.settings().local_owner_mode_enabled,
+    rateLimit: DEFAULT_RATE_LIMIT,
+    onDecision: auditEgressDecisions(
+      host.state.db,
+      { redactor: host.redactor, now: host.now },
+      source.project_id,
+      jobId,
+    ),
+    now: host.now,
+  });
+  return { source, policy, scope, jobId, proxy, target };
+}
 
 const environmentValidate = defineOperation<{ source_id: string }, unknown>({
   name: "environment.validate",
@@ -16,40 +64,8 @@ const environmentValidate = defineOperation<{ source_id: string }, unknown>({
   effect: "write",
   input: { type: "object", additionalProperties: false, required: ["source_id"], properties: { source_id: ID } },
   run: async ({ host, caller }, input) => {
-    const source = host.projects.getEvidenceSource(input.source_id);
-    if (source.kind !== "environment")
-      throw serviceError("INPUT_INVALID", "only an environment can be validated", { field: "source_id" });
-    const policy = host.projects.currentScopePolicy(source.id);
-    if (!policy) throw serviceError("NOT_FOUND", "configure the environment first (base URL, classification, hosts)");
-    const decision = host.projects.authorize(source.id, "observe", { kind: "url", url: policy.base_url });
-    if (!decision.allowed) {
-      const code =
-        decision.reason === "no_declaration"
-          ? "DECLARATION_REQUIRED"
-          : SERVICE_ERRORS[decision.code]
-            ? decision.code
-            : "SCOPE_DENIED";
-      throw new ServiceError(
-        code,
-        "denied",
-        `observing ${policy.base_url} is not authorized (${decision.reason})`,
-        SERVICE_ERRORS[code]!.remediation,
-      );
-    }
-    const jobId = host.newId("job");
+    const { source, policy, scope, jobId, proxy } = await observation(host, input.source_id);
     const audit = { redactor: host.redactor, now: host.now };
-    const scope = {
-      allowed_hosts: policy.allowed_hosts,
-      path_prefixes: policy.path_prefixes,
-      local_owner_mode: policy.local_owner_mode,
-    };
-    const proxy = await startScopeProxy({
-      scope,
-      localOwnerModeEnabled: host.projects.settings().local_owner_mode_enabled,
-      rateLimit: DEFAULT_RATE_LIMIT,
-      onDecision: auditEgressDecisions(host.state.db, audit, source.project_id, jobId),
-      now: host.now,
-    });
     let result;
     try {
       result = await runL2Job({ action: "validate", url: policy.base_url, scope }, proxy, { budgetMs: 60_000 });

@@ -114,6 +114,10 @@ export const SERVICE_ERRORS: Record<string, { kind: ErrorKind; remediation: stri
     remediation:
       "Attach a PNG, JPEG, GIF, WebP or PDF file, or UTF-8 text (.txt, .log, .json, .csv, .md), of at most 5 MB.",
   },
+  ENVIRONMENT_UNREACHABLE: {
+    kind: "unavailable",
+    remediation: "Check that the environment is up and the URL is in scope, then try again.",
+  },
   INTERNAL_ERROR: {
     kind: "internal",
     remediation: "Retry once; if it fails again, report it with the log file (it contains no secrets).",
