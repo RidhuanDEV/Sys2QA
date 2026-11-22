@@ -10,7 +10,11 @@ report with its evidence as artifacts.
   `tests/acceptance/gate-3.test.ts`, on F1 as a repository in Mode A and as an imported package in Mode D, with no
   environment configured in either project); 29 of the gate's 30 requirements are covered by passing tagged tests and
   the other, LOC-007 (a pure translation keeps the approval), belongs to Gate 5's backlog; the benchmark gate rules hold.
-- **Multi-OS gate run:** dispatched on `main` after the fast-forward; its result is added here.
+- **Multi-OS gate run #4 on main (`b67b09f`): passed on Linux (Ubuntu 24.04), macOS and Windows** (`gate` workflow, run
+  45015930180; reports and evidence archived as the `gate-3-<os>` artifacts). Run #3 (`8daa329`) had passed on Linux
+  and macOS but failed on Windows: the first attempt lost one browser connection to the loopback server in the Mode B
+  E2E test (`ERR_CONNECTION_FAILED`, not reproduced, unexplained), the second timed out a flow-heavy QAA test at
+  Vitest's 5 s default on a slow runner; those files now allow 60 s per test.
 - **What a tester can do now:** start a manual run of approved scenarios (the same execution gate as automation), work
   one step at a time with expected versus actual, attach screenshots or files (recognized from their bytes, 5 MB),
   pause and resume, abandon with a reason, submit, and create a defect from a failed step that follows the PRD §15.12
