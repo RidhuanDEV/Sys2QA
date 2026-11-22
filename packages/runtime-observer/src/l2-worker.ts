@@ -47,6 +47,8 @@ export interface ObservedPage {
   confidence: "observed";
   redirected_to?: string;
   observability?: "auth_required";
+  /** The language the page declares (`<html lang>`), when it is a well-formed language tag. */
+  lang?: string;
   /** In-scope link targets on the page (scheme, host and path; at most 200), read after scripts ran. */
   links?: string[];
 }

@@ -240,6 +240,8 @@ async function discover(page, job, loginState) {
     }
     const finalPath = new URL(final).pathname;
     const requiresAuth = finalPath !== path && (await page.locator("input[type=password]").count()) > 0;
+    // The page's declared language, kept only when it is a well-formed language tag.
+    const lang = (await page.evaluate(() => document.documentElement.lang || "").catch(() => "")).trim();
     if (!pages.has(path))
       pages.set(path, {
         path,
@@ -252,6 +254,7 @@ async function discover(page, job, loginState) {
         confidence: "observed",
         ...(finalPath !== path ? { redirected_to: stripQuery(final) } : {}),
         ...(requiresAuth ? { observability: "auth_required" } : {}),
+        ...(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(lang) ? { lang } : {}),
       });
     if (requiresAuth) continue;
     // Links rendered after scripts ran, so client-side routes show as well.

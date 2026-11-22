@@ -1,9 +1,11 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 import { appendAudit, localIdPart, projectDirectory } from "@sys2qa/platform";
 import {
   buildObservedModel,
   classifyForm,
+  exportObservedPackage,
   formKey,
   runL2Job,
   submissionDecision,
@@ -11,9 +13,10 @@ import {
   type SubmissionDecision,
 } from "@sys2qa/runtime-observer";
 import { observation } from "./environments.js";
-import { serviceError, ServiceError } from "./errors.js";
+import { serviceError, ServiceError, SERVICE_ERRORS } from "./errors.js";
 import type { Host } from "./host.js";
 import { defineOperation } from "./operations.js";
+import { propagateNewPackage } from "./staleness.js";
 
 const ID = { type: "string", minLength: 3, maxLength: 300 } as const;
 const ROLE = { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9 ._-]{0,59}$" } as const;
@@ -318,4 +321,158 @@ const discoveryRun = defineOperation<
   },
 });
 
-export const DISCOVERY_OPERATIONS = [credentialProfileAdd, discoveryRun];
+const discoveryPublish = defineOperation<{ run_id: string; output_dir?: string }, unknown>({
+  name: "discovery.publish",
+  title: "Publish the observed model as a package",
+  description:
+    'Publishes a discovery run\'s observed model as an immutable Documentation Package with producer QAA (QAA-FR-116): runtime observation available, source analysis unavailable, the observed environment and its window, a completeness report and an observed-behavior document. It passes the same contract validator as SAA packages before it is written, is registered in the project, and can be imported elsewhere as a package (Mode D). Counts read "within the declared scope". By default it is written under the Sys2QA home.',
+  level: "none",
+  effect: "write",
+  paths: (input) => [input.output_dir],
+  input: {
+    type: "object",
+    additionalProperties: false,
+    required: ["run_id"],
+    properties: {
+      run_id: { type: "string", pattern: "^job:[A-Za-z0-9._-]{1,200}$" },
+      output_dir: { type: "string", minLength: 1, maxLength: 4096 },
+    },
+  },
+  run: ({ host, caller }, input) => {
+    const row = host.state.db
+      .prepare(
+        "SELECT project_id, environment_id, scope_policy_version, status, artifact_path FROM discovery_runs WHERE id = ?",
+      )
+      .get(input.run_id) as
+      | {
+          project_id: string;
+          environment_id: string;
+          scope_policy_version: number;
+          status: string;
+          artifact_path: string;
+        }
+      | undefined;
+    if (!row) throw serviceError("NOT_FOUND", `no discovery run ${input.run_id}`);
+    if (input.output_dir !== undefined && !isAbsolute(input.output_dir))
+      throw serviceError("INPUT_INVALID", "the output directory must be absolute", { field: "output_dir" });
+    if (row.status === "failed")
+      throw new ServiceError(
+        "CONFLICT",
+        "conflict",
+        `discovery run ${input.run_id} failed; there is nothing to publish`,
+        "Run discovery again once the environment is reachable.",
+      );
+    const policyRow = host.state.db
+      .prepare("SELECT policy_json FROM scope_policies WHERE environment_id = ? AND version = ?")
+      .get(row.environment_id, row.scope_policy_version) as { policy_json: string } | undefined;
+    const policy = policyRow
+      ? (JSON.parse(policyRow.policy_json) as { base_url: string; classification: string })
+      : undefined;
+    if (!policy || (policy.classification !== "development" && policy.classification !== "staging"))
+      throw new ServiceError(
+        "CONFLICT",
+        "conflict",
+        "the run's environment is not a development or staging environment",
+        "Only development and staging environments are observed (SEC-009).",
+      );
+    const observations = JSON.parse(readFileSync(row.artifact_path, "utf8")) as DiscoveryObservations;
+    const project = host.projects.getProject(row.project_id);
+    const slug =
+      project.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 50) || "project";
+    const packageId = `pkg:${slug}-${localIdPart(project.id).slice(-6).toLowerCase()}-observed`;
+    const last = host.state.db
+      .prepare("SELECT MAX(version) AS v FROM packages WHERE project_id = ? AND package_id = ?")
+      .get(project.id, packageId) as { v: number | null } | undefined;
+    const version = (last?.v ?? 0) + 1;
+    // Read-only submissions that happened, each with the person who confirmed its form.
+    const confirmedBy = new Map<string, { by: string; at: string }>();
+    for (const r of host.state.db
+      .prepare(
+        "SELECT form_key, decision, confirmed_by, created_at FROM form_confirmations WHERE environment_id = ? ORDER BY created_at, rowid",
+      )
+      .all(row.environment_id) as Array<{
+      form_key: string;
+      decision: string;
+      confirmed_by: string;
+      created_at: string;
+    }>)
+      if (r.decision === "read_only") confirmedBy.set(r.form_key, { by: r.confirmed_by, at: r.created_at });
+      else confirmedBy.delete(r.form_key);
+    const optionalActions = observations.forms
+      .filter((f) => f.submitted && confirmedBy.has(f.form_key))
+      .map((f) => ({
+        action: `read_only_submission ${f.form_key}`,
+        approved_by: confirmedBy.get(f.form_key)!.by,
+        approved_at: confirmedBy.get(f.form_key)!.at,
+      }));
+    const result = exportObservedPackage({
+      observations,
+      outputDir: input.output_dir ?? join(projectDirectory(host.home, project.id), "packages"),
+      packageId,
+      packageVersion: version,
+      project: { system_id: `system:${slug}`, name: project.name },
+      environment: {
+        base_url: policy.base_url,
+        classification: policy.classification,
+        read_only_submissions:
+          observations.forms.some((f) => f.submitted) ||
+          host.projects.authorize(row.environment_id, "submit_read_only_form", {
+            kind: "url",
+            url: policy.base_url,
+          }).allowed,
+      },
+      optionalActions,
+      now: host.now,
+    });
+    if (result.status === "refused")
+      throw new ServiceError("EXPORT_REFUSED", "conflict", result.message, SERVICE_ERRORS.EXPORT_REFUSED!.remediation, {
+        reason: result.reason,
+      });
+    if (result.status === "invalid")
+      throw new ServiceError(
+        "PACKAGE_INVALID",
+        "internal",
+        "the observed package failed contract validation and was not published",
+        SERVICE_ERRORS.PACKAGE_INVALID!.remediation,
+        { issues: result.issues.slice(0, 20).map((i) => ({ code: i.code, rule: i.rule, message: i.message })) },
+      );
+    const manifestSha = `sha256:${createHash("sha256")
+      .update(readFileSync(join(result.path, "manifest.json")))
+      .digest("hex")}`;
+    const at = host.now().toISOString();
+    host.state.transaction(() => {
+      host.state.db
+        .prepare(
+          "INSERT INTO packages (package_id, version, project_id, producer, path, manifest_sha256, created_at, updated_at) VALUES (?, ?, ?, 'QAA', ?, ?, ?, ?)",
+        )
+        .run(packageId, version, project.id, result.path, manifestSha, at, at);
+      appendAudit(
+        host.state.db,
+        {
+          projectId: project.id,
+          actor: caller.actor,
+          action: "export.created",
+          target: `${packageId}@${version}`,
+          details: { run_id: input.run_id, producer: "QAA" },
+        },
+        { redactor: host.redactor, now: host.now },
+      );
+    });
+    const staleness = propagateNewPackage(host, project.id, packageId, version, caller.actor);
+    return {
+      package_id: packageId,
+      version,
+      path: result.path,
+      manifest_sha256: manifestSha,
+      observed: result.summary.statement,
+      ...(staleness.scenarios.length > 0 ? { staleness } : {}),
+      notes: result.issues.filter((i) => i.severity !== "error").map((i) => i.message),
+    };
+  },
+});
+
+export const DISCOVERY_OPERATIONS = [credentialProfileAdd, discoveryRun, discoveryPublish];

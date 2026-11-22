@@ -13,7 +13,13 @@ import {
   type DiscoveryObservations,
   type ObservedModel,
 } from "../../packages/runtime-observer/src/index.js";
-import { computeMetrics, loadGroundTruth, type ProducerOutput } from "../benchmark/harness/index.js";
+import {
+  computeMetrics,
+  loadGroundTruth,
+  packageOutput,
+  qaaDesign,
+  type ProducerOutput,
+} from "../benchmark/harness/index.js";
 import { diffPolicyState, INJECTION_PAGE, snapshotPolicyState } from "../security/harness/index.js";
 
 vi.setConfig({ testTimeout: 180_000 });
@@ -95,7 +101,14 @@ afterAll(async () => {
 describe("discovery of the F2 site [@req QAA-FR-021] [@req QAA-FR-022] [@req QAA-FR-024] [@req QAA-FR-025] [@req SEC-024]", () => {
   let artifact: Artifact;
   let linkOnly: Artifact;
-  let summary: { status: string; pages: number; auth_required: string[]; traps: string[]; submitted: number };
+  let summary: {
+    job_id: string;
+    status: string;
+    pages: number;
+    auth_required: string[];
+    traps: string[];
+    submitted: number;
+  };
   // The F2 site links to neither /account nor /account/delete; the ground truth lists both, so a walk that follows
   // links alone cannot find them. They are given as seeds, as an operator would from a sitemap or bookmarks.
   const SEEDS = ["/account", "/account/delete"];
@@ -216,6 +229,66 @@ describe("discovery of the F2 site [@req QAA-FR-021] [@req QAA-FR-022] [@req QAA
     // With the seeds every expected workflow is found, each stop point in its place.
     expect(seeded.metrics.discovery.recall).toBe(1);
     expect(seeded.metrics.reconstruction.stop_point_accuracy).toBe(1);
+  });
+
+  it("publishes the observed model as a QAA package that validates and imports as Mode D [@req QAA-FR-116]", async () => {
+    const published = data<{ package_id: string; version: number; path: string; observed: string }>(
+      await call("discovery.publish", { run_id: summary.job_id }),
+    );
+    expect(published.version).toBe(1);
+    expect(published.observed).toMatch(/candidate workflows observed within the declared scope\.$/);
+    const manifest = JSON.parse(readFileSync(join(published.path, "manifest.json"), "utf8")) as {
+      producer: { name: string };
+      evidence_profile: { source_analysis: string; runtime_observation: string };
+      observed_environments: Array<{ classification: string; target_app_locale: string }>;
+    };
+    expect(manifest.producer.name).toBe("QAA");
+    expect(manifest.evidence_profile).toMatchObject({
+      source_analysis: "unavailable",
+      runtime_observation: "available",
+    });
+    expect(manifest.observed_environments[0]).toMatchObject({ classification: "development", target_app_locale: "en" });
+    // Mode D: another project imports it as its system model.
+    const other = data<{ id: string }>(await call("project.create", { name: "Imported observed package" }));
+    const imported = data<{ status: string; package: { package_id: string; producer: string } }>(
+      await call("package.import", { project_id: other.id, path: published.path }),
+    );
+    expect(imported).toMatchObject({
+      status: "imported",
+      package: { package_id: published.package_id, producer: "QAA" },
+    });
+    // QA design from the published package keeps every benchmark gate (no forbidden scenario, no over-claiming).
+    const truth = loadGroundTruth(join(F2, "ground-truth"), "F2-url-only");
+    const scenarios = await qaaDesign({ packageDir: published.path });
+    const metrics = computeMetrics(truth, { ...packageOutput(published.path), scenarios });
+    writeFileSync(
+      join(reports, "observed-package-metrics.json"),
+      `${JSON.stringify(
+        {
+          fixture: "F2-url-only",
+          package: published.package_id,
+          metrics,
+          conditions: scenarios.map((x) => ({ condition: x.test_condition, techniques: x.techniques })),
+          note: "Expected conditions are named after hand-built rule IDs; matched by field, the three boundary conditions are covered. No QA-design step produces exploratory charters yet (tc:search.results).",
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    expect(metrics.over_claiming.count).toBe(0);
+    expect(metrics.gates.filter((g) => !g.passed)).toEqual([]);
+    // The ground truth names its conditions after the hand-built package's rule IDs; discovery names rules after the
+    // field it observed. Matched by field, the three boundary conditions are covered.
+    const BY_FIELD: Record<string, string> = {
+      "tc:contact.message_max_500": "tc:observed:/contact#message",
+      "tc:register.nib_16_digits": "tc:observed:/register#nib",
+      "tc:register.password_min_8": "tc:observed:/register#password",
+    };
+    for (const [expected, produced] of Object.entries(BY_FIELD))
+      expect(
+        scenarios.some((x) => x.test_condition === produced && x.techniques.includes("boundary_value_analysis")),
+        expected,
+      ).toBe(true);
   });
 });
 

@@ -4,3 +4,4 @@ export * from "./proxy.js";
 export * from "./l2-worker.js";
 export * from "./forms.js";
 export * from "./observed-model.js";
+export * from "./package.js";
