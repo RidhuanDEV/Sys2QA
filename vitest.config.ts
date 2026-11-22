@@ -10,5 +10,8 @@ export default defineConfig({
     // Browser end-to-end tests need Chromium; they run with `pnpm e2e` (vitest.e2e.config.ts).
     exclude: ["**/node_modules/**", "tests/e2e/**"],
     passWithNoTests: false,
+    // Many tests run real flows (SQLite, files, child processes). Windows CI runners are several times slower than
+    // Linux ones and repeatedly pushed such tests past Vitest's 5 s default; 30 s still catches a hang.
+    testTimeout: 30_000,
   },
 });
