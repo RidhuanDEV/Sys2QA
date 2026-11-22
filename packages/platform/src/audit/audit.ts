@@ -56,6 +56,7 @@ export const AUDIT_ACTIONS = [
   "form.confirmed",
   "credential_profile.added",
   "discovery.completed",
+  "correlation.created",
   "data.deleted",
   "settings.changed",
 ] as const;

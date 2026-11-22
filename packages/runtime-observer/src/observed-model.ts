@@ -149,8 +149,14 @@ export function buildObservedModel(obs: DiscoveryObservations, options: Observed
   // Pages: one per path, in the order the walk observed them.
   const pageId = (path: string) => `page:observed:${idPath(path)}`;
   const pages = new Map<string, { page: ObservedPage; id: string; evidence: string; entity: Json }>();
+  // A page that answered with an error was reached but not observed working: it is no page entity (CON-023).
+  const failedPages: ObservedPage[] = [];
   for (const page of obs.pages) {
     if (pages.has(page.path)) continue;
+    if (page.status !== null && page.status >= 400) {
+      if (!failedPages.some((p) => p.path === page.path)) failedPages.push(page);
+      continue;
+    }
     const id = pageId(page.path);
     const evidenceId = addEvidence(page.path, "page", page.url, page.observed_at, "none");
     const entity: Json = {
@@ -397,11 +403,11 @@ export function buildObservedModel(obs: DiscoveryObservations, options: Observed
       outside.map((l) => pages.get(pathOf(l.from) ?? "")?.id).filter((id): id is string => id !== undefined),
     );
   const unreachable = obs.links_not_followed.filter((l) => !/outside the scope/.test(l.reason));
-  if (unreachable.length > 0)
+  if (unreachable.length > 0 || failedPages.length > 0)
     gap(
       "unreachable",
       "missing_evidence",
-      "Some in-scope links could not be loaded.",
+      "Some in-scope URLs could not be loaded or answered with an error.",
       "Pages behind them were not observed.",
       unreachable.map((l) => pages.get(pathOf(l.from) ?? "")?.id).filter((id): id is string => id !== undefined),
     );
@@ -556,6 +562,11 @@ export function buildObservedModel(obs: DiscoveryObservations, options: Observed
     if (excluded.some((e) => e.area === area)) continue;
     coverage.push({ area, status: "excluded", reason: "Outside the declared scope; not followed." });
     excluded.push({ area, reason: "Outside the declared scope; not followed." });
+  }
+  for (const p of failedPages) {
+    const reason = `The page answered HTTP ${String(p.status)}.`;
+    coverage.push({ area: p.path, status: "failed", reason });
+    unexplored.push({ area: p.path, reason });
   }
   for (const l of unreachable) {
     const area = l.target.slice(0, 300);

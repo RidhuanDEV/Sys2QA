@@ -118,6 +118,22 @@ describe("observed-model builder [@req QAA-FR-114] [@req CON-023]", () => {
     expect(c.unexplored.map((u) => u.area)).toEqual(["/account"]);
   });
 
+  it("records a page that answered with an error as unexplored, never as an observed page", () => {
+    const missing = { ...OBS.pages[2]!, path: "/admin/users", url: `${O}/admin/users`, status: 404, links: [] };
+    const r = buildObservedModel({ ...OBS, pages: [...OBS.pages, missing] }, { system_id: "system:test-site" });
+    const m = r.model as typeof model;
+    expect(m.entities.some((e) => e.id === "page:observed:/admin/users")).toBe(false);
+    expect(m.coverage).toContainEqual({
+      area: "/admin/users",
+      status: "failed",
+      reason: "The page answered HTTP 404.",
+    });
+    expect((r.completeness as { unexplored: Array<{ area: string }> }).unexplored.map((u) => u.area)).toContain(
+      "/admin/users",
+    );
+    expect(m.gaps.some((g) => g.id === "gap:observed.unreachable")).toBe(true);
+  });
+
   it("is deterministic and marks a submitted read-only form's evidence as a read-only submission", () => {
     expect(buildObservedModel(OBS, { system_id: "system:test-site" })).toEqual(built);
     const submitted = buildObservedModel(
