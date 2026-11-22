@@ -11,7 +11,8 @@ report with its evidence as artifacts.
   runtime, and the SSRF fixture, all on loopback); all 28 of the gate's requirements, including the L2 security
   release gate of PRD §27.4 (SEC-005, 007, 008, 009, 020, 024, 025), are covered by passing tagged tests; the benchmark
   gate rules hold.
-- **Multi-OS gate run: pending** (recorded here when it completes).
+- **Multi-OS gate run #5 on main (`ccd8d47`): passed on Linux (Ubuntu 24.04), macOS and Windows** (`gate` workflow,
+  run 45047297760; reports and evidence archived as the `gate-4-<os>` artifacts), first attempt on every OS.
 - **What a user can do now:** give a URL of a development or staging environment they own (local owner mode for
   loopback), declare L2, and discover it: pages, navigation, forms and their visible constraints, within budgets, with
   traps cut off, links and redirects outside the scope refused, and pages behind a login recorded (or reached through a
