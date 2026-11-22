@@ -57,6 +57,7 @@ export const AUDIT_ACTIONS = [
   "credential_profile.added",
   "discovery.completed",
   "correlation.created",
+  "runtime.verified",
   "data.deleted",
   "settings.changed",
 ] as const;

@@ -44,6 +44,7 @@ const data = <T>(r: ServiceResult) => {
 };
 let runtime: { origin: string; close(): Promise<void> };
 let report: Report;
+let ctx: { projectId: string; envId: string; saa: { package_id: string; version: number } };
 
 beforeAll(async () => {
   const adapters = await bundleSaaAdapters(join(work, "adapters"));
@@ -92,6 +93,7 @@ beforeAll(async () => {
   const qaa = data<{ package_id: string; version: number }>(
     await call("discovery.publish", { run_id: discovered.job_id }),
   );
+  ctx = { projectId, envId: env.id, saa: { package_id: saa.package_id, version: saa.version } };
   report = data<Report>(
     await call("correlation.run", {
       project_id: projectId,
@@ -147,5 +149,63 @@ describe("Mode C correlation on F3 [@req QAA-FR-115] [@req CON-026] [@req CON-02
   it("keeps revision correspondence unconfirmed, so every discrepancy may be version-related", () => {
     expect(report.revision_correspondence).toBe(EXPECTED.revision_correspondence);
     expect(report.discrepancies.every((d) => d.possibly_version_related)).toBe(true);
+  });
+});
+
+interface Check {
+  status: string;
+  items: Array<{ record_id: string; outcome: string; reason: string }>;
+  unverified: string[];
+  budget: { exhausted: string | null };
+}
+
+describe("targeted runtime verification of package items [@req QAA-FR-029]", () => {
+  const verify = async (record_ids: string[], budget?: { pages: number }) =>
+    data<Check>(
+      await call("runtime.verify", {
+        project_id: ctx.projectId,
+        package_id: ctx.saa.package_id,
+        version: ctx.saa.version,
+        source_id: ctx.envId,
+        record_ids,
+        ...(budget ? { budget } : {}),
+      }),
+    );
+
+  it("checks only the named items and says for each whether the environment shows it", async () => {
+    const check = await verify([
+      "page:web:/register",
+      "form:web:/register#register",
+      "field:web:/register#register.password",
+      "field:web:/register#register.nib",
+      "page:web:/admin/users",
+      "form:web:/reset-password#reset-confirm",
+      "page:web:/orders/{id}",
+    ]);
+    const outcome = Object.fromEntries(check.items.map((i) => [i.record_id, i.outcome]));
+    expect(outcome).toEqual({
+      "page:web:/register": "verified",
+      "form:web:/register#register": "verified",
+      "field:web:/register#register.password": "verified",
+      "field:web:/register#register.nib": "not_confirmed",
+      "page:web:/admin/users": "not_confirmed",
+      "form:web:/reset-password#reset-confirm": "not_confirmed",
+      "page:web:/orders/{id}": "unverified",
+    });
+    expect(check.items.find((i) => i.record_id === "field:web:/register#register.nib")!.reason).toMatch(
+      /max_length 16/,
+    );
+    expect(check.items.find((i) => i.record_id === "page:web:/admin/users")!.reason).toBe("the page answered HTTP 404");
+    expect(check.status).toBe("partial");
+    expect(check.unverified).toEqual(["page:web:/orders/{id}"]);
+  });
+
+  it("yields a partial record listing the unverified items when the budget runs out", async () => {
+    const check = await verify(["page:web:/register", "page:web:/login", "form:web:/login#login"], { pages: 1 });
+    expect(check.status).toBe("partial");
+    expect(check.budget.exhausted).toBe("pages");
+    expect(check.items[0]).toMatchObject({ record_id: "page:web:/register", outcome: "verified" });
+    expect(check.unverified).toEqual(["page:web:/login", "form:web:/login#login"]);
+    expect(check.items[1]!.reason).toBe("not reached: the pages budget ran out");
   });
 });

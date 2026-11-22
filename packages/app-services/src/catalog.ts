@@ -25,6 +25,7 @@ import { ENVIRONMENT_OPERATIONS } from "./environments.js";
 import { FORM_OPERATIONS } from "./forms.js";
 import { CORRELATION_OPERATIONS } from "./correlation.js";
 import { DISCOVERY_OPERATIONS } from "./discovery.js";
+import { RUNTIME_CHECK_OPERATIONS } from "./runtime-check.js";
 import { CRITIQUE_OPERATIONS } from "./critique.js";
 import { PACKAGE_OPERATIONS } from "./packages.js";
 import { PLAN_OPERATIONS } from "./plans.js";
@@ -627,5 +628,6 @@ export const OPERATIONS: ReadonlyArray<Operation<never, unknown>> = [
   ...FORM_OPERATIONS,
   ...DISCOVERY_OPERATIONS,
   ...CORRELATION_OPERATIONS,
+  ...RUNTIME_CHECK_OPERATIONS,
   ...SAA_OPERATIONS,
 ] as ReadonlyArray<Operation<never, unknown>>;
