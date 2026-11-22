@@ -60,7 +60,15 @@ const extractForms = (page) =>
             type: (el.getAttribute("type") || el.tagName).toLowerCase(),
             label: labelOf(el),
             required: el.required === true,
+            constraints: Object.fromEntries(
+              ["maxlength", "minlength", "pattern", "min", "max", "inputmode", "step"]
+                .map((a) => [a, el.getAttribute(a)])
+                .filter(([, v]) => v !== null),
+            ),
           })),
+        hints: [...form.querySelectorAll(".hint, small, [role=note]")]
+          .map((h) => (h.textContent || "").trim().slice(0, 200))
+          .filter(Boolean),
         buttons: [...form.querySelectorAll("button, input[type=submit]")]
           .map((b) => (b.textContent || b.value || "").trim().slice(0, 80))
           .filter(Boolean),
@@ -94,10 +102,215 @@ function inScope(url, scope) {
   return named && pathOk;
 }
 
+const stripQuery = (url) => {
+  const u = new URL(url);
+  return `${u.protocol}//${u.host}${u.pathname}`;
+};
+
+/** Signals that a login needs more than a username and password (QAA-FR-026): never bypassed. */
+const ADDITIONAL_AUTH =
+  /captcha|recaptcha|hcaptcha|one[- ]?time|otp|verification code|two[- ]factor|2fa|authenticator/i;
+
+/**
+ * Logs in through a credential profile (QAA-FR-023): fills the username and password fields of the login page and
+ * lets exactly one POST to that form's target through. The secret values exist only in this process and are never
+ * written out. A page asking for anything more (MFA, CAPTCHA) stops discovery with guidance (QAA-FR-026).
+ */
+async function login(page, job, loginState) {
+  const { url, username, password } = job.login;
+  await page.goto(url, { waitUntil: "load", timeout: job.timeoutMs ?? 15000 });
+  const content = await page.content();
+  if (ADDITIONAL_AUTH.test(content))
+    return {
+      status: "unsupported",
+      reason: "the login page asks for more than a username and password (MFA or CAPTCHA)",
+    };
+  const passwordField = page.locator("input[type=password]").first();
+  if ((await passwordField.count()) === 0) return { status: "failed", reason: "no password field on the login page" };
+  const form = passwordField.locator("xpath=ancestor::form[1]");
+  const userField = form.locator("input[type=email], input[type=text], input:not([type])").first();
+  await userField.fill(username);
+  await passwordField.fill(password);
+  const action = await form.evaluate((f) => new URL(f.getAttribute("action") || location.href, location.href).href);
+  loginState.allowPostTo = stripQuery(action);
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: "load", timeout: job.timeoutMs ?? 15000 }).catch(() => null),
+    form.evaluate((f) => f.requestSubmit()),
+  ]);
+  loginState.allowPostTo = null;
+  const after = await page.content();
+  if (ADDITIONAL_AUTH.test(after))
+    return { status: "unsupported", reason: "after the password the site asks for another factor (MFA or CAPTCHA)" };
+  if ((await page.locator("input[type=password]").count()) > 0)
+    return { status: "failed", reason: "the site still shows a password field after the login" };
+  return { status: "logged_in", reason: "credential profile accepted" };
+}
+
+/**
+ * Discovery (QAA-FR-021, QAA-FR-022, QAA-FR-024): a breadth-first walk of in-scope links within the page, depth and time
+ * budget. A path is one page of the catalog; its query-string variants are capped (crawler traps). Links and
+ * redirects outside the scope are recorded and not followed. Each page's forms go to the parent, which alone decides
+ * which may be submitted (SEC-024). Page text is data only; nothing on a page changes what the worker does (SEC-003).
+ */
+async function discover(page, job, loginState) {
+  const budget = {
+    pages: job.budget?.pages ?? 50,
+    depth: job.budget?.depth ?? 6,
+    ms: job.budget?.ms ?? 120000,
+    variants: job.budget?.variants ?? 3,
+  };
+  const deadline = Date.now() + budget.ms;
+  const pages = new Map();
+  const notFollowed = new Map();
+  const traps = new Map();
+  const formsSeen = [];
+  const submissions = [];
+  let exhausted = null;
+  let loginOutcome = null;
+  if (job.login) {
+    loginOutcome = await login(page, job, loginState);
+    if (loginOutcome.status !== "logged_in")
+      return {
+        ok: false,
+        stopped: "login",
+        login: loginOutcome,
+        pages: [],
+        links_not_followed: [],
+        forms_seen: [],
+        submissions,
+        traps: [],
+        budget: { ...budget, exhausted: null },
+      };
+  }
+  const queue = [{ url: job.url, depth: 0, from: null }];
+  const visited = new Set();
+  const variants = new Map();
+  while (queue.length > 0) {
+    if (Date.now() > deadline) {
+      exhausted = "time";
+      break;
+    }
+    if (pages.size >= budget.pages) {
+      exhausted = "pages";
+      break;
+    }
+    const { url, depth, from } = queue.shift();
+    const clean = url.split("#")[0];
+    if (visited.has(clean)) continue;
+    const path = new URL(clean).pathname;
+    const seen = variants.get(path) ?? 0;
+    if (seen >= budget.variants) {
+      if (!traps.has(path))
+        traps.set(path, { path, reason: `more than ${budget.variants} query variants of one path` });
+      continue;
+    }
+    visited.add(clean);
+    variants.set(path, seen + 1);
+    let response = null;
+    let error = null;
+    try {
+      response = await page.goto(clean, { waitUntil: "load", timeout: job.timeoutMs ?? 15000 });
+      await page.waitForTimeout(job.settleMs ?? 150);
+    } catch (e) {
+      error = String(e?.message ?? e);
+    }
+    const observedAt = new Date().toISOString();
+    if (error) {
+      const blockedTarget = /ERR_BLOCKED_BY_CLIENT/.test(error);
+      notFollowed.set(stripQuery(clean), {
+        target: stripQuery(clean),
+        from,
+        reason: blockedTarget ? "redirect outside the scope" : `not loaded: ${error.split("\n")[0].slice(0, 160)}`,
+      });
+      continue;
+    }
+    const final = page.url();
+    const finalPath = new URL(final).pathname;
+    const requiresAuth = finalPath !== path && (await page.locator("input[type=password]").count()) > 0;
+    if (!pages.has(path))
+      pages.set(path, {
+        path,
+        url: stripQuery(clean),
+        status: response?.status() ?? null,
+        title: (await page.title()).slice(0, 300),
+        observed_at: observedAt,
+        depth,
+        source: "runtime_observation",
+        confidence: "observed",
+        ...(finalPath !== path ? { redirected_to: stripQuery(final) } : {}),
+        ...(requiresAuth ? { observability: "auth_required" } : {}),
+      });
+    if (requiresAuth) continue;
+    // Links rendered after scripts ran, so client-side routes show as well.
+    const links = await page.evaluate(() => [...document.querySelectorAll("a[href]")].map((a) => a.href));
+    for (const link of links) {
+      let target;
+      try {
+        target = new URL(link);
+      } catch {
+        continue;
+      }
+      if (!["http:", "https:"].includes(target.protocol)) continue;
+      if (!inScope(target.href, job.scope)) {
+        notFollowed.set(stripQuery(target.href), {
+          target: stripQuery(target.href),
+          from: stripQuery(clean),
+          reason: "outside the scope",
+        });
+        continue;
+      }
+      if (depth + 1 <= budget.depth) queue.push({ url: target.href, depth: depth + 1, from: stripQuery(clean) });
+    }
+    if (new URL(final).pathname === path) {
+      const forms = await extractForms(page);
+      if (forms.length > 0) {
+        formsSeen.push(...forms.map((f) => ({ ...f, observed_at: observedAt })));
+        write({ type: "forms", forms });
+        const reply = await nextMessage();
+        for (const index of reply.submit ?? []) {
+          const f = forms[index];
+          if (!f || f.method !== "GET") continue;
+          await page.goto(clean, { waitUntil: "load", timeout: job.timeoutMs ?? 15000 });
+          const handle = page.locator("form").nth(index);
+          for (const field of f.fields)
+            if (["text", "search", "input"].includes(field.type))
+              await handle
+                .locator(`[name="${field.name.replace(/"/g, '\\"')}"]`)
+                .first()
+                .fill("sys2qa");
+          const [navigation] = await Promise.all([
+            page.waitForNavigation({ waitUntil: "load", timeout: job.timeoutMs ?? 15000 }).catch(() => null),
+            handle.evaluate((el) => el.requestSubmit()),
+          ]);
+          submissions.push({
+            page: f.page_url,
+            index,
+            action: f.action,
+            status: navigation?.status() ?? null,
+            final_url: stripQuery(page.url()),
+          });
+        }
+      }
+    }
+  }
+  return {
+    ok: pages.size > 0,
+    login: loginOutcome,
+    pages: [...pages.values()],
+    links_not_followed: [...notFollowed.values()],
+    forms_seen: formsSeen,
+    submissions,
+    traps: [...traps.values()],
+    budget: { ...budget, exhausted },
+  };
+}
+
 async function main() {
   const job = await nextMessage();
   const profile = mkdtempSync(join(tmpdir(), "sys2qa-l2-"));
   const blocked = [];
+  // The one POST a credential-profile login may send, armed just before it submits (QAA-FR-023).
+  const loginState = { allowPostTo: null };
   let context;
   try {
     context = await chromium.launchPersistentContext(profile, {
@@ -122,11 +335,15 @@ async function main() {
     await context.route("**/*", (route) => {
       const request = route.request();
       const method = request.method();
+      const u0 = new URL(request.url());
+      const target0 = `${u0.protocol}//${u0.host}${u0.pathname}`;
+      const loginPost = method === "POST" && loginState.allowPostTo === target0;
       const reason = !inScope(request.url(), job.scope)
         ? "outside the scope"
-        : job.action === "validate" && method !== "GET" && method !== "HEAD"
-          ? `${method} is not allowed while validating`
+        : method !== "GET" && method !== "HEAD" && !loginPost
+          ? `${method} is not allowed during ${job.action === "validate" ? "validation" : "discovery"}`
           : null;
+      if (loginPost) loginState.allowPostTo = null;
       if (reason) {
         const u = new URL(request.url());
         blocked.push({ method, target: `${u.protocol}//${u.host}${u.pathname}`, reason });
@@ -142,6 +359,11 @@ async function main() {
       downloads.push(`${u.protocol}//${u.host}${u.pathname}`);
       d.cancel().catch(() => {});
     });
+    if (job.action === "discover") {
+      const outcome = await discover(page, job, loginState);
+      write({ type: "result", ...outcome, cookies_before: before, blocked, downloads });
+      return;
+    }
     const response = await page.goto(job.url, { waitUntil: "load", timeout: job.timeoutMs ?? 15000 });
     await page.waitForTimeout(job.settleMs ?? 300);
     let forms = [];

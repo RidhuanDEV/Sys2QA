@@ -64,7 +64,7 @@ describe("L2 browser workers [@req SEC-012] [@req QAA-FR-006] [@req SEC-025]", (
       expect(target.hits.slice(before).map((h) => h.method)).toEqual(["GET"]);
       expect(result.blocked.map((b) => [b.method, b.reason])).toEqual(
         expect.arrayContaining([
-          ["POST", "POST is not allowed while validating"],
+          ["POST", "POST is not allowed during validation"],
           ["GET", "outside the scope"],
         ]),
       );

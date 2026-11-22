@@ -21,7 +21,7 @@ const PAGE = `<!doctype html><title>Forms</title>
 <form id="export" method="get" action="/export"><input name="token" type="text"><button>Search</button></form>
 <form id="search" method="get" action="/search"><input name="q" type="search" aria-label="Search"><button>Search</button></form>
 <a id="dl" href="/report.csv" download>Download</a>
-<script>document.getElementById("dl").click();</script>`;
+<script>document.getElementById("dl").click(); fetch("/api/track", { method: "POST", body: "{}" });</script>`;
 
 let server: Server;
 let origin: string;
@@ -112,6 +112,13 @@ describe("ST-07 form-interaction policy [@req SEC-024] [@req QAA-FR-025] [@req S
     );
     expect(formHits()).toEqual([]);
     expect(r.downloads_refused).toEqual([`${origin}/report.csv`]);
+    // The page's own POST never left the browser either.
+    expect(hits.filter((h) => h.method !== "GET")).toEqual([]);
+    expect((r as unknown as { blocked: Array<{ method: string; reason: string }> }).blocked).toContainEqual({
+      method: "POST",
+      target: `${origin}/api/track`,
+      reason: "POST is not allowed during discovery",
+    });
   });
 
   it("refuses to confirm a login or state-changing form as read-only", async () => {

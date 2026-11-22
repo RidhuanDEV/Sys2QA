@@ -25,6 +25,28 @@ export interface L2Result {
   /** Downloads the page started; none is saved (SEC-019). */
   downloads?: string[];
   error?: string;
+  /** `discover`: what the walk observed. */
+  pages?: ObservedPage[];
+  links_not_followed?: Array<{ target: string; from: string | null; reason: string }>;
+  forms_seen?: Array<ObservedForm & { observed_at: string }>;
+  traps?: Array<{ path: string; reason: string }>;
+  login?: { status: "logged_in" | "failed" | "unsupported"; reason: string } | null;
+  stopped?: "login";
+  budget?: { pages: number; depth: number; ms: number; variants: number; exhausted: "pages" | "time" | null };
+}
+
+/** One page of the walk (QAA-FR-024): where, when, from which source and with which confidence. */
+export interface ObservedPage {
+  path: string;
+  url: string;
+  status: number | null;
+  title: string;
+  observed_at: string;
+  depth: number;
+  source: "runtime_observation";
+  confidence: "observed";
+  redirected_to?: string;
+  observability?: "auth_required";
 }
 
 export interface L2Job {
@@ -32,8 +54,12 @@ export interface L2Job {
    * `validate`: reachability without side effects (QAA-FR-006). `inspect`: also read the page's forms and submit only
    * those the parent's policy names (SEC-024). Both let only GET and HEAD requests leave the browser.
    */
-  action: "validate" | "inspect";
+  action: "validate" | "inspect" | "discover";
   url: string;
+  /** `discover`: limits of the walk. */
+  budget?: { pages?: number; depth?: number; ms?: number; variants?: number };
+  /** `discover`: a credential profile's values, given to this one worker process only (SEC-011). */
+  login?: { url: string; username: string; password: string };
   scope: Pick<ProxyScope, "allowed_hosts" | "path_prefixes">;
   timeoutMs?: number;
 }
@@ -99,7 +125,7 @@ export function runL2Job(
         if (!line.startsWith("{")) continue;
         const message = JSON.parse(line) as { type: string; forms?: ObservedForm[] };
         if (message.type === "forms")
-          child.stdin.end(
+          child.stdin.write(
             `${JSON.stringify({ type: "submit", submit: options.onForms?.(message.forms ?? []) ?? [] })}\n`,
           );
       }
@@ -107,6 +133,7 @@ export function runL2Job(
     child.stderr.on("data", (c: Buffer) => (err = (err + c.toString()).slice(-2000)));
     child.on("error", (e) => finish({ ok: false, error: `the L2 worker did not start: ${e.message}`, blocked: [] }));
     child.on("close", () => {
+      child.stdin.destroy();
       const line = out.split("\n").find((l) => l.startsWith('{"type":"result"'));
       if (!line)
         return finish({
