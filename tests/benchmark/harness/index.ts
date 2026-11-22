@@ -6,3 +6,4 @@ export * from "./stub-producer.js";
 export * from "./saa-producer.js";
 export * from "./qaa-f2-package.js";
 export * from "./qaa-producer.js";
+export * from "./qaa-discovery.js";

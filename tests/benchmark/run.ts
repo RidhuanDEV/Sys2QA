@@ -1,16 +1,16 @@
 // `pnpm bench`: runs the benchmark harness over every fixture in fixtures/benchmarks/ (IMP-014).
 // The stub producer (it echoes the ground truth) checks the harness itself. The SAA producer is measured on the
-// repository-only fixtures (F1, F4) from IMP-111 on. From IMP-205 QA design is measured on F1 (on SAA's package) and on
-// F2 (on a runtime package built from F2's ground truth until Gate 4 discovers it).
+// repository-only fixtures (F1, F4) from IMP-111 on. From IMP-205 QA design is measured on F1 (on SAA's package); from
+// Gate 4 F2 is measured on the package runtime discovery publishes from its URL alone (needs Chromium).
 import { execSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  buildF2Package,
   bundleSaaAdapters,
   computeMetrics,
+  discoverF2,
   packageOutput,
   qaaDesign,
   loadGroundTruth,
@@ -63,14 +63,17 @@ for (const name of names) {
         }),
       );
   }
-  // F2 in Mode B: until runtime discovery exists (Gate 4), its package is built from the ground truth, so only the
-  // scenario metrics of this producer mean anything.
+  // F2 in Mode B: runtime discovery from the URL alone, its published QAA package, and QA design on that package.
   if (name === "F2-url-only") {
-    const pkg = buildF2Package(join(work, "f2-package"));
+    const discovered = await discoverF2(join(work, "f2-packages"));
     report(
       name,
       "qaa",
-      computeMetrics(truth, { ...packageOutput(pkg), scenarios: await qaaDesign({ packageDir: pkg }) }),
+      computeMetrics(truth, {
+        ...packageOutput(discovered.packageDir),
+        runtime: discovered.runtime,
+        scenarios: await qaaDesign({ packageDir: discovered.packageDir }),
+      }),
     );
   }
 }

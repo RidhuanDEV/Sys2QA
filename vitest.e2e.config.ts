@@ -5,7 +5,7 @@ export default defineConfig({
   resolve: { conditions: ["source"] },
   ssr: { resolve: { conditions: ["source"] } },
   test: {
-    include: ["tests/e2e/**/*.e2e.test.ts"],
+    include: ["tests/e2e/**/*.e2e.test.ts", "tests/acceptance/gate-4.test.ts"],
     passWithNoTests: false,
     testTimeout: 180_000,
     hookTimeout: 240_000,

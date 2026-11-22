@@ -7,8 +7,9 @@ export default defineConfig({
   ssr: { resolve: { conditions: ["source"] } },
   test: {
     include: ["apps/*/test/**/*.test.ts", "packages/*/test/**/*.test.ts", "tests/**/*.test.ts"],
-    // Browser end-to-end tests need Chromium; they run with `pnpm e2e` (vitest.e2e.config.ts).
-    exclude: ["**/node_modules/**", "tests/e2e/**"],
+    // Browser end-to-end tests need Chromium; they run with `pnpm e2e` (vitest.e2e.config.ts), and so does the Gate 4
+    // acceptance suite, which discovers sites in a real browser.
+    exclude: ["**/node_modules/**", "tests/e2e/**", "tests/acceptance/gate-4.test.ts"],
     passWithNoTests: false,
     // Many tests run real flows (SQLite, files, child processes). Windows CI runners are several times slower than
     // Linux ones and repeatedly pushed such tests past Vitest's 5 s default; 30 s still catches a hang.

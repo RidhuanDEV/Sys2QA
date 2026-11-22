@@ -104,7 +104,7 @@ const items = checklist.map((text, i) => {
   return { n: i + 1, text, tests, passed: tests.length > 0 && tests.every((t) => t.status === "passed") };
 });
 
-// 5. The gate's requirements: PRD §27.2 row and, for Gate 1, the L0–L1 security release gate (§27.4).
+// 5. The gate's requirements: PRD §27.2 row and the security release gates (§27.4): L0–L1 always, L2 from Gate 4.
 const expand = (list) =>
   list.split(";").flatMap((group) => {
     const prefix = /([A-Z]+(?:-[A-Z]+)?)-\d{3}/.exec(group)?.[1];
@@ -119,6 +119,11 @@ const gateRow = prd.split("\n").find((l) => l.startsWith(`| **Gate ${gate} — `
 const ids = new Set(expand(gateRow.split("|").at(-2) ?? ""));
 const securityRow = prd.split("\n").find((l) => l.startsWith("| Any source read (L0–L1)")) ?? "";
 for (const m of securityRow.matchAll(/SEC-\d{3}/g)) ids.add(m[0]);
+// From Gate 4, browser access (L2) is enabled, so its security release gate applies too.
+if (gate >= 4) {
+  const l2Row = prd.split("\n").find((l) => l.startsWith("| Any browser access (L2)")) ?? "";
+  for (const m of l2Row.matchAll(/SEC-\d{3}/g)) ids.add(m[0]);
+}
 const rows = trace.rows.filter((r) => ids.has(r.id));
 const ownerOrder = (r) => r.gateOrder;
 const requirementState = (r) => {
@@ -235,6 +240,21 @@ const report = [
             (b) =>
               `| ${b.fixture} | ${b.producer} | ${pct(b.metrics.scenarios.expected_covered)} | ${b.metrics.scenarios.forbidden_present} | ${(b.metrics.gates ?? []).every((g) => g.passed) ? "pass" : "FAIL"} |`,
           ),
+        "",
+      ]
+    : []),
+  ...(bench.some((b) => typeof b.metrics.runtime?.page_recall === "number")
+    ? [
+        "## Benchmarks (QAA runtime discovery)",
+        "",
+        "| Fixture | Page recall | Form recall | Withheld forms submitted | Workflow recall | Precision | Step F1 | Stop points | True gaps | Honest misses | Over-claiming | Evidence traceability | Gate rules |",
+        "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|---|",
+        ...bench
+          .filter((b) => typeof b.metrics.runtime?.page_recall === "number")
+          .map((b) => {
+            const m = b.metrics;
+            return `| ${b.fixture} | ${pct(m.runtime.page_recall)} | ${pct(m.runtime.form_recall)} | ${m.runtime.withheld_form_errors} | ${pct(m.discovery.recall)} | ${pct(m.discovery.precision)} | ${pct(m.reconstruction.step_f1)} | ${pct(m.reconstruction.stop_point_accuracy)} | ${pct(m.uncertainty.true_gap_ratio)} | ${pct(m.uncertainty.misses_in_unexplored_areas)} | ${m.over_claiming.count} | ${pct(m.evidence_traceability)} | ${(m.gates ?? []).every((g) => g.passed) ? "pass" : "FAIL"} |`;
+          }),
         "",
       ]
     : []),
