@@ -151,7 +151,11 @@ importers:
         specifier: workspace:*
         version: link:../system-model
 
-  packages/runtime-observer: {}
+  packages/runtime-observer:
+    dependencies:
+      '@sys2qa/platform':
+        specifier: workspace:*
+        version: link:../platform
 
   packages/saa-adapters:
     dependencies:
